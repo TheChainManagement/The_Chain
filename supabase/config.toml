@@ -205,6 +205,13 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
+# Custom access token hook: populates JWT with tenant_id, role, and
+# token_generation claims per SYSTEM_DESIGN.md §Auth and security flow.
+# Function declared in migrations/20260530121200_init_auth_hook.sql.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
 # [auth.captcha]
 # enabled = true
