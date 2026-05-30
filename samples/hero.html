@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Chain — Inventory you can prove. Reorders you can defend.</title>
+  <meta name="description" content="AI-driven supply chain for small-to-mid distributors. Connect QuickBooks Online, watch every PO advance link by link, and stop running stock on instinct." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wdth,wght@0,75..125,200..900;1,75..125,200..900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       The Chain — Phase 3 hero sample (Phase 3 RE-RUN, 2026-05-30)
+       Renders the locked direction:
+       - Aesthetic axis: Operator's Workshop (daylight engineering print)
+       - Typography: Mona Sans (display, variable width as signature)
+                     + IBM Plex Sans (body)
+                     + IBM Plex Mono (every consequential number)
+       - Color: cool light + deep slate + cobalt signal
+       - Layout: Working Bench (rails + flat panels + hairline rules)
+       - Unforgettable thing: every PO is a chain that ignites in cobalt as it advances
+       MOTION_INTENSITY = 5: pulse, shimmer, signal scan, scroll progress path.
+       Cobalt strict priority hierarchy enforced (max 4 intents per viewport):
+         (1) primary CTA  (2) active chain link  (3) one selected state  (4) brand-mark glyph
+       ============================================================ */
+
+    :root {
+      /* Surfaces */
+      --color-bg:        #F5F7FA;
+      --color-surface:   #FFFFFF;
+      --color-inset:     #EDEFF3;
+      --color-deep:      #11161C;
+      --color-mid:       #54616F;
+      --color-dim:       #5C6573;  /* WCAG AA on white at ~4.6:1 */
+      --color-hairline:  #D8DDE3;
+      --color-divider:   #B6BFCA;
+
+      /* Cobalt signal */
+      --color-signal:        #0942B5;
+      --color-signal-bright: #1B5BD9;
+      --color-signal-dim:    rgba(9, 66, 181, 0.08);
+      --color-signal-line:   rgba(9, 66, 181, 0.22);
+
+      /* Semantic */
+      --color-flow:      #1A8C5C;
+      --color-warn:      #BE7C0E;
+      --color-stop:      #B5142B;
+      --color-info:      #3661A1;
+
+      /* Spatial */
+      --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+      --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --space-9: 96px;
+
+      /* Motion */
+      --ease-spring-soft:   cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring-snappy: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-tick:          cubic-bezier(0.65, 0, 0.35, 1);
+      --duration-quick:     180ms;
+      --duration-base:      320ms;
+      --duration-reveal:    600ms;
+      --duration-tick:      600ms;
+      --duration-scan:      60000ms;
+
+      /* Type families */
+      --font-display: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-body:    "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      --font-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+      /* Atmosphere: dotted lattice — 4px on-center hairline dots at 6% opacity */
+      --lattice: radial-gradient(circle, rgba(17, 22, 28, 0.06) 0.5px, transparent 0.7px) 0 0 / 4px 4px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; background: var(--color-bg); color: var(--color-deep); }
+    body {
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.55;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      min-height: 100vh;
+    }
+
+    /* Focus-visible: cobalt ring on neutral, deep-slate ring on cobalt buttons */
+    :focus-visible {
+      outline: 2px solid var(--color-signal);
+      outline-offset: 2px;
+    }
+    .btn-primary:focus-visible, .nav-cta:focus-visible {
+      outline: 2px solid var(--color-deep);
+      outline-offset: 2px;
+    }
+
+    /* ---------- Signal scan: 1px cobalt hairline crosses top once per minute ---------- */
+    .signal-scan {
+      position: fixed; top: 0; left: -25%; right: auto;
+      width: 25%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--color-signal) 50%, transparent);
+      z-index: 50; opacity: 0;
+      animation: scan var(--duration-scan) var(--ease-tick) 2.5s infinite;
+      pointer-events: none;
+    }
+    @keyframes scan {
+      0%   { transform: translateX(0%);   opacity: 0; }
+      2%   { opacity: 0.9; }
+      8%   { transform: translateX(500%); opacity: 0; }
+      100% { transform: translateX(500%); opacity: 0; }
+    }
+
+    /* ---------- Scroll progress: transform-driven, never width ---------- */
+    .progress {
+      position: fixed; top: 0; left: 0; height: 2px;
+      width: 100%;
+      background: var(--color-signal);
+      z-index: 51;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 80ms linear; /* progress indicators conventionally linear */
+    }
+
+    /* ---------- Nav ---------- */
+    nav.top {
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+      gap: var(--space-6);
+      padding: var(--space-5) var(--space-7);
+      border-bottom: 1px solid var(--color-hairline);
+      background: var(--color-bg);
+      opacity: 0; transform: translateY(-6px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 60ms forwards;
+    }
+    .logo {
+      display: inline-flex; align-items: center; gap: var(--space-3);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-variation-settings: "wdth" 80;
+      letter-spacing: 0;
+      font-size: 18px;
+      color: var(--color-deep);
+      text-decoration: none;
+      text-transform: none;
+    }
+    /* 3-link cobalt chain glyph — brand mark (cobalt allotment slot #1) */
+    .logo .glyph {
+      display: inline-flex; align-items: center; gap: 2px;
+      height: 12px;
+    }
+    .logo .glyph .lnk {
+      display: inline-block; width: 8px; height: 12px;
+      border: 1.5px solid var(--color-signal);
+      border-radius: 4px;
+      background: transparent;
+    }
+    .logo .glyph .lnk + .lnk { margin-left: -3px; }
+
+    .nav-links { display: flex; gap: var(--space-6); justify-content: flex-end; }
+    .nav-links a {
+      font-family: var(--font-body); font-weight: 500; font-size: 14px;
+      color: var(--color-mid); text-decoration: none;
+      position: relative; padding-bottom: 2px;
+      transition: color var(--duration-quick) var(--ease-spring-soft);
+    }
+    .nav-links a::after {
+      content: ""; position: absolute; left: 0; bottom: 0;
+      width: 100%; height: 1px; background: var(--color-deep);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform var(--duration-base) var(--ease-spring-soft);
+    }
+    .nav-links a:hover { color: var(--color-deep); }
+    .nav-links a:hover::after { transform: scaleX(1); }
+
+    /* Primary CTA (cobalt allotment slot #2 — same intent appears in nav + hero) */
+    .nav-cta {
+      font-family: var(--font-body); font-weight: 600; font-size: 14px;
+      padding: 10px 16px;
+      background: var(--color-signal); color: #fff;
+      text-decoration: none; border: 1px solid var(--color-signal);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12),
+                  0 8px 24px -16px rgba(9,66,181,0.35);
+      transition: background var(--duration-quick) var(--ease-spring-soft),
+                  transform var(--duration-quick) var(--ease-spring-snappy);
+    }
+    .nav-cta:hover { background: var(--color-signal-bright); }
+    .nav-cta:active { transform: translateY(1px); }
+
+    /* ---------- Page shell: Working Bench layout ---------- */
+    .bench {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr) 280px;
+      gap: 0;
+      max-width: 1280px;
+      margin: 0 auto;
+      min-height: calc(100vh - 70px);
+      position: relative;
+    }
+
+    /* Throughput hairline at the bottom of the bench with discrete day tick marks */
+    .bench::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+      background:
+        linear-gradient(90deg, var(--color-divider) 1px, transparent 1px) 0 0 / 64px 100% no-repeat,
+        repeating-linear-gradient(90deg, var(--color-hairline) 0 1px, transparent 1px 64px),
+        var(--color-hairline);
+      pointer-events: none;
+    }
+    /* "Today" position marker on the throughput hairline — deep-slate vertical tick */
+    .bench::before {
+      content: ""; position: absolute; left: 56%; bottom: -3px; z-index: 1;
+      width: 2px; height: 9px; background: var(--color-deep);
+      pointer-events: none;
+    }
+
+    aside.rail-left, aside.rail-right {
+      padding: var(--space-7) var(--space-5);
+      background: var(--color-bg);
+    }
+    aside.rail-left {
+      border-right: 1px solid var(--color-hairline);
+      display: flex; flex-direction: column; gap: var(--space-6);
+    }
+    aside.rail-right {
+      border-left: 1px solid var(--color-hairline);
+      background: var(--color-inset);
+      background-image: var(--lattice);
+      display: flex; flex-direction: column; gap: var(--space-4);
+    }
+
+    .rail-label {
+      font-family: var(--font-display);
+      font-variation-settings: "wdth" 80;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--color-dim);
+      margin-bottom: var(--space-3);
+    }
+    .rail-section a {
+      display: block;
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--color-mid);
+      text-decoration: none;
+      padding: var(--space-2) var(--space-3);
+      border-left: 2px solid transparent;
+      margin-left: -2px;
+      transition: color var(--duration-quick) var(--ease-spring-soft),
+                  border-color var(--duration-quick) var(--ease-spring-soft);
+    }
+    .rail-section a:hover { color: var(--color-deep); border-left-color: var(--color-hairline); }
+    /* Active rail item — cobalt allotment slot #3 (selected state) */
+    .rail-section a.active {
+      color: var(--color-signal);
+      border-left-color: var(--color-signal);
+      background: var(--color-signal-dim);
+    }
+
+    main.work {
+      padding: var(--space-8) var(--space-7);
+      background: var(--color-surface);
+      border-right: 1px solid var(--color-hairline);
+    }
+
+    /* ---------- Eyebrow + hero ---------- */
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--color-dim);
+      padding: var(--space-1) var(--space-2);
+      border-left: 2px solid var(--color-hairline);
+      opacity: 0; transform: translateY(6px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 180ms forwards;
+    }
+    /* Flow-green live dot (semantic, NOT cobalt) */
+    .eyebrow .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--color-flow);
+      box-shadow: 0 0 0 0 rgba(26, 140, 92, 0.35);
+      animation: pulse 2s var(--ease-tick) infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+      70%  { box-shadow: 0 0 0 8px transparent; opacity: 0.85; }
+      100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+    }
+
+    h1.headline {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-variation-settings: "wdth" 75;
+      font-size: clamp(40px, 5.4vw, 68px);
+      line-height: 1.04;
+      letter-spacing: 0;
+      color: var(--color-deep);
+      margin: var(--space-5) 0 var(--space-4) 0;
+      max-width: 20ch;
+      opacity: 0; transform: translateY(8px);
+      animation: fade-up 720ms var(--ease-spring-soft) 280ms forwards;
+    }
+    h1.headline .emph {
+      font-weight: 900;
+    }
+
+    p.sub {
+      font-family: var(--font-body); font-weight: 400;
+      font-size: 18px; line-height: 1.55;
+      color: var(--color-mid);
+      max-width: 56ch;
+      margin: 0 0 var(--space-6) 0;
+      opacity: 0; transform: translateY(6px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 400ms forwards;
+    }
+
+    .cta-row {
+      display: flex; gap: var(--space-4); align-items: center;
+      opacity: 0; transform: translateY(6px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 500ms forwards;
+    }
+    .btn-primary {
+      font-family: var(--font-body); font-weight: 600; font-size: 15px;
+      padding: 14px 20px;
+      background: var(--color-signal); color: #fff;
+      border: 1px solid var(--color-signal);
+      text-decoration: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12),
+                  0 8px 24px -16px rgba(9,66,181,0.35);
+      transition: background var(--duration-quick) var(--ease-spring-soft),
+                  transform var(--duration-quick) var(--ease-spring-snappy);
+    }
+    .btn-primary:hover { background: var(--color-signal-bright); }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-secondary {
+      font-family: var(--font-body); font-weight: 500; font-size: 15px;
+      color: var(--color-deep); text-decoration: none;
+      padding: 14px 4px; position: relative;
+    }
+    .btn-secondary::after {
+      content: ""; position: absolute; left: 4px; right: 4px; bottom: 10px; height: 1px;
+      background: var(--color-deep);
+      transform: scaleX(0.4); transform-origin: left;
+      transition: transform var(--duration-base) var(--ease-spring-soft);
+    }
+    .btn-secondary:hover::after { transform: scaleX(1); }
+
+    /* ---------- The unforgettable thing: the visible PO chain ---------- */
+    .chain-panel {
+      margin-top: var(--space-9);
+      border-top: 1px solid var(--color-hairline);
+      padding-top: var(--space-6);
+      opacity: 0; transform: translateY(8px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 600ms forwards;
+    }
+    .chain-meta {
+      display: flex; gap: var(--space-4); align-items: baseline;
+      font-family: var(--font-body); font-size: 13px;
+      color: var(--color-mid);
+      margin-bottom: var(--space-5);
+    }
+    /* PO identifier — Mona Sans extended (wdth 125), stamped reference feel */
+    .chain-meta .po-id {
+      font-family: var(--font-display);
+      font-variation-settings: "wdth" 125;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0;
+      color: var(--color-deep);
+    }
+    .chain-meta .dot { color: var(--color-divider); }
+    .chain-meta .live {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--color-flow); font-weight: 500;
+      font-family: var(--font-mono); font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .chain-meta .live::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--color-flow);
+      animation: pulse 2s var(--ease-tick) infinite;
+    }
+
+    /* The chain itself */
+    .chain {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      align-items: stretch;
+    }
+    .link {
+      position: relative;
+      padding: var(--space-4) var(--space-4);
+      background: var(--color-inset);
+      border: 1px solid var(--color-hairline);
+      color: var(--color-deep);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: background var(--duration-base) var(--ease-spring-soft),
+                  color var(--duration-base) var(--ease-spring-soft),
+                  border-color var(--duration-base) var(--ease-spring-soft);
+    }
+    .chain .link { animation: chain-rise 520ms var(--ease-spring-snappy) forwards; }
+    .chain .link:nth-child(1) { animation-delay: 680ms; }
+    .chain .link:nth-child(2) { animation-delay: 760ms; }
+    .chain .link:nth-child(3) { animation-delay: 840ms; }
+    .chain .link:nth-child(4) { animation-delay: 920ms; }
+    .chain .link:nth-child(5) { animation-delay: 1000ms; }
+
+    /* Notched connector between adjacent links */
+    .link::before {
+      content: ""; position: absolute; right: -8px; top: 50%;
+      width: 16px; height: 1px; background: var(--color-hairline);
+      transform: translateY(-50%);
+      z-index: 1;
+    }
+    .link:last-child::before { display: none; }
+    .link.done + .link.done::before,
+    .link.done + .link.active::before { background: var(--color-signal-line); }
+
+    /* Notch detail on the right edge of each link (engineering chain visual) */
+    .link::after {
+      content: ""; position: absolute; right: -4px; top: 50%;
+      width: 8px; height: 8px;
+      border-top: 1px solid var(--color-hairline);
+      border-right: 1px solid var(--color-hairline);
+      background: var(--color-bg);
+      transform: translateY(-50%) rotate(45deg);
+      z-index: 2;
+    }
+    .link:last-child::after { display: none; }
+    .link.done::after, .link.active::after {
+      border-color: var(--color-signal-line);
+    }
+
+    .link .step {
+      font-family: var(--font-display);
+      font-variation-settings: "wdth" 80;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--color-dim);
+      margin-bottom: var(--space-2);
+    }
+    .link .label {
+      font-family: var(--font-body); font-weight: 600; font-size: 15px;
+      color: inherit;
+      margin-bottom: var(--space-1);
+    }
+    .link .when {
+      font-family: var(--font-mono); font-size: 11px; color: var(--color-dim);
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Done link — deep slate text, small cobalt dot at top-right corner */
+    .link.done .step { color: var(--color-mid); }
+    .link.done > .corner-dot {
+      position: absolute; top: 8px; right: 12px;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--color-signal);
+    }
+
+    /* Active link — full cobalt fill (cobalt allotment slot #4) */
+    .link.active {
+      background: var(--color-signal);
+      border-color: var(--color-signal);
+      color: #fff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+      overflow: hidden;
+    }
+    .link.active .step { color: rgba(255,255,255,0.78); }
+    .link.active .when { color: rgba(255,255,255,0.78); }
+    /* "Ignite" — cobalt fill flows in from left after the link itself appears */
+    .link.active::before {
+      background: var(--color-signal);
+    }
+    .link.active > .ignite {
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg, var(--color-signal-bright), var(--color-signal));
+      transform-origin: left;
+      transform: scaleX(0);
+      animation: ignite 600ms var(--ease-spring-snappy) 1040ms forwards;
+      z-index: 0;
+    }
+    .link.active > .step,
+    .link.active > .label,
+    .link.active > .when { position: relative; z-index: 1; }
+
+    .link.pending {
+      background: var(--color-surface);
+      color: var(--color-dim);
+    }
+    .link.pending .when { color: var(--color-dim); }
+
+    @keyframes ignite {
+      0%   { transform: scaleX(0); }
+      100% { transform: scaleX(1); }
+    }
+
+    /* Time-axis ruler beneath the chain */
+    .time-axis {
+      position: relative;
+      margin-top: var(--space-5);
+      height: 18px;
+      opacity: 0;
+      animation: fade-up 600ms var(--ease-spring-soft) 1100ms forwards;
+    }
+    .time-axis .ruler {
+      position: absolute; left: 0; right: 0; top: 8px;
+      height: 1px; background: var(--color-hairline);
+    }
+    .time-axis .tick {
+      position: absolute; top: 4px;
+      width: 1px; height: 8px; background: var(--color-hairline);
+    }
+    .time-axis .today {
+      position: absolute; top: 0;
+      width: 2px; height: 16px; background: var(--color-deep);
+    }
+    .time-axis .label {
+      position: absolute; top: 18px;
+      font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--color-dim);
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    /* ---------- Operator metric strip ---------- */
+    .metrics {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      margin-top: var(--space-7);
+      border-top: 1px solid var(--color-hairline);
+      opacity: 0; transform: translateY(6px);
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 1300ms forwards;
+    }
+    .metric {
+      padding: var(--space-5) var(--space-5) var(--space-5) 0;
+      border-right: 1px solid var(--color-hairline);
+    }
+    .metric:last-child { border-right: none; }
+    .metric .m-label {
+      font-family: var(--font-display);
+      font-variation-settings: "wdth" 80;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--color-dim);
+      margin-bottom: var(--space-2);
+    }
+    .metric .m-value {
+      font-family: var(--font-mono); font-size: 30px; font-weight: 600;
+      color: var(--color-deep);
+      letter-spacing: -0.01em;
+      line-height: 1;
+      margin-bottom: var(--space-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .metric .m-context {
+      font-family: var(--font-body); font-size: 13px; color: var(--color-mid);
+    }
+    .metric .m-context .tag {
+      display: inline-block; padding: 2px 6px;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: #fff;
+      margin-left: 6px;
+    }
+    .tag.flow { background: var(--color-flow); }
+    .tag.warn { background: var(--color-warn); }
+    .tag.stop { background: var(--color-stop); }
+
+    /* ---------- Right rail: panels (was .right-card, renamed for vocabulary discipline) ---------- */
+    .panel {
+      position: relative;
+      padding: var(--space-5);
+      background: var(--color-surface);
+      border: 1px solid var(--color-hairline);
+      opacity: 0;
+      animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 1500ms forwards;
+    }
+    .panel + .panel { animation-delay: 1620ms; }
+    /* Corner-cut on the top-right of every panel header (blueprint reference) */
+    .panel::before {
+      content: ""; position: absolute; top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 8px 8px 0;
+      border-color: transparent var(--color-bg) transparent transparent;
+    }
+    .panel .r-label {
+      font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--color-dim);
+      margin-bottom: var(--space-3);
+      display: flex; gap: 6px; align-items: center;
+    }
+    .panel .r-label .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--color-flow);
+      animation: pulse 2s var(--ease-tick) infinite;
+    }
+    .panel h4 {
+      margin: 0 0 var(--space-3) 0;
+      font-family: var(--font-display); font-weight: 700;
+      font-variation-settings: "wdth" 100;
+      font-size: 17px; line-height: 1.25;
+      letter-spacing: 0;
+      color: var(--color-deep);
+    }
+    .panel p {
+      font-family: var(--font-body); font-size: 13px; line-height: 1.55;
+      color: var(--color-mid); margin: 0 0 var(--space-3) 0;
+    }
+    .panel p.strong {
+      color: var(--color-deep); font-weight: 500;
+    }
+    /* Confidence indicator — 1px track with single deep-slate tick (NOT a cobalt-filled bar) */
+    .confidence {
+      display: flex; align-items: center; gap: var(--space-2);
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--color-mid);
+      padding-top: var(--space-3);
+      border-top: 1px dashed var(--color-hairline);
+    }
+    .conf-track {
+      flex: 1; height: 1px; background: var(--color-hairline); position: relative;
+    }
+    .conf-track::after {
+      content: ""; position: absolute; left: 72%; top: -4px;
+      width: 2px; height: 9px; background: var(--color-deep);
+    }
+    .conf-num { font-variant-numeric: tabular-nums; color: var(--color-deep); font-weight: 500; }
+
+    /* Shimmer on the "next sync" placeholder line */
+    .skel {
+      margin-top: var(--space-3);
+      padding-top: var(--space-3);
+      border-top: 1px dashed var(--color-hairline);
+      display: flex; align-items: center; gap: var(--space-2);
+      font-family: var(--font-mono); font-size: 11px; color: var(--color-dim);
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .skel .bar {
+      flex: 1; height: 6px; border-radius: 1px; position: relative; overflow: hidden;
+      background:
+        linear-gradient(90deg, var(--color-hairline) 0%, var(--color-inset) 50%, var(--color-hairline) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1800ms linear infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ---------- Footer ---------- */
+    footer.foot {
+      border-top: 2px solid var(--color-divider);
+      padding: var(--space-7) var(--space-7) var(--space-6);
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid; grid-template-columns: auto 1fr auto; align-items: end;
+      gap: var(--space-6);
+    }
+    footer .f-label {
+      font-family: var(--font-display);
+      font-variation-settings: "wdth" 80;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--color-dim);
+    }
+    footer .f-links {
+      display: flex; gap: var(--space-5); justify-content: flex-end;
+      font-family: var(--font-body); font-size: 13px;
+    }
+    footer .f-links a { color: var(--color-mid); text-decoration: none; }
+    footer .f-links a:hover { color: var(--color-deep); }
+
+    /* ---------- Page-load keyframes ---------- */
+    @keyframes fade-up {
+      0%   { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes chain-rise {
+      0%   { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---------- Responsive (collapse rails on mobile) ---------- */
+    @media (max-width: 980px) {
+      .bench { grid-template-columns: 1fr; }
+      aside.rail-left, aside.rail-right { display: none; }
+      main.work { padding: var(--space-6) var(--space-5); }
+      .chain { grid-template-columns: 1fr; }
+      .link::before, .link::after { display: none; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { border-right: none; border-bottom: 1px solid var(--color-hairline); padding-right: 0; }
+      nav.top { padding: var(--space-4) var(--space-5); grid-template-columns: auto auto; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="signal-scan" aria-hidden="true"></div>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+
+  <nav class="top">
+    <a class="logo" href="#">
+      <span class="glyph" aria-hidden="true">
+        <span class="lnk"></span>
+        <span class="lnk"></span>
+        <span class="lnk"></span>
+      </span>
+      The Chain
+    </a>
+    <div class="nav-links">
+      <a href="#product">Product</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#signin">Sign in</a>
+    </div>
+    <a class="nav-cta" href="#trial">Start 14-day trial</a>
+  </nav>
+
+  <div class="bench">
+    <aside class="rail-left" aria-label="Sections">
+      <div class="rail-section">
+        <div class="rail-label">Workshop</div>
+        <a class="active" href="#">Today</a>
+        <a href="#">Inventory</a>
+        <a href="#">Forecasts</a>
+        <a href="#">Reorder queue</a>
+      </div>
+      <div class="rail-section">
+        <div class="rail-label">Suppliers</div>
+        <a href="#">Scorecards</a>
+        <a href="#">Lead times</a>
+        <a href="#">In-transit</a>
+      </div>
+      <div class="rail-section">
+        <div class="rail-label">Flow</div>
+        <a href="#">Alerts</a>
+        <a href="#">Audit log</a>
+        <a href="#">Connections</a>
+      </div>
+    </aside>
+
+    <main class="work">
+      <span class="eyebrow"><span class="live-dot" aria-hidden="true"></span>Operator's workshop &nbsp;·&nbsp; Wave 1 preview</span>
+
+      <h1 class="headline">
+        Inventory you can <span class="emph">prove</span>. Reorders you can <span class="emph">defend</span>.
+      </h1>
+
+      <p class="sub">
+        AI-driven supply chain for small-to-mid distributors. Connect QuickBooks Online, watch every PO advance link by link, and stop running stock on instinct. The numbers come from a real statistical forecast. Claude only explains them.
+      </p>
+
+      <div class="cta-row">
+        <a href="#trial" class="btn-primary">Start 14-day trial</a>
+        <a href="#how" class="btn-secondary">See a live chain &nbsp;&rarr;</a>
+      </div>
+
+      <!-- The unforgettable thing: the visible PO chain -->
+      <section class="chain-panel" aria-labelledby="chain-heading">
+        <div class="chain-meta">
+          <span id="chain-heading" class="po-id">PO‑1042</span>
+          <span class="dot">·</span>
+          <span>Calhoun Foods · Lafayette, LA</span>
+          <span class="dot">·</span>
+          <span class="live">live</span>
+        </div>
+
+        <div class="chain" aria-label="Purchase order chain">
+          <div class="link done">
+            <span class="corner-dot" aria-hidden="true"></span>
+            <div class="step">Supplier</div>
+            <div class="label">Calhoun Foods</div>
+            <div class="when">May 23, 9:14 AM</div>
+          </div>
+          <div class="link done">
+            <span class="corner-dot" aria-hidden="true"></span>
+            <div class="step">Ordered</div>
+            <div class="label">47 cases · $1,247.20</div>
+            <div class="when">May 23, 4:02 PM</div>
+          </div>
+          <div class="link active">
+            <span class="ignite" aria-hidden="true"></span>
+            <div class="step">In transit</div>
+            <div class="label">EDI tracking on</div>
+            <div class="when">ETA May 31, 8:00 AM</div>
+          </div>
+          <div class="link pending">
+            <div class="step">Received</div>
+            <div class="label">Awaiting dock scan</div>
+            <div class="when">— —</div>
+          </div>
+          <div class="link pending">
+            <div class="step">On hand</div>
+            <div class="label">Stock will update</div>
+            <div class="when">— —</div>
+          </div>
+        </div>
+
+        <!-- Time-axis ruler beneath the chain -->
+        <div class="time-axis" aria-hidden="true">
+          <div class="ruler"></div>
+          <div class="tick" style="left: 0%;"></div>
+          <div class="tick" style="left: 25%;"></div>
+          <div class="tick" style="left: 50%;"></div>
+          <div class="tick" style="left: 75%;"></div>
+          <div class="tick" style="left: 100%;"></div>
+          <div class="today" style="left: 56%;"></div>
+          <div class="label" style="left: 0%;">May 23</div>
+          <div class="label" style="left: 56%;">today</div>
+          <div class="label" style="left: 100%;">May 31</div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="m-label">SKUs at stockout risk</div>
+            <div class="m-value">12</div>
+            <div class="m-context">Riverbend Hardware · 47 active SKUs <span class="tag warn">watch</span></div>
+          </div>
+          <div class="metric">
+            <div class="m-label">Days of supply · SKU 47331</div>
+            <div class="m-value">8.3</div>
+            <div class="m-context">Forecast holds through Jun 7 <span class="tag flow">on flow</span></div>
+          </div>
+          <div class="metric">
+            <div class="m-label">Supplier OTIF · Calhoun</div>
+            <div class="m-value">94.6%</div>
+            <div class="m-context">Rolling 90 day, 38 POs <span class="tag flow">trusted</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="rail-right" aria-label="AI explanation">
+      <div class="panel">
+        <div class="r-label"><span class="dot" aria-hidden="true"></span>Claude &nbsp;·&nbsp; Why this reorder</div>
+        <h4>Calhoun lead time held at 7 days; demand on 47331 rose 18% last week.</h4>
+        <p>Recommended quantity (47 cases) holds the policy service level at 97% through the next supplier window. Safety stock unchanged. No expediting required.</p>
+        <p class="strong">If you bump service level to 99%, recommended quantity moves to 54 and projected stockout risk drops to 1.2%.</p>
+        <div class="confidence">
+          <span>Forecast confidence</span>
+          <span class="conf-track" aria-hidden="true"></span>
+          <span class="conf-num">72%</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="r-label"><span class="dot" aria-hidden="true"></span>Source &nbsp;·&nbsp; QuickBooks Online</div>
+        <h4>Last sync &nbsp;·&nbsp; 4 min ago</h4>
+        <p>Two-way. 1,247 items reconciled. POs we generated write back automatically.</p>
+        <div class="skel" aria-label="Next sync placeholder">
+          <span>Next sync</span>
+          <span class="bar" aria-hidden="true"></span>
+          <span>0:56</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="foot">
+    <span class="f-label">More Technologies · 2026</span>
+    <span></span>
+    <div class="f-links">
+      <a href="#">Product</a>
+      <a href="#">Pricing</a>
+      <a href="#">About</a>
+      <a href="#">Privacy</a>
+      <a href="mailto:hello@moretechnologies.com">hello@moretechnologies.com</a>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll progress — transform: scaleX() per taste-skill (never width).
+    (function () {
+      var bar = document.getElementById('progress');
+      function update() {
+        var h = document.documentElement;
+        var max = h.scrollHeight - h.clientHeight;
+        var pct = max > 0 ? (h.scrollTop / max) : 0;
+        bar.style.transform = 'scaleX(' + pct + ')';
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    })();
+  </script>
+</body>
+</html>
