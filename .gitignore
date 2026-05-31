@@ -50,3 +50,9 @@ playwright/.cache
 # Python forecast function deps (installed at deploy)
 api/forecast/__pycache__
 api/forecast/*.pyc
+
+# Playwright MCP scratch output
+.playwright-mcp/
+
+# SWC build cache
+.swc/

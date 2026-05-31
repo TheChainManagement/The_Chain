@@ -1,6 +1,6 @@
 # Phase 5 Foundation — Progress (updated 2026-05-31)
 
-Seven sub-phases complete, three remaining. Resume by reading this file + `FEATURES.md` §Wave 1 Foundation block, then continue at 5H.
+Eight sub-phases complete, two remaining. Resume by reading this file + `FEATURES.md` §Wave 1 Foundation block, then continue at 5I.
 
 ## Container runtime note (2026-05-31)
 
@@ -26,9 +26,10 @@ Seven sub-phases complete, three remaining. Resume by reading this file + `FEATU
 
 - **5G — Base components** (2026-05-31). Six components under `src/components/<Name>/` (`.tsx` + `.module.css` tokens-only + co-located `.test.tsx`): StatNumber, ClaudeInsight, ActionButton, Panel, ChainLink, MetricCell. Each with empty/loading/error states. Memorable element = the **cobalt ignite** on the active ChainLink. Test harness extended for components: RTL + jsdom (opt-in per file via `// @vitest-environment jsdom` docblock; `afterEach(cleanup)` guarded to jsdom in `tests/setup.ts`; React plugin in `vitest.config.ts`). **51 tests green** (31 component + 20 audit). Added `--color-on-signal` tokens (no hardcoded `#fff`). Invoked `react-best-practices` + `next-cache-components` (auto-triggered). **Stated deviations:** (1) Storybook replaced by a dev-only `/gallery` route (404 in prod) screenshotted via Playwright MCP — declared stack has no Storybook; (2) trust-hierarchy lint guard deferred to 5I (nothing to scan yet). Evidence + memorable screenshot: `_reviews/2026-05-31_5g_evidence.md` + `_reviews/2026-05-31_5g_components_memorable.png`. build + lint + typecheck clean. Commit `9150d3a`.
 
+- **5H — App shell + auth-gated layouts** (2026-05-31). Three route segments, each with its own chrome: `(marketing)` (top bar + hero + ignited PO-chain aside, no rails), `(auth)` (signin/signup + shared `AuthForm` client component + `actions.ts` signIn/signUp/signOut, Supabase Auth), `(app)` = the **Working Bench** (220/1fr/280 asymmetric grid, left rail w/ active cobalt nav + sign-out, right context rail, throughput hairline + today tick, pure-CSS scroll-progress + signal-scan atmosphere — no framer-motion). **Auth gate** = server `getUser()` in a Suspense-wrapped `BenchGate` redirecting to `/signin` (Cache Components → `(app)` routes are ◐ PPR, marketing/auth ○ static). New `bootstrap_tenant(text)` SECURITY DEFINER RPC (`20260531130000`) atomically creates tenant+owner+trial-sub+profile+audit row on signup. Stub pages for inventory/forecasts/suppliers/reorder/flow/settings (route+rail wired, feature later). **Verified live via Playwright MCP:** unauth `/today`→`/signin` redirect; full signup (Calhoun Foods) → bootstrap → bench rendered. build+typecheck+lint clean, 51 tests green. Evidence + 2 screenshots: `_reviews/2026-05-31_5h_evidence.md`, `_5h_working_bench.png`, `_5h_marketing.png`. **MG screenshot checkpoint artifact = the working bench png.** Commit `<pending>`.
+
 ## Remaining
 
-- **5H — App shell + auth-gated layouts.** `(marketing)` segment (no rails), `(auth)` segment (sign-up + sign-in), `(app)` segment (Working Bench layout with left + right rails, throughput hairline at bench bottom, today tick). The `(app)` layout MUST do a server-side auth check + redirect; this is the primary auth gate per the defense-in-depth disposition. **This is what the Phase 5 MG screenshot checkpoint lands on.**
 - **5I — CI probes.** Vitest tests: cross-tenant RLS probe (logged in as Tenant A, query every table for Tenant B — must return zero rows), role-matrix probe (every (table, role) pair vs the matrix), wired-for verification suite (the 8 dry runs from SYSTEM_DESIGN.md §Wired-for acceptance tests). `npm run verify:foundation` aggregates results into the single-page report that IS the Foundation block's "What's memorable" artifact.
 - **5J — Preview deploy + MG checkpoint.** `supabase start` locally, `npm run build` clean, `vercel link` + preview deploy. Capture screenshot of the running Working Bench shell. MG binary verdict (ship it or pivot). Then Codex full-weight Phase 5 review per PROCESS.md Hard Rule 9 before first push to GitHub.
 
@@ -41,7 +42,8 @@ Seven sub-phases complete, three remaining. Resume by reading this file + `FEATU
 
 ## Local dev state
 
-- Local git initialized at `projects/the-chain/`. Seven commits (5A–5G). Nothing pushed (first push gated behind Codex full-weight review at 5J per PROCESS.md Hard Rule 9).
+- Local git initialized at `projects/the-chain/`. Eight commits (5A–5H). Nothing pushed (first push gated behind Codex full-weight review at 5J per PROCESS.md Hard Rule 9).
+- A local test account exists from the 5H signup verification (Calhoun Foods / pilot@calhounfoods-test.example). Harmless; wiped on the next `supabase db reset`.
 - `node_modules/` installed (Workflow DevKit + Vitest + pg + RTL/jsdom + Playwright MCP used externally). Lint + typecheck + build + `npm test` all clean on Node 24.
 - **`supabase start` IS running now** (Colima). Full migration suite applies clean (5B–5F). `supabase db reset` re-applies from scratch. `.env.local` has the real local keys + `SUPABASE_DB_URL`.
 - Node 24 must be on PATH for app/test commands; Homebrew bin on PATH for supabase/docker/colima (see notes at top).

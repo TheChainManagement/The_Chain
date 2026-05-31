@@ -1,0 +1,115 @@
+/* The Working Bench — rails + flat surface + throughput hairline. Tokens only.
+   Asymmetric by design (rails of unequal width). Never a centered 12-col page. */
+
+.bench {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  grid-template-rows: 1fr auto;
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.surface {
+  grid-column: 2;
+  grid-row: 1;
+  padding: var(--spacing-6) var(--spacing-7);
+  min-width: 0;
+}
+
+/* Suspense fallback while the auth gate resolves — spans the whole bench. */
+.gateFallback {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  background: var(--color-bg);
+}
+
+/* Throughput hairline at the bench bottom: 1px rule with discrete cobalt notches
+   and a deep-slate "today" tick. Spans the full bench width. */
+.throughput {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  position: relative;
+  height: 0;
+  border-top: 1px solid var(--color-hairline);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-signal-line) 0,
+    var(--color-signal-line) 1px,
+    transparent 1px,
+    transparent 64px
+  );
+  background-size: 100% 1px;
+  background-repeat: repeat-x;
+  background-position: 0 0;
+}
+.todayTick {
+  position: absolute;
+  top: -3px;
+  left: 38%;
+  width: 2px;
+  height: 6px;
+  background: var(--color-deep);
+}
+
+/* ---- Atmosphere: scroll progress + signal scan (pure CSS, no JS) ---- */
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--color-signal);
+  transform: scaleX(0);
+  transform-origin: left;
+  z-index: 60;
+  animation: bench-scroll-progress linear;
+  animation-timeline: scroll(root block);
+}
+@keyframes bench-scroll-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.signalScan {
+  position: fixed;
+  top: 0;
+  left: -25%;
+  width: 25%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-signal) 50%, transparent);
+  z-index: 55;
+  opacity: 0;
+  animation: bench-scan var(--duration-scan) var(--ease-tick) 2.5s infinite;
+  pointer-events: none;
+}
+@keyframes bench-scan {
+  0% {
+    transform: translateX(0%);
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.9;
+  }
+  8% {
+    transform: translateX(500%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(500%);
+    opacity: 0;
+  }
+}
+
+/* ---- Mobile: collapse rails. Left rail becomes a top bar; right rail hides. ---- */
+@media (max-width: 880px) {
+  .bench {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+  .surface {
+    grid-column: 1;
+    grid-row: 2;
+    padding: var(--spacing-5) var(--spacing-4);
+  }
+}

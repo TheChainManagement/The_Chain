@@ -1,0 +1,113 @@
+/* Auth surfaces — centered, no rails. Tokens only. */
+
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-7) var(--spacing-5);
+  background: var(--color-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: 0;
+  color: var(--color-deep);
+}
+.sub {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.input {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: 0;
+  padding: 11px 12px;
+  transition: border-color var(--duration-quick) var(--ease-spring-soft);
+}
+.input::placeholder {
+  color: var(--color-dim);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-signal);
+}
+.input:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+.submit {
+  margin-top: var(--spacing-1);
+}
+
+.alt {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.altLink {
+  color: var(--color-signal);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-signal-line);
+}
+.altLink:hover {
+  border-bottom-color: var(--color-signal);
+}

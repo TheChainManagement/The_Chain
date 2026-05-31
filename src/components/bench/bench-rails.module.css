@@ -1,0 +1,166 @@
+/* Bench rails — left navigation + right context column. Tokens only. */
+
+/* ---------------- Left rail ---------------- */
+.left {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  padding: var(--spacing-6) var(--spacing-4);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-hairline);
+  min-height: 0;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-deep);
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: 9px 10px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-mid);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition:
+    color var(--duration-quick) var(--ease-spring-soft),
+    background var(--duration-quick) var(--ease-spring-soft);
+}
+.navItem:hover {
+  color: var(--color-deep);
+  background: var(--color-inset);
+}
+/* Active item — the single cobalt selected state for the rail region. */
+.navItemActive {
+  color: var(--color-signal);
+  background: var(--color-signal-dim);
+  border-left-color: var(--color-signal);
+}
+.navDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.navItemActive .navDot {
+  opacity: 1;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  border-top: 1px solid var(--color-hairline);
+  padding-top: var(--spacing-4);
+}
+.who {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.signout {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: max-content;
+}
+.signout:hover {
+  color: var(--color-stop);
+}
+
+/* ---------------- Right rail ---------------- */
+.right {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  padding: var(--spacing-6) var(--spacing-5);
+  background: var(--color-inset);
+  border-left: 1px solid var(--color-hairline);
+}
+.railLabel {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.railNote {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+
+@media (max-width: 880px) {
+  .left {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-hairline);
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex: initial;
+    gap: 2px;
+  }
+  .navItem {
+    padding: 6px 8px;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+  }
+  .navItemActive {
+    border-left: 0;
+    border-bottom-color: var(--color-signal);
+  }
+  .footer {
+    border-top: 0;
+    padding-top: 0;
+  }
+  .who {
+    display: none;
+  }
+  .right {
+    display: none;
+  }
+}
