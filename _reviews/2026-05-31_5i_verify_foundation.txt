@@ -1,0 +1,21 @@
+verify:foundation output — Phase 5I, 2026-05-31
+
+
+  ┌─ THE CHAIN · FOUNDATION INSPECTION ───────────────────────┐
+  │                                                           │
+  │ [PASS]  Tenant isolation · cross-tenant RLS probe         │
+  │            4/4 checks                                     │
+  │ [PASS]  Role matrix · every role gated per the matrix     │
+  │            8/8 checks                                     │
+  │ [PASS]  Audit dispatcher · all 13 tracked tables          │
+  │          20/20 checks                                     │
+  │ [PASS]  Wired-for dry runs · Waves 2–7 + pricing          │
+  │            8/8 checks                                     │
+  │                                                           │
+  │ [PASS]  Token discipline · no hex / font literals         │
+  │ [PASS]  Trust hierarchy · canonical render paths          │
+  │                                                           │
+  ├───────────────────────────────────────────────────────────┤
+  │ ● 40 checks green · the foundation is load-bearing        │
+  └───────────────────────────────────────────────────────────┘
+

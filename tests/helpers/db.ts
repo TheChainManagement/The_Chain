@@ -16,3 +16,27 @@ export async function connect(): Promise<Client> {
   await client.connect();
   return client;
 }
+
+/**
+ * Simulate a Supabase authenticated request inside the current transaction:
+ * become the `authenticated` role and set the JWT claims GUC that `auth.jwt()`,
+ * `auth.uid()`, `jwt_tenant_id()`, and `has_role()` read. RLS then applies
+ * exactly as it would for a real signed-in user. Scoped with `set local`, so it
+ * lasts until the next `asSuperuser()` or transaction end.
+ */
+export async function actAs(
+  client: Client,
+  claims: { sub?: string; tenant_id: string; role: string },
+): Promise<void> {
+  await client.query('set local role authenticated');
+  await client.query('select set_config($1, $2, true)', [
+    'request.jwt.claims',
+    JSON.stringify(claims),
+  ]);
+}
+
+/** Drop back to the superuser (bypasses RLS) for seeding / cleanup. */
+export async function asSuperuser(client: Client): Promise<void> {
+  await client.query('reset role');
+  await client.query("select set_config('request.jwt.claims', '', true)");
+}
