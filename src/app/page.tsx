@@ -56,7 +56,8 @@ export default function Home() {
             margin: '0 0 var(--spacing-6) 0',
           }}
         >
-          Phase 5 of the MoreTech process. Foundation scaffold landed. Real app shell + base components are next.
+          Phase 5 of the MoreTech process. Foundation scaffold landed. Real app shell + base
+          components are next.
         </p>
         <div
           style={{

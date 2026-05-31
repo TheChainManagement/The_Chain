@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Mona_Sans, IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
+import { IBM_Plex_Mono, IBM_Plex_Sans, Mona_Sans } from 'next/font/google';
 import './globals.css';
 
 /**
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang='en'
+      lang="en"
       className={`${monaSans.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable}`}
     >
       <body>{children}</body>

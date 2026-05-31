@@ -5,7 +5,7 @@
    No hardcoded values downstream — reference these tokens or fail review.
    ============================================================ */
 
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @theme inline {
   /* --- Surfaces (daylight engineering) --- */
@@ -57,9 +57,9 @@
   --duration-scan: 60000ms;
 
   /* --- Type families --- */
-  --font-display: 'Mona Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-display: "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   /* --- Dotted lattice (engineering grid paper, 4px on-center) --- */
   --lattice: radial-gradient(circle, rgb(17 22 28 / 0.06) 0.5px, transparent 0.7px) 0 0 / 4px 4px;
@@ -69,7 +69,9 @@
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: WCAG reduced-motion reset must override every animation/transition declaration regardless of specificity */
     animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: WCAG reduced-motion reset must override every animation/transition declaration regardless of specificity */
     transition: none !important;
   }
 }

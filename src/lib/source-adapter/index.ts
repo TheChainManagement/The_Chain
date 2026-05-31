@@ -15,17 +15,17 @@
  */
 
 import type {
+  InventoryLevelAttributes,
   ProductAttributes,
-  SupplierAttributes,
   ProductSupplierAttributes,
   PurchaseOrderAttributes,
-  InventoryLevelAttributes,
   StockMovementAttributes,
+  SupplierAttributes,
 } from './canonical';
 
-export * from './errors';
 export * as canonical from './canonical';
 export { CANONICAL_SCHEMA_VERSION } from './canonical';
+export * from './errors';
 
 // ----- Entity + source enumerations -----
 
@@ -115,7 +115,7 @@ export interface PullResult<E extends EntityKind = EntityKind> {
 export interface PushResult {
   externalId: string;
   externalVersion: number;
-  appliedAt: string;  // ISO
+  appliedAt: string; // ISO
 }
 
 // ----- The contract -----

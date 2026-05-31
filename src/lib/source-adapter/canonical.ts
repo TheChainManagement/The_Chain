@@ -74,7 +74,7 @@ export const purchaseOrderAttributes = z.object({
     'canceled',
   ]),
   total: z.number().nonnegative().optional(),
-  expectedDeliveryAt: z.string().optional(),  // ISO; loosened from .datetime for QBO date-only fields
+  expectedDeliveryAt: z.string().optional(), // ISO; loosened from .datetime for QBO date-only fields
   actualDeliveryAt: z.string().optional(),
   lines: z.array(purchaseOrderLine).min(1),
 });
@@ -98,7 +98,7 @@ export const stockMovementAttributes = z.object({
   locationExternalId: z.string().optional(),
   type: z.enum(['sale', 'receipt', 'transfer_in', 'transfer_out', 'adjustment', 'cycle_count']),
   quantity: z.number(),
-  occurredAt: z.string(),  // ISO; preserved from the source as-is
+  occurredAt: z.string(), // ISO; preserved from the source as-is
   sourceRef: z.string().optional(),
 });
 export type StockMovementAttributes = z.infer<typeof stockMovementAttributes>;

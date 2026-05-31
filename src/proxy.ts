@@ -34,7 +34,15 @@ export const config = {
      *  - _next/static (build assets)
      *  - _next/image (image optimization)
      *  - favicon, common image extensions
+     *  - .well-known/workflow/ (Workflow DevKit internal routes — 5E)
+     *
+     * The .well-known/workflow/ exclusion is REQUIRED. Workflow DevKit posts to
+     * /.well-known/workflow/v1/flow for run dispatch + resumption. If the proxy
+     * intercepts it, runs fail with "[local world] Queue operation failed /
+     * Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer".
+     * Per the bundled workflow Next.js setup doc; easy to miss in Next 16 where
+     * proxy.ts replaced middleware.ts.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
