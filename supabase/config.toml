@@ -387,8 +387,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Disabled for local dev: the analytics/vector container bind-mounts the Docker
+# socket, which fails under Colima (socket path mount "operation not supported").
+# Not needed for local development or DB testing. Re-enable if running the
+# Logflare analytics stack locally on a Docker Desktop host.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

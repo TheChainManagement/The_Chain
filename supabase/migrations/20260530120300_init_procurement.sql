@@ -82,12 +82,15 @@ create table supplier_performance (
 );
 
 -- supplier_scorecards: materialized rollup keyed by window.
+-- NB: the time-window column is named `window_kind`, NOT `window` — `window` is
+-- a reserved keyword in Postgres (window functions) and is a syntax error as a
+-- bare column name. Caught when the suite first ran against real Postgres (5F).
 create type scorecard_window as enum ('rolling_30d','rolling_90d','rolling_365d','all_time');
 
 create table supplier_scorecards (
   tenant_id uuid not null,
   supplier_id uuid not null,
-  window scorecard_window not null,
+  window_kind scorecard_window not null,
   otif_pct numeric(5,4),
   on_time_pct numeric(5,4),
   in_full_pct numeric(5,4),
@@ -95,6 +98,6 @@ create table supplier_scorecards (
   lead_time_stddev_days numeric,
   sample_size int not null default 0,
   computed_at timestamptz not null default now(),
-  primary key (tenant_id, supplier_id, window),
+  primary key (tenant_id, supplier_id, window_kind),
   foreign key (tenant_id, supplier_id) references suppliers(tenant_id, id) on delete cascade
 );
