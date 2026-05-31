@@ -1,0 +1,88 @@
+/* Dev-only gallery layout. Tokens only. Not shipped. */
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--spacing-8) var(--spacing-6) var(--spacing-9);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.masthead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  border-bottom: 2px solid var(--color-divider);
+  padding-bottom: var(--spacing-5);
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 75;
+  font-weight: 800;
+  font-size: 40px;
+  letter-spacing: 0;
+  color: var(--color-deep);
+}
+.sub {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-mid);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--spacing-7);
+}
+
+/* Metric strip — cells separated by their own border-divides. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: var(--spacing-4) var(--spacing-5);
+}
+
+.chain {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-5);
+}
+
+.spacer {
+  height: var(--spacing-4);
+}

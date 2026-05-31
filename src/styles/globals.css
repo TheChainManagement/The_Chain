@@ -23,6 +23,8 @@
   --color-signal-bright: #1b5bd9;
   --color-signal-dim: rgb(9 66 181 / 0.08);
   --color-signal-line: rgb(9 66 181 / 0.22);
+  --color-on-signal: #ffffff; /* text + glyphs on a cobalt fill */
+  --color-on-signal-dim: rgb(255 255 255 / 0.78); /* secondary text on cobalt */
 
   /* --- Semantic (operator standard) --- */
   --color-flow: #1a8c5c; /* on-time / good / in-flow */

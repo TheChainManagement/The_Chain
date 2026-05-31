@@ -1,6 +1,6 @@
 # Phase 5 Foundation — Progress (updated 2026-05-31)
 
-Six sub-phases complete, four remaining. Resume by reading this file + `FEATURES.md` §Wave 1 Foundation block, then continue at 5G.
+Seven sub-phases complete, three remaining. Resume by reading this file + `FEATURES.md` §Wave 1 Foundation block, then continue at 5H.
 
 ## Container runtime note (2026-05-31)
 
@@ -24,9 +24,10 @@ Six sub-phases complete, four remaining. Resume by reading this file + `FEATURES
 
 - **5F — Audit log triggers** (2026-05-31). Single security-definer dispatcher `public.capture_audit()` in `supabase/migrations/20260531120000_audit_log_triggers.sql`, attached to all 13 tracked tables via a `do` loop (add a table = add to the array; no per-table code, satisfies the Codex "single dispatcher" check). Captures full-row `before`/`after` jsonb so Wave 6 ROI fields are always present; strips secrets by name denylist (`encrypted_credentials` et al). **Two real bugs found by standing up Postgres for the first time:** (1) 5B migration `supplier_scorecards` had a column literally named `window` (reserved word) → renamed `window_kind` in `20260530120300_init_procurement.sql`; the whole suite had never run against real PG before. (2) Partitioned-table gotcha: trigger on `stock_movements` fires on the routed partition so `tg_table_name` was `stock_movements_2026` → fixed with `pg_partition_root(tg_relid)` to resolve the logical parent (returns NULL for plain tables, coalesce to `tg_table_name`). **Test harness established (Vitest + `pg`, which 5I extends):** `vitest.config.ts`, `tests/helpers/db.ts`, `tests/foundation/audit-triggers.test.ts` — 20 tests, all green. Covers: audit row on every tracked table's insert + "13 and no others", ROI fields for inventory_levels/purchase_orders/stock_movements, update before/after, delete before/null, redaction of `encrypted_credentials`. Runs in one rolled-back tx (DB untouched). Added `npm test` script. `npm run build` + typecheck + lint all clean. Commit `6683418`.
 
+- **5G — Base components** (2026-05-31). Six components under `src/components/<Name>/` (`.tsx` + `.module.css` tokens-only + co-located `.test.tsx`): StatNumber, ClaudeInsight, ActionButton, Panel, ChainLink, MetricCell. Each with empty/loading/error states. Memorable element = the **cobalt ignite** on the active ChainLink. Test harness extended for components: RTL + jsdom (opt-in per file via `// @vitest-environment jsdom` docblock; `afterEach(cleanup)` guarded to jsdom in `tests/setup.ts`; React plugin in `vitest.config.ts`). **51 tests green** (31 component + 20 audit). Added `--color-on-signal` tokens (no hardcoded `#fff`). Invoked `react-best-practices` + `next-cache-components` (auto-triggered). **Stated deviations:** (1) Storybook replaced by a dev-only `/gallery` route (404 in prod) screenshotted via Playwright MCP — declared stack has no Storybook; (2) trust-hierarchy lint guard deferred to 5I (nothing to scan yet). Evidence + memorable screenshot: `_reviews/2026-05-31_5g_evidence.md` + `_reviews/2026-05-31_5g_components_memorable.png`. build + lint + typecheck clean. Commit `<pending>`.
+
 ## Remaining
 
-- **5G — Base components.** `StatNumber` (Plex Mono tabular numerics), `ClaudeInsight` (Plex Sans + Plex Mono "Claude · {topic}" prefix), `ActionButton` (cobalt CTA with `--shadow-cobalt-inner` + `--shadow-cobalt-diffusion`), `Panel`, `ChainLink`, `MetricCell`. All on tokens only. Each with empty/loading/error states, Storybook story, unit test. **Lint check enforces these are the ONLY paths to their render kinds (trust hierarchy).**
 - **5H — App shell + auth-gated layouts.** `(marketing)` segment (no rails), `(auth)` segment (sign-up + sign-in), `(app)` segment (Working Bench layout with left + right rails, throughput hairline at bench bottom, today tick). The `(app)` layout MUST do a server-side auth check + redirect; this is the primary auth gate per the defense-in-depth disposition. **This is what the Phase 5 MG screenshot checkpoint lands on.**
 - **5I — CI probes.** Vitest tests: cross-tenant RLS probe (logged in as Tenant A, query every table for Tenant B — must return zero rows), role-matrix probe (every (table, role) pair vs the matrix), wired-for verification suite (the 8 dry runs from SYSTEM_DESIGN.md §Wired-for acceptance tests). `npm run verify:foundation` aggregates results into the single-page report that IS the Foundation block's "What's memorable" artifact.
 - **5J — Preview deploy + MG checkpoint.** `supabase start` locally, `npm run build` clean, `vercel link` + preview deploy. Capture screenshot of the running Working Bench shell. MG binary verdict (ship it or pivot). Then Codex full-weight Phase 5 review per PROCESS.md Hard Rule 9 before first push to GitHub.
@@ -40,7 +41,7 @@ Six sub-phases complete, four remaining. Resume by reading this file + `FEATURES
 
 ## Local dev state
 
-- Local git initialized at `projects/the-chain/`. Six commits (5A–5F). Nothing pushed (first push gated behind Codex full-weight review at 5J per PROCESS.md Hard Rule 9).
-- `node_modules/` installed (Workflow DevKit + Vitest + pg). Lint + typecheck + build + `npm test` all clean on Node 24.
+- Local git initialized at `projects/the-chain/`. Seven commits (5A–5G). Nothing pushed (first push gated behind Codex full-weight review at 5J per PROCESS.md Hard Rule 9).
+- `node_modules/` installed (Workflow DevKit + Vitest + pg + RTL/jsdom + Playwright MCP used externally). Lint + typecheck + build + `npm test` all clean on Node 24.
 - **`supabase start` IS running now** (Colima). Full migration suite applies clean (5B–5F). `supabase db reset` re-applies from scratch. `.env.local` has the real local keys + `SUPABASE_DB_URL`.
 - Node 24 must be on PATH for app/test commands; Homebrew bin on PATH for supabase/docker/colima (see notes at top).

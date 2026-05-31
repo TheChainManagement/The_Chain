@@ -1,0 +1,105 @@
+/* ActionButton — cobalt CTA + secondary text link. Tokens only. */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: 1px solid transparent;
+  /* Sharp corners — no rounding, per direction. */
+  border-radius: 0;
+  transition:
+    background var(--duration-quick) var(--ease-spring-soft),
+    box-shadow var(--duration-base) var(--ease-spring-soft),
+    transform var(--duration-quick) var(--ease-spring-snappy);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.label {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- Primary: cobalt fill (cobalt allotment slot: primary CTA) ---- */
+.primary {
+  padding: 14px 20px;
+  font-weight: 600;
+  font-size: 15px;
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: var(--color-on-signal);
+}
+.primary:hover:not(:disabled) {
+  background: var(--color-signal-bright);
+  /* Inner refraction + outer cobalt tint — never a neon glow. */
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}
+.primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+/* Cobalt-on-cobalt rings vanish: focus ring is deep slate. */
+.primary:focus-visible {
+  outline: 2px solid var(--color-deep);
+  outline-offset: 2px;
+}
+
+/* ---- Secondary: deep-slate text link, hairline underline scales from left ---- */
+.secondary {
+  padding: 14px 4px;
+  font-weight: 500;
+  font-size: 15px;
+  background: transparent;
+  color: var(--color-deep);
+}
+.secondary::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 10px;
+  height: 1px;
+  background: var(--color-deep);
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition:
+    transform var(--duration-base) var(--ease-spring-soft),
+    background var(--duration-quick) var(--ease-spring-soft);
+}
+.secondary:hover:not(:disabled)::after {
+  transform: scaleX(1);
+  background: var(--color-signal);
+}
+.secondary:hover:not(:disabled) {
+  color: var(--color-signal);
+}
+
+/* ---- Loading affordance: a small pulsing tick (transform/opacity only) ---- */
+.isLoading {
+  pointer-events: none;
+}
+.tick {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
+  animation: action-pulse 1100ms var(--ease-tick) infinite;
+}
+
+@keyframes action-pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+}

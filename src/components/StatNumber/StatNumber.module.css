@@ -1,0 +1,104 @@
+/* StatNumber — IBM Plex Mono, tabular. Colors/fonts/motion via tokens only.
+   Literal px are per-element type sizes specified in DESIGN.md §3 (font sizes
+   are not tokenized; this mirrors samples/hero.html). No hex, no font-family
+   literals — the Codex token grep stays clean. */
+
+.stat {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18em;
+}
+
+.digits {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.unit {
+  font-size: 0.62em;
+  font-weight: 500;
+  color: var(--color-dim);
+}
+
+/* Sizes */
+.body .value {
+  font-size: 15px;
+  font-weight: 500;
+}
+.panel .value {
+  font-size: 20px;
+  font-weight: 600;
+}
+.hero .value {
+  font-size: 30px;
+  font-weight: 600;
+}
+
+/* Tones — semantic, never cobalt. */
+.tone-deep .value {
+  color: var(--color-deep);
+}
+.tone-mid .value {
+  color: var(--color-mid);
+}
+.tone-flow .value {
+  color: var(--color-flow);
+}
+.tone-warn .value {
+  color: var(--color-warn);
+}
+.tone-stop .value {
+  color: var(--color-stop);
+}
+
+/* Empty + error markers */
+.empty {
+  color: var(--color-dim);
+}
+.error {
+  color: var(--color-stop);
+  font-weight: 600;
+}
+
+/* Loading shimmer — transform/opacity only, respects reduced-motion globally. */
+.shimmer {
+  display: inline-block;
+  width: 3.2em;
+  height: 1em;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--color-inset) 0%,
+    var(--color-hairline) 50%,
+    var(--color-inset) 100%
+  );
+  background-size: 200% 100%;
+  animation: stat-shimmer 1200ms var(--ease-tick) infinite;
+}
+
+@keyframes stat-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

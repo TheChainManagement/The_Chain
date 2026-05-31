@@ -1,0 +1,125 @@
+/* ClaudeInsight — Plex Sans prose + Plex Mono prefix. Tokens only. */
+
+.insight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  background: var(--color-inset);
+  border-left: 2px solid var(--color-divider);
+}
+
+.prefix {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.mark {
+  color: var(--color-mid);
+}
+.sep {
+  color: var(--color-divider);
+}
+.topic {
+  color: var(--color-dim);
+}
+
+.prose {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+}
+
+.empty {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-dim);
+}
+
+.error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-stop);
+}
+
+/* Skeleton — three shimmer lines, transform/opacity only. */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.line,
+.lineShort {
+  height: 9px;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--color-hairline) 0%,
+    var(--color-surface) 50%,
+    var(--color-hairline) 100%
+  );
+  background-size: 200% 100%;
+  animation: insight-shimmer 1200ms var(--ease-tick) infinite;
+}
+.line {
+  width: 100%;
+}
+.lineShort {
+  width: 58%;
+}
+
+@keyframes insight-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Confidence — hairline track with a deep-slate tick. NEVER a cobalt fill. */
+.confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-1);
+}
+.confLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--color-dim);
+}
+.track {
+  position: relative;
+  width: 96px;
+  height: 1px;
+  background: var(--color-divider);
+}
+.tick {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 9px;
+  background: var(--color-deep);
+  transform: translate(-1px, -50%);
+}
+.confValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-mid);
+}
