@@ -1,11 +1,28 @@
-# Phase 5 Foundation — Progress (updated 2026-05-31)
+# Phase 5 Foundation — Progress (updated 2026-06-01)
 
-**ALL TEN SUB-PHASES COMPLETE (5A–5J). Codex full-weight review = SHIP.** Phase 5 (Foundation) is done. Next is Phase 6 (Features, Wave 1) per FEATURES.md — but first the two MG-gated items below (cloud deploy + first GitHub push).
+**ALL TEN SUB-PHASES COMPLETE (5A–5J). Codex full-weight review = SHIP. SHIPPED + DEPLOYED.** Phase 5 (Foundation) is done and live. Next is Phase 6 (Features, Wave 1) per FEATURES.md.
 
-## Pending MG (the only things left in 5J)
+## Shipped 2026-05-31 (previously the MG-gated items — now DONE)
 
-- **First GitHub push** — gated behind the Codex review (now SHIP). No remote configured. Add a remote + say "push" and it goes. Nothing pushed yet (11 local commits 5A–5J).
-- **Cloud preview deploy** — a Vercel preview can't reach local Colima Supabase. Needs a hosted Supabase project (cloud login not done) + Vercel project + env vars. MG's accounts required. See `_reviews/2026-05-31_5j_evidence.md`.
+- **GitHub push — DONE.** Remote `origin` = `github.com/TheChainManagement/The_Chain` (public). `main` tracks `origin/main`, zero unpushed commits. All commits 5A–5J + the pgsodium fix (`6cefb1a`) are up.
+- **Hosted Supabase — DONE.** Cloud Supabase project stood up; full migration suite pushed clean. The `6cefb1a` fix (pgsodium wrapped in a graceful DO block — deprecated on new PG15+ hosted projects) is what made the hosted db push succeed.
+- **Cloud deploy — DONE.** Vercel project `the-chain` (team `marks-projects-eb857d5a`), GitHub-integrated auto-deploy from `main`. Two production deployments, both state=READY, live at `6cefb1a`. Branch alias: `the-chain-git-main-marks-projects-eb857d5a.vercel.app`.
+## Live deploy verified + 5K hardening (2026-06-01)
+
+Verified the hosted deploy end-to-end this session (MG: "verify live deploy first"):
+- Marketing page 200/public; `/today` server auth gate cleanly redirects `→ /signin` (307) — proves prod Supabase env vars are wired (a missing key would 500, not redirect).
+- Hosted Supabase project = `The_Chain` (`hdpivaufoqokeuzgftsj`, us-west-2). All 14 migrations applied (re-stamped to `20260601010xxx` versions during last night's push — see migration-parity note below). 41 tables, 6 key functions, 35 RLS-enabled. The 6 RLS-disabled tables are the `audit_log`/`stock_movements` partition children with ZERO anon/auth grants (5J `REVOKE` held — no leak).
+- **Supabase security advisor**, first run against hosted infra, surfaced WARNs the local probes + Codex 5J never caught (they never ran the linter). No ERROR-level issues.
+
+**5K hardening** (`supabase/migrations/20260601120000_function_hardening_5k.sql`, applied to hosted via MCP `apply_migration`):
+- Pinned `search_path = ''` (qualified refs) on the 7 early 5A-5C helpers/triggers (`jwt_tenant_id`, `jwt_role`, `jwt_token_generation`, `has_role`, `is_owner`, `set_updated_at`, `bump_tenant_token_generation`).
+- `REVOKE EXECUTE ... from public, anon, authenticated` on the two trigger-only fns (`capture_audit`, `enforce_po_recommendation_tenant`) — closes their `/rest/v1/rpc` exposure; triggers still fire (owner rights).
+- Advisor after: **17 lints → 4**. Remaining 4 are documented-accepted: `is_token_stale` (middleware RPC, already pins search_path), `bootstrap_tenant` (signup RPC), `citext`-in-public (cosmetic, deferred to stack-audit backlog).
+- Post-change `/today` re-checked: gate still redirects, RLS/auth path intact.
+
+**Migration-parity note:** the hosted migration history versions (`20260601010xxx`) do NOT match the local filenames (`20260530/31xxx`) — they were re-stamped during last night's hosted push. So apply future hosted DDL via MCP `apply_migration` (applies + records), NOT `supabase db push`, until the histories are reconciled. Local stack picks up 5K on next `supabase db reset`.
+
+- **Still open (optional):** a real live signup smoke (signup → `bootstrap_tenant` → authed bench) against prod. Deferred — schema + RPC + env + gate all verified, and 5H exercised `bootstrap_tenant` locally against the same migrations.
 
 ## Container runtime note (2026-05-31)
 
@@ -50,7 +67,7 @@
 
 ## Local dev state
 
-- Local git initialized at `projects/the-chain/`. ~11 commits (5A–5J). **Nothing pushed.** The Codex gate is now SHIP, so the first push is unblocked pending MG adding a remote + approving.
+- Local git at `projects/the-chain/`, 18 commits (5A–5J + pgsodium fix). **All pushed** to `origin` (`github.com/TheChainManagement/The_Chain`, public). `main` is clean, in sync with `origin/main`.
 - A local test account exists from the 5H signup verification (Calhoun Foods / pilot@calhounfoods-test.example). Harmless; wiped on the next `supabase db reset`.
 - `node_modules/` installed (Workflow DevKit + Vitest + pg + RTL/jsdom + Playwright MCP used externally). Lint + typecheck + build + `npm test` all clean on Node 24.
 - **`supabase start` IS running now** (Colima). Full migration suite applies clean (5B–5F). `supabase db reset` re-applies from scratch. `.env.local` has the real local keys + `SUPABASE_DB_URL`.
