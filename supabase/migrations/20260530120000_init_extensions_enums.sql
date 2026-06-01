@@ -6,7 +6,18 @@
 -- Extensions
 create extension if not exists pgcrypto;   -- gen_random_uuid()
 create extension if not exists citext;     -- case-insensitive slug, email
-create extension if not exists pgsodium;   -- encrypted columns for OAuth tokens (used in 5C)
+-- pgsodium is deprecated on new Supabase projects (PG15+). source_connections
+-- .encrypted_credentials stays bytea; encryption-at-rest will use Supabase Vault
+-- (or app-side) when the QBO OAuth feature lands. Try to enable it where it is
+-- still available (e.g. the local CLI stack); skip silently where it is not.
+do $$
+begin
+  create extension if not exists pgsodium;
+exception
+  when others then
+    raise notice 'pgsodium not available on this instance; skipping (encrypted_credentials remains bytea)';
+end
+$$;
 
 -- Helper: updated_at trigger function
 create or replace function set_updated_at()
