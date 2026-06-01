@@ -1,6 +1,11 @@
 # Phase 5 Foundation — Progress (updated 2026-05-31)
 
-Nine sub-phases complete, one remaining. Resume by reading this file + `FEATURES.md` §Wave 1 Foundation block, then continue at 5J (the last sub-phase).
+**ALL TEN SUB-PHASES COMPLETE (5A–5J). Codex full-weight review = SHIP.** Phase 5 (Foundation) is done. Next is Phase 6 (Features, Wave 1) per FEATURES.md — but first the two MG-gated items below (cloud deploy + first GitHub push).
+
+## Pending MG (the only things left in 5J)
+
+- **First GitHub push** — gated behind the Codex review (now SHIP). No remote configured. Add a remote + say "push" and it goes. Nothing pushed yet (11 local commits 5A–5J).
+- **Cloud preview deploy** — a Vercel preview can't reach local Colima Supabase. Needs a hosted Supabase project (cloud login not done) + Vercel project + env vars. MG's accounts required. See `_reviews/2026-05-31_5j_evidence.md`.
 
 ## Container runtime note (2026-05-31)
 
@@ -30,8 +35,11 @@ Nine sub-phases complete, one remaining. Resume by reading this file + `FEATURES
 
 - **5I — CI probes** (2026-05-31). DB-probe harness on the 5F Vitest+`pg` setup. `tests/helpers/db.ts` gained `actAs()` (become `authenticated` + set `request.jwt.claims` GUC → RLS applies as for a real user) + `asSuperuser()`. `tests/helpers/seed.ts` seeds one row in every tenant-scoped table (31, FK-ordered PL/pgSQL block). Three probe files: cross-tenant RLS (two tenants, A sees ZERO of B across **every** `tenant_id` table discovered from `pg_class`, incl. partitioned parents), role-matrix (finance/planner/viewer/warehouse/owner vs the matrix; viewer INSERT rejected, savepoint-guarded), wired-for (8 dry runs: multi-location, role dashboards, cycle-count close, Rutter+Cin7 mock adapters conforming to SourceAdapter, ROI deltas from audit jsonb, pricing+retention swaps). `scripts/check-craft.mjs` (`check:craft`) = token-discipline + trust-hierarchy guard (the 5G-deferred lint). `scripts/verify-foundation.mjs` (`verify:foundation`) runs the suite + guard and prints the **inspection sheet** (40 checks green) — the Foundation "What's memorable" artifact. **71 tests green** (31 component + 40 foundation). typecheck + lint clean. Note: `fileURLToPath` needed in the scripts because the repo path has a space ("More Technologies") which URL-encodes. Evidence + artifact: `_reviews/2026-05-31_5i_evidence.md`, `_5i_verify_foundation.txt`. Commit `0ccbfc5`.
 
+- **5J — Codex review + hardening + SHIP** (2026-05-31). Ran the Codex full-weight Phase 5 review (`codex exec`, codex-cli 0.131.0, ChatGPT account — note: explicit `gpt-5-codex` model is rejected on a ChatGPT account; use the default). **Three rounds → SHIP.** Codex caught REAL cross-tenant data-leak holes the 5I probes missed (they injected JWT claims instead of exercising claim-minting): (1) profiles.active_tenant_id spoofing + the access-token hook minting tenant_id with no membership check; (2) removed-member re-login; (3) partition-child direct access bypassing parent RLS; (4) global parent FKs (cross-tenant attach); (5) gate checked only getUser()/any-tenant membership; (6) audit incompleteness. Fixes in `supabase/migrations/20260531140000_foundation_hardening.sql` (hook membership gate, profiles WITH CHECK, REVOKE on partition children, composite tenant FKs, `enforce_po_recommendation_tenant` trigger, dynamic audit attach to all tenant_id tables) + the app gate (`getClaims()` → membership scoped to the JWT tenant). `inventory_policy.based_on_forecast_id` explicitly ACCEPTED (system-only). Regression tests: `tests/foundation/claim-integrity.test.ts` (NEW) + cross-tenant write/partition probes + audit-completeness. **80 tests green, verify:foundation = 49 checks green, build/lint/typecheck clean.** Evidence: `_reviews/2026-05-31_5j_evidence.md`, `_reviews/2026-05-31_foundation.md` (full Codex trail). Commit `<pending>`.
+
 ## Remaining
-- **5J — Preview deploy + MG checkpoint.** `supabase start` locally, `npm run build` clean, `vercel link` + preview deploy. Capture screenshot of the running Working Bench shell. MG binary verdict (ship it or pivot). Then Codex full-weight Phase 5 review per PROCESS.md Hard Rule 9 before first push to GitHub.
+
+- Nothing in Phase 5. See "Pending MG" at the top for the cloud deploy + first push.
 
 ## Standing rules in effect (review before next push)
 
@@ -42,7 +50,7 @@ Nine sub-phases complete, one remaining. Resume by reading this file + `FEATURES
 
 ## Local dev state
 
-- Local git initialized at `projects/the-chain/`. Nine commits (5A–5I). Nothing pushed (first push gated behind Codex full-weight review at 5J per PROCESS.md Hard Rule 9).
+- Local git initialized at `projects/the-chain/`. ~11 commits (5A–5J). **Nothing pushed.** The Codex gate is now SHIP, so the first push is unblocked pending MG adding a remote + approving.
 - A local test account exists from the 5H signup verification (Calhoun Foods / pilot@calhounfoods-test.example). Harmless; wiped on the next `supabase db reset`.
 - `node_modules/` installed (Workflow DevKit + Vitest + pg + RTL/jsdom + Playwright MCP used externally). Lint + typecheck + build + `npm test` all clean on Node 24.
 - **`supabase start` IS running now** (Colima). Full migration suite applies clean (5B–5F). `supabase db reset` re-applies from scratch. `.env.local` has the real local keys + `SUPABASE_DB_URL`.

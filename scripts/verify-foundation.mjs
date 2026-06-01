@@ -23,9 +23,10 @@ const outFile = join(mkdtempSync(join(tmpdir(), 'verify-foundation-')), 'results
 
 // Friendly row per test file.
 const ROWS = [
-  { file: 'rls-cross-tenant.test.ts', label: 'Tenant isolation · cross-tenant RLS probe' },
+  { file: 'rls-cross-tenant.test.ts', label: 'Tenant isolation · cross-tenant RLS + writes' },
+  { file: 'claim-integrity.test.ts', label: 'Claim integrity · no tenant-id spoofing' },
   { file: 'role-matrix.test.ts', label: 'Role matrix · every role gated per the matrix' },
-  { file: 'audit-triggers.test.ts', label: 'Audit dispatcher · all 13 tracked tables' },
+  { file: 'audit-triggers.test.ts', label: 'Audit dispatcher · every tenant table' },
   { file: 'wired-for.test.ts', label: 'Wired-for dry runs · Waves 2–7 + pricing' },
 ];
 

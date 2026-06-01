@@ -30,6 +30,29 @@ async function BenchGate({ children }: { children: ReactNode }) {
     redirect('/signin');
   }
 
+  // Authentication is not enough. The bench requires a real membership in the
+  // tenant the JWT actually carries — not just any tenant. getClaims() verifies
+  // the token (JWKS) and returns the custom tenant_id claim minted by the access
+  // token hook (which itself only emits tenant_id when membership exists). If the
+  // token carries a tenant the user no longer belongs to (stale role/removal),
+  // the scoped membership check below returns zero and we bounce to /signin.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const tenantId = claimsData?.claims?.tenant_id as string | undefined;
+
+  if (!tenantId) {
+    redirect('/signin');
+  }
+
+  const { count } = await supabase
+    .from('tenant_members')
+    .select('tenant_id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('tenant_id', tenantId);
+
+  if (!count || count < 1) {
+    redirect('/signin');
+  }
+
   return (
     <>
       <LeftRail userEmail={user.email ?? ''} />

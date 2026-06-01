@@ -103,4 +103,30 @@ describe('cross-tenant RLS isolation', () => {
     );
     expect(profiles.rows[0]?.n).toBe(0);
   });
+
+  it('tenant A cannot WRITE into tenant B (insert rejected, update affects 0 rows)', async () => {
+    await actAs(client, { sub: UA, tenant_id: A, role: 'owner' });
+    await client.query('savepoint xtenant');
+    await expect(
+      client.query(
+        `insert into public.products (tenant_id, sku, name) values ($1, 'XTENANT', 'nope')`,
+        [B],
+      ),
+    ).rejects.toThrow(/row-level security/i);
+    await client.query('rollback to savepoint xtenant');
+
+    const upd = await client.query(`update public.products set name = name where tenant_id = $1`, [B]);
+    expect(upd.rowCount).toBe(0);
+  });
+
+  it('partition children are not a side door: direct access is revoked from authenticated', async () => {
+    await actAs(client, { sub: UA, tenant_id: A, role: 'owner' });
+    await client.query('savepoint partchild');
+    // Direct child access is revoked entirely; parent-routed queries (covered
+    // above) still work because privileges are checked on the parent.
+    await expect(
+      client.query(`select count(*) from public.stock_movements_2026`),
+    ).rejects.toThrow(/permission denied/i);
+    await client.query('rollback to savepoint partchild');
+  });
 });

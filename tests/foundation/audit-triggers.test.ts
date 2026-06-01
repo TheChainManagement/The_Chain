@@ -142,12 +142,33 @@ describe('audit dispatcher — fires on every tracked table', () => {
     });
   }
 
-  it('covers all 13 tracked tables and no others', async () => {
+  it('covers the 13 core tracked tables (5J hardening widened audit to every tenant table)', async () => {
     const { rows } = await client.query(
       "select distinct entity_type from audit_log where action like '%.insert' order by entity_type",
     );
-    const captured = rows.map((r: { entity_type: string }) => r.entity_type).sort();
-    expect(captured).toEqual([...TRACKED].sort());
+    const captured = new Set(rows.map((r: { entity_type: string }) => r.entity_type));
+    for (const table of TRACKED) {
+      expect(captured.has(table), `expected ${table} to be audited`).toBe(true);
+    }
+    // audit_log must never audit itself (recursion guard).
+    expect(captured.has('audit_log')).toBe(false);
+  });
+
+  it('audit dispatcher is attached to every tenant-scoped table except audit_log', async () => {
+    const { rows } = await client.query<{ relname: string }>(`
+      select c.relname
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      join pg_attribute a on a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
+      where n.nspname = 'public' and c.relkind in ('r','p') and not c.relispartition
+        and c.relname <> 'audit_log'
+        and not exists (
+          select 1 from pg_trigger tg
+          where tg.tgrelid = c.oid and tg.tgname = 'audit_' || c.relname
+        )
+    `);
+    const untracked = rows.map((r) => r.relname);
+    expect(untracked, `tenant tables missing an audit trigger: ${untracked.join(', ')}`).toEqual([]);
   });
 });
 
