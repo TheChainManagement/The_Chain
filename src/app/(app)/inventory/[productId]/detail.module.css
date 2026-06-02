@@ -1,0 +1,284 @@
+/* SKU detail bench. Tokens only. */
+
+.back {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  text-decoration: none;
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.back:hover {
+  color: var(--color-deep);
+}
+.back:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+/* ----- Memorable: lifetime chain ----- */
+.lifetime {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: var(--spacing-5);
+}
+.lifetimeEyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.lifetimeChain {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+/* ----- Panel layout grid ----- */
+.layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-5);
+}
+/* Position panel (first) spans the full width — it is the densest surface. */
+.layout > section:first-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .layout > section:first-child {
+    grid-column: auto;
+  }
+}
+
+/* ----- Position table ----- */
+.posTable {
+  display: flex;
+  flex-direction: column;
+}
+.posHead,
+.posRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.6fr) 1fr 1fr 1fr;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+.posHead {
+  padding-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.posNumHead {
+  text-align: right;
+}
+.posRow {
+  min-height: 44px;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.posRow:last-child {
+  border-bottom: none;
+}
+.posTotal {
+  margin-top: var(--spacing-1);
+  border-top: 2px solid var(--color-divider);
+  border-bottom: none;
+}
+.posLoc {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+}
+.posTotal .posLoc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.posType {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.posNum {
+  justify-self: end;
+  text-align: right;
+}
+
+/* ----- Suppliers ----- */
+.supList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.supRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.supRow:last-child {
+  border-bottom: none;
+}
+.supName {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-deep);
+}
+.supPrimary {
+  padding: 2px 7px;
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.supMeta {
+  display: flex;
+  gap: var(--spacing-5);
+}
+.supMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.supMetaLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+/* ----- Classification ----- */
+.classGrid {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: var(--spacing-5);
+}
+.classCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.classKey {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.classValue {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--color-deep);
+  font-variant-numeric: tabular-nums;
+}
+.classConsumption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding-left: var(--spacing-5);
+  border-left: 1px solid var(--color-hairline);
+}
+
+/* ----- Identity ----- */
+.idList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.idRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.idRow:last-child {
+  border-bottom: none;
+}
+.idKey {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  padding-top: 2px;
+}
+.idValue {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  word-break: break-word;
+}
+.idValueMono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+/* ----- Status badge ----- */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.statusOn {
+  color: var(--color-flow);
+}
+.statusOn .statusDot {
+  background: var(--color-flow);
+}
+.statusOff {
+  color: var(--color-dim);
+}
+.statusOff .statusDot {
+  background: var(--color-dim);
+}

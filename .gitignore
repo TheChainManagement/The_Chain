@@ -56,3 +56,6 @@ api/forecast/*.pyc
 
 # SWC build cache
 .swc/
+
+# Local Claude Code scratch (preview launch config, etc.)
+.claude/
