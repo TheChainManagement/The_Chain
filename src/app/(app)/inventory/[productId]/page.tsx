@@ -12,8 +12,10 @@ import {
   type ProductLocationPosition,
 } from '@/lib/inventory/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { listSupplierOptions } from '@/lib/suppliers/queries';
 import styles from './detail.module.css';
 import { SkuActions } from './SkuActions';
+import { SupplierLinks } from './SupplierLinks';
 
 export const metadata = { title: 'SKU · The Chain' };
 
@@ -36,6 +38,9 @@ export default async function ProductDetailPage({
   if (!product) {
     notFound();
   }
+
+  // Active suppliers for the link picker (RLS-scoped to the tenant).
+  const supplierOptions = await listSupplierOptions(supabase);
 
   return (
     <div className={pageStyles.stack}>
@@ -61,7 +66,11 @@ export default async function ProductDetailPage({
 
       <div className={styles.layout}>
         <PositionPanel product={product} />
-        <SuppliersPanel product={product} />
+        <SupplierLinks
+          productId={product.id}
+          suppliers={product.suppliers}
+          options={supplierOptions}
+        />
         <ClassificationPanel product={product} />
         <IdentityPanel product={product} />
       </div>
@@ -192,54 +201,6 @@ function PositionRow({ pos }: { pos: ProductLocationPosition }): ReactNode {
         <StatNumber value={fmtQty(pos.available)} tone={availableTone(pos.available)} />
       </span>
     </div>
-  );
-}
-
-/* ----- Suppliers ----- */
-
-function SuppliersPanel({ product }: { product: ProductDetail }): ReactNode {
-  if (product.suppliers.length === 0) {
-    return (
-      <Panel
-        prefix="Sources"
-        title="Suppliers"
-        empty
-        emptyMessage="No suppliers linked. Link a supplier to set cost, lead time, and MOQ for reorder."
-      />
-    );
-  }
-
-  return (
-    <Panel prefix="Sources" title="Suppliers">
-      <ul className={styles.supList}>
-        {product.suppliers.map((s) => (
-          <li key={s.supplierId} className={styles.supRow}>
-            <span className={styles.supName}>
-              {s.supplierName ?? 'Unnamed supplier'}
-              {s.isPrimary ? <span className={styles.supPrimary}>Primary</span> : null}
-            </span>
-            <span className={styles.supMeta}>
-              <span className={styles.supMetaItem}>
-                <span className={styles.supMetaLabel}>Cost</span>
-                <StatNumber
-                  value={s.unitCost == null ? null : fmtMoney(s.unitCost)}
-                  unit="$"
-                  unitPosition="prefix"
-                />
-              </span>
-              <span className={styles.supMetaItem}>
-                <span className={styles.supMetaLabel}>Lead</span>
-                <StatNumber value={s.leadTimeDays} unit="days" />
-              </span>
-              <span className={styles.supMetaItem}>
-                <span className={styles.supMetaLabel}>MOQ</span>
-                <StatNumber value={s.moq} />
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </Panel>
   );
 }
 

@@ -1,0 +1,192 @@
+/* Suppliers roster + create form. Tokens only. */
+
+/* ----- Roster ledger ----- */
+.ledger {
+  --grid: minmax(180px, 2.4fr) 84px 116px 100px 120px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: var(--grid);
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: 0 var(--spacing-5);
+}
+
+.head {
+  height: 34px;
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.numHead {
+  text-align: right;
+}
+
+.row {
+  position: relative;
+  min-height: 52px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-hairline);
+  border-left: 2px solid transparent;
+  transition:
+    background var(--duration-quick) var(--ease-spring-soft),
+    border-left-color var(--duration-quick) var(--ease-spring-soft);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: var(--color-inset);
+  border-left-color: var(--color-divider);
+}
+.row:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+
+.cellName {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cellNum {
+  justify-self: end;
+  text-align: right;
+}
+.cellStatus {
+  display: flex;
+  align-items: center;
+}
+
+/* ----- Status tag ----- */
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.statusActive {
+  color: var(--color-flow);
+}
+.statusActive .statusDot {
+  background: var(--color-flow);
+}
+.statusOff {
+  color: var(--color-dim);
+}
+.statusOff .statusDot {
+  background: var(--color-dim);
+}
+
+/* ----- Add-supplier disclosure (shared by SupplierActions edit) ----- */
+.addWrap {
+  position: relative;
+}
+.addForm {
+  position: absolute;
+  top: calc(100% + var(--spacing-3));
+  right: 0;
+  z-index: 30;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-panel-focus), var(--shadow-cobalt-diffusion);
+  animation: addFormIn var(--duration-quick) var(--ease-spring-soft);
+}
+.addEyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.addRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3);
+}
+.addField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.addLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.addInput {
+  height: 38px;
+  padding: 0 var(--spacing-3);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  transition: border-color var(--duration-quick) var(--ease-spring-soft);
+}
+.addInput::placeholder {
+  color: var(--color-dim);
+}
+.addInput:focus-visible {
+  outline: none;
+  border-color: var(--color-signal);
+  box-shadow: inset 0 0 0 1px var(--color-signal);
+}
+.addActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-1);
+}
+.formError {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+@keyframes addFormIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .addForm {
+    animation: none;
+  }
+}
