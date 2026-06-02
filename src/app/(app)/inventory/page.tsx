@@ -5,31 +5,49 @@ import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { type InventoryListRow, listInventory } from '@/lib/inventory/queries';
+import { normalizeStatusFilter, sanitizeSearch } from '@/lib/inventory/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { AddSku } from './AddSku';
+import { InventoryControls } from './InventoryControls';
 import styles from './inventory.module.css';
 
 export const metadata = { title: 'Inventory · The Chain' };
 
 /**
  * Inventory — the SKU catalog ledger (Block 3). Server Component: reads the
- * RLS-scoped catalog and renders a dense, hairline-divided ledger (no cards).
- * On-hand renders through <StatNumber>; the whole row routes to the SKU's bench.
+ * RLS-scoped catalog (filtered by the ?q=&status= params) and renders a dense,
+ * hairline-divided ledger (no cards). On-hand renders through <StatNumber>; the
+ * whole row routes to the SKU's bench.
  */
-export default async function InventoryPage(): Promise<ReactNode> {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}): Promise<ReactNode> {
+  const sp = await searchParams;
+  const search = sp.q ?? '';
+  const status = normalizeStatusFilter(sp.status);
+  const filtering = Boolean(sanitizeSearch(search)) || status !== 'active';
+
   const supabase = await createSupabaseServer();
-  const rows = await listInventory(supabase);
+  const rows = await listInventory(supabase, { search, status });
 
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Catalog · on-hand by SKU" title="Inventory" actions={<AddSku />} />
 
+      <InventoryControls search={search} status={status} />
+
       {rows.length === 0 ? (
         <Panel
           prefix="Catalog"
-          title="No SKUs on the bench yet"
+          title={filtering ? 'No SKUs match' : 'No SKUs on the bench yet'}
           empty
-          emptyMessage="Add your first SKU, or connect a source to import your whole catalog at once."
+          emptyMessage={
+            filtering
+              ? 'Nothing matches that search or filter. Clear it to see the whole catalog.'
+              : 'Add your first SKU, or connect a source to import your whole catalog at once.'
+          }
         />
       ) : (
         <div className={styles.ledger}>

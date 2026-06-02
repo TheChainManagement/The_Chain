@@ -252,6 +252,47 @@
   letter-spacing: 0.02em;
 }
 
+/* ----- Header actions (status + edit + archive) ----- */
+.actionsWrap {
+  position: relative;
+}
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.confirmForm {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+.confirmText {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-stop);
+}
+.confirmCancel {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.confirmCancel:hover {
+  color: var(--color-deep);
+}
+.confirmCancel:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
 /* ----- Status badge ----- */
 .statusBadge {
   display: inline-flex;

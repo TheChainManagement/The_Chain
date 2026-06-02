@@ -13,6 +13,7 @@ import {
 } from '@/lib/inventory/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from './detail.module.css';
+import { SkuActions } from './SkuActions';
 
 export const metadata = { title: 'SKU · The Chain' };
 
@@ -45,7 +46,15 @@ export default async function ProductDetailPage({
       <PageHeader
         eyebrow={`SKU · ${product.sku}`}
         title={product.name}
-        actions={<StatusBadge status={product.status} />}
+        actions={
+          <SkuActions
+            productId={product.id}
+            name={product.name}
+            unitOfMeasure={product.unitOfMeasure}
+            description={product.description}
+            status={product.status}
+          />
+        }
       />
 
       <LifetimeChain product={product} />
@@ -306,16 +315,6 @@ function IdentityRow({
       <dt className={styles.idKey}>{label}</dt>
       <dd className={`${styles.idValue} ${mono ? styles.idValueMono : ''}`}>{value}</dd>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: ProductDetail['status'] }): ReactNode {
-  const active = status === 'active';
-  return (
-    <span className={`${styles.statusBadge} ${active ? styles.statusOn : styles.statusOff}`}>
-      <span className={styles.statusDot} aria-hidden="true" />
-      {active ? 'Active' : 'Discontinued'}
-    </span>
   );
 }
 

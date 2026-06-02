@@ -30,13 +30,37 @@ The catalog's first real surface — create a SKU, see it in the ledger, open it
 - typecheck ✓ · lint ✓ (65 files) · craft guard ✓ · 82/82 tests ✓.
 - Artifacts: `2026-06-02_feature_inventory_list.png`, `2026-06-02_feature_inventory_memorable.png`.
 
-## Not in this checkpoint (Block 3 remaining, before block close)
+## Checkpoint 2 (same day) — search/filter + edit/archive + tests
 
-- Search + filter (SKU substring, supplier, ABC class, stockout bucket) + bulk ops (tag / archive / supplier reassign).
-- Edit + archive UI on the detail page (server actions exist; no UI yet).
-- Block 3 tests: memorable Playwright/Vitest interaction test + cross-tenant probe test on disk (UI-verified now; codify before push).
-- 5k bench + the aggregate view.
+Committed slice (`338f557`), then finished the buildable remainder:
+
+- **Search + status filter** — server-driven via `?q=&status=`. `InventoryControls`
+  client island (debounced search, segmented Active/Discontinued/All) drives the
+  URL; the Server Component re-queries. Search term is wildcard/injection-escaped
+  in `sanitizeSearch` (strips PostgREST filter metacharacters). Verified: "copper"
+  → CPR-2210 only; archived SKU drops from the default Active list.
+- **Edit + archive UI** — `SkuActions` island in the detail header: Edit
+  disclosure (prefilled → updateProduct) + Archive behind an inline confirm
+  (→ soft `status='discontinued'`). Verified: name edit reflects in the title;
+  archive flips the badge to Discontinued and removes it from the active ledger.
+- **Pure transforms + unit tests** — extracted aggregation / classification-pick /
+  search-escape / validation / write-error mapping into `lib/inventory/transform.ts`
+  (no `server-only`); `tests/inventory/transform.test.ts` = 20 tests. Added the
+  `@`→`src` alias to `vitest.config.ts` so tests can import app code. Suite now
+  **102/102**.
+- Artifacts added: `2026-06-02_feature_inventory_controls.png`.
+- typecheck ✓ · lint ✓ (68 files) · craft guard ✓ · 102/102 tests ✓.
+
+## Still deferred (genuinely data-blocked or out of scope)
+
+- **Data-dependent filters** — supplier (needs Block 4), ABC class (Block 7),
+  stockout-risk bucket (Block 9). The filter UI is built; these dimensions wire in
+  when their data exists.
+- **Bulk ops** — multi-select + bulk archive is buildable; bulk *tag* (no tag
+  schema yet) and bulk *supplier reassignment* (Block 4) are blocked. Deferring
+  the whole bulk bar to one coherent pass once Block 4 lands.
+- **5k bench + aggregate view** — needs `seed-5k`; the read shape stays identical.
 
 ## Gate status
 
-Per the per-feature loop: **build → screenshot → MG approve → `moretech-codex-review` → push.** Now at MG-approve. Codex gate + the remaining Block 3 items precede any push.
+Per the per-feature loop: **build → screenshot → MG approve → `moretech-codex-review` → push.** Slice + finish committed locally (not pushed). Block 3 closes after the deferred items above land or are explicitly accepted; Codex gate precedes any push.

@@ -1,5 +1,113 @@
 /* Inventory ledger + catalog create form. Tokens only. */
 
+/* ----- Search + status controls ----- */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  margin-top: calc(-1 * var(--spacing-2));
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 280px;
+  max-width: 420px;
+}
+.searchGlyph {
+  position: absolute;
+  left: 12px;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid var(--color-dim);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.searchGlyph::after {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: 9px;
+  width: 6px;
+  height: 1.5px;
+  background: var(--color-dim);
+  transform: rotate(45deg);
+  transform-origin: left;
+}
+.search {
+  width: 100%;
+  height: 38px;
+  padding: 0 var(--spacing-3) 0 32px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  transition: border-color var(--duration-quick) var(--ease-spring-soft);
+}
+.search::placeholder {
+  color: var(--color-dim);
+}
+.search:focus-visible {
+  outline: none;
+  border-color: var(--color-signal);
+  box-shadow: inset 0 0 0 1px var(--color-signal);
+}
+
+.segmented {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.segment {
+  padding: 0 var(--spacing-4);
+  height: 38px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--color-hairline);
+  cursor: pointer;
+  transition:
+    color var(--duration-quick) var(--ease-spring-soft),
+    background var(--duration-quick) var(--ease-spring-soft);
+}
+.segment:first-child {
+  border-left: none;
+}
+.segment:hover {
+  color: var(--color-deep);
+}
+.segmentActive {
+  color: var(--color-deep);
+  background: var(--color-inset);
+}
+.segment:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+
 /* ----- The SKU ledger (cockpit table, no cards, hairline divides) ----- */
 
 .ledger {

@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { mapWriteError, PERMISSION_MESSAGE, validateProductInput } from '@/lib/inventory/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
@@ -11,28 +12,16 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * 'planner'))`) is the real authority — a viewer/warehouse role is rejected at
  * the data layer, not here. Archive is a soft status flip, never a hard delete.
  *
- * Form-bound for `useActionState`: each takes (prevState, FormData) and returns
- * the result union (no redirect) so the client island can revalidate in place.
+ * Validation + write-error mapping are pure (transform.ts, unit-tested). These
+ * actions own only the IO. Form-bound for `useActionState`: each takes
+ * (prevState, FormData) and returns the result union (no redirect) so the client
+ * island can revalidate in place.
  */
 
 export type ProductActionState =
   | { ok: true; productId: string }
   | { ok: false; error: string }
   | null;
-
-const PERMISSION_MESSAGE =
-  'You do not have permission to change the catalog. Ask an owner or manager.';
-
-function mapWriteError(code: string | undefined, message: string): string {
-  if (code === '23505') {
-    return 'A product with that SKU already exists in your catalog.';
-  }
-  // RLS rejection (role gate / tenant mismatch) surfaces as 42501 or the policy text.
-  if (code === '42501' || /row-level security/i.test(message)) {
-    return PERMISSION_MESSAGE;
-  }
-  return 'Could not save the product. Please try again.';
-}
 
 async function resolveTenantId(
   supabase: Awaited<ReturnType<typeof createSupabaseServer>>,
@@ -50,11 +39,9 @@ export async function createProduct(
   const unitOfMeasure = String(formData.get('unit_of_measure') ?? '').trim();
   const description = String(formData.get('description') ?? '').trim();
 
-  if (!sku) {
-    return { ok: false, error: 'SKU is required.' };
-  }
-  if (!name) {
-    return { ok: false, error: 'Product name is required.' };
+  const valid = validateProductInput({ sku, name }, true);
+  if (!valid.ok) {
+    return valid;
   }
 
   const supabase = await createSupabaseServer();
@@ -96,8 +83,9 @@ export async function updateProduct(
   if (!productId) {
     return { ok: false, error: 'Missing product reference.' };
   }
-  if (!name) {
-    return { ok: false, error: 'Product name is required.' };
+  const valid = validateProductInput({ name }, false);
+  if (!valid.ok) {
+    return valid;
   }
 
   const supabase = await createSupabaseServer();
