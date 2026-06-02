@@ -1,0 +1,33 @@
+# Phase 5L evidence — auth role-claim fix (captured 2026-06-01)
+
+## 1. Isolated gate-logic repro (post-fix) — the exact BenchGate query
+  role (PostgREST reserved): authenticated
+  tenant_role (member role): owner
+  tenant_id: be0c92ea-5913-4a66-aaba-ae96772757b1
+  tenant_members count (gate check): 1 (was null pre-fix; gate passes when >=1)
+
+## 2. Live browser: fresh sign-in reaches the Working Bench
+  Verified via preview MCP on the local dev server (:3100): POST /signin -> /today
+  rendered the bench (h1='Today', left rail nav, 'THE BENCH - WAITING ON A SOURCE',
+  metric strip, 'Connect a source' panel). Pre-fix the same flow bounced to /signin.
+
+## 3. Hosted apply: MCP apply_migration('auth_role_claim_fix_5l') returned {success:true}
+   Project hdpivaufoqokeuzgftsj (The_Chain). Local applied via direct psql exec.
+
+## 4. Full suite (Node 24)
+=== TEST ===
+
+ Test Files  11 passed (11)
+      Tests  81 passed (81)
+   Start at  20:17:28
+   Duration  3.86s (transform 119ms, setup 458ms, import 227ms, tests 615ms, environment 1.76s)
+
+=== TYPECHECK ===
+> tsc --noEmit
+
+=== LINT ===
+
+Checked 59 files in 44ms. No fixes applied.
+=== CRAFT ===
+
+Craft guard PASS: token discipline + trust hierarchy intact.

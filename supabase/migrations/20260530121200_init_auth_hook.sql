@@ -4,6 +4,10 @@
 --
 -- Adds tenant_id, role, token_generation custom claims to the access token JWT.
 -- Registered in supabase/config.toml as [auth.hook.custom_access_token].
+--
+-- SUPERSEDED by 20260601130000_auth_role_claim_fix_5l.sql: the member role now
+-- rides in a `tenant_role` claim, NOT the reserved top-level `role` (PostgREST
+-- runs SET ROLE on `role`). This file is historical; 5L is the live shape.
 -- ============================================================
 
 create or replace function public.custom_access_token_hook(event jsonb)

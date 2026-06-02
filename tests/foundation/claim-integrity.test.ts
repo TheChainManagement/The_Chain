@@ -29,6 +29,20 @@ async function hookTenantClaim(userId: string): Promise<string | null> {
   return rows[0]?.tid ?? null;
 }
 
+// Full claims object the hook emits, given the base claims Supabase passes in.
+async function hookClaims(
+  userId: string,
+  base: Record<string, unknown> = { role: 'authenticated' },
+): Promise<Record<string, unknown> | null> {
+  const { rows } = await client.query<{ claims: Record<string, unknown> }>(
+    `select (public.custom_access_token_hook(
+        jsonb_build_object('user_id', $1::uuid, 'claims', $2::jsonb)
+     ) -> 'claims') as claims`,
+    [userId, JSON.stringify(base)],
+  );
+  return rows[0]?.claims ?? null;
+}
+
 beforeAll(async () => {
   client = await connect();
   await client.query('begin');
@@ -76,6 +90,18 @@ describe('the access-token hook only mints tenant claims when membership is real
   it('a real membership yields the tenant_id claim', async () => {
     await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [A, UA]);
     expect(await hookTenantClaim(UA)).toBe(A);
+  });
+
+  // 5L regression: the member role must ride in `tenant_role`, NEVER in the
+  // reserved top-level `role` claim. PostgREST runs `SET ROLE <role>` per
+  // request; writing `role='owner'` makes every authenticated query fail with
+  // `role "owner" does not exist`. This is the exact bug that bounced all logins.
+  it('mints the member role as tenant_role and leaves the reserved role as authenticated (5L)', async () => {
+    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [A, UA]);
+    const claims = await hookClaims(UA, { role: 'authenticated' });
+    expect(claims?.tenant_role).toBe('owner');
+    expect(claims?.role).toBe('authenticated');
+    expect(claims?.tenant_id).toBe(A);
   });
 
   it('a removed member gets NO tenant_id claim on re-login', async () => {
