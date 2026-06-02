@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useRouter } from 'next/navigation';
+import { type CSSProperties, useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { type AuthState, signIn, signUp } from './actions';
@@ -10,7 +11,40 @@ import styles from './auth.module.css';
  * Shared auth form for sign-in and sign-up. Client component: owns the
  * useActionState error channel + pending affordance. Inputs are token-styled
  * with a cobalt focus ring; the submit is an ActionButton (canonical CTA path).
+ *
+ * On sign-up success the action returns { ok: true } instead of redirecting, so
+ * the signup screen morphs into the bench (rails slide in, the onboarding chain
+ * ignites link by link) before navigating to /today. The signup screen becomes
+ * the workshop — the memorable element for this feature.
  */
+
+// Onboarding chain shown forming during the post-signup transition. First link
+// (Account) is already done; the rest ignite in sequence as the workshop builds.
+const FORMING_STEPS = ['Account', 'Source', 'Catalog', 'Suppliers', 'Forecast'];
+
+function WorkshopForming() {
+  return (
+    <div className={styles.forming} role="status" aria-live="polite">
+      <span className={styles.formingRailLeft} aria-hidden="true" />
+      <span className={styles.formingRailRight} aria-hidden="true" />
+      <div className={styles.formingCore}>
+        <span className={styles.formingLabel}>Building your workshop</span>
+        <div className={styles.formingChain}>
+          {FORMING_STEPS.map((step, i) => (
+            <div
+              key={step}
+              className={styles.formingLink}
+              style={{ '--link-index': i } as CSSProperties}
+            >
+              <span className={styles.formingIgnite} aria-hidden="true" />
+              <span className={styles.formingStep}>{step}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -22,8 +56,22 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 }
 
 export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
+  const router = useRouter();
   const action = mode === 'signin' ? signIn : signUp;
   const [state, formAction] = useActionState<AuthState, FormData>(action, null);
+  const igniting = mode === 'signup' && state?.ok === true;
+
+  useEffect(() => {
+    if (!igniting) return;
+    // Navigate as the chain finishes forming. Whole transition stays under 800ms;
+    // /today carries the same rails, so the bench appears continuous.
+    const timer = setTimeout(() => router.push('/today'), 780);
+    return () => clearTimeout(timer);
+  }, [igniting, router]);
+
+  if (igniting) {
+    return <WorkshopForming />;
+  }
 
   return (
     <form action={formAction} className={styles.form} noValidate>

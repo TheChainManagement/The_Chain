@@ -111,3 +111,149 @@
 .altLink:hover {
   border-bottom-color: var(--color-signal);
 }
+
+/* ----- Post-signup "workshop forming" transition ----- */
+/* The signup screen becomes the workshop: rails slide in from the viewport
+   edges and an onboarding chain ignites link by link, then /today loads with
+   the same rails so the bench appears continuous. Whole thing under 800ms. */
+
+.forming {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.formingRailLeft,
+.formingRailRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: clamp(56px, 16vw, 220px);
+  background: var(--color-surface);
+  animation: railIn 360ms var(--ease-spring-soft) forwards;
+}
+.formingRailLeft {
+  left: 0;
+  border-right: 1px solid var(--color-hairline);
+  transform: translateX(-101%);
+}
+.formingRailRight {
+  right: 0;
+  border-left: 1px solid var(--color-hairline);
+  transform: translateX(101%);
+}
+
+.formingCore {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: 0 var(--spacing-5);
+}
+
+.formingLabel {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  opacity: 0;
+  animation: coreIn 320ms var(--ease-spring-soft) 120ms forwards;
+}
+
+.formingChain {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.formingLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: linkRise 260ms var(--ease-spring-soft) forwards;
+  animation-delay: calc(var(--link-index) * 130ms + 240ms);
+}
+
+/* Cobalt ignite sweep that lights each link as the chain forms. */
+.formingIgnite {
+  position: absolute;
+  inset: 0;
+  background: var(--color-signal);
+  opacity: 0;
+  animation: ignite 600ms var(--ease-spring-soft) forwards;
+  animation-delay: calc(var(--link-index) * 130ms + 300ms);
+}
+
+.formingStep {
+  position: relative;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+
+@keyframes railIn {
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes coreIn {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes linkRise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Ignite flares cobalt, then settles to a thin held signal line at the base. */
+@keyframes ignite {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  45% {
+    opacity: 0.9;
+    clip-path: inset(0 0 0 0);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(calc(100% - 2px) 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .formingRailLeft,
+  .formingRailRight {
+    transform: translateX(0);
+    animation: none;
+  }
+  .formingLabel,
+  .formingLink {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .formingIgnite {
+    opacity: 1;
+    clip-path: inset(calc(100% - 2px) 0 0 0);
+    animation: none;
+  }
+}

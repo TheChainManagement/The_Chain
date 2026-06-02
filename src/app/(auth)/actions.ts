@@ -12,7 +12,7 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * On success they `redirect()` (which throws), so they only *return* on error.
  */
 
-export type AuthState = { ok: false; error: string } | null;
+export type AuthState = { ok: false; error: string } | { ok: true } | null;
 
 export async function signIn(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get('email') ?? '').trim();
@@ -59,10 +59,14 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   }
 
   // Re-issue the JWT so the custom access token hook attaches tenant_id, role,
-  // and token_generation now that profiles.active_tenant_id exists.
+  // and token_generation now that profiles.active_tenant_id exists. The Set-Cookie
+  // headers flush on this action response, so the client can navigate to the
+  // (auth-gated) bench after it plays the "workshop forming" transition.
   await supabase.auth.refreshSession();
 
-  redirect('/today');
+  // Success returns state (no redirect) so AuthForm can morph the signup screen
+  // into the bench before navigating. The signup screen becomes the workshop.
+  return { ok: true };
 }
 
 export async function signOut(): Promise<void> {
