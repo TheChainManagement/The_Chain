@@ -22,7 +22,22 @@ Verified the hosted deploy end-to-end this session (MG: "verify live deploy firs
 
 **Migration-parity note:** the hosted migration history versions (`20260601010xxx`) do NOT match the local filenames (`20260530/31xxx`) — they were re-stamped during last night's hosted push. So apply future hosted DDL via MCP `apply_migration` (applies + records), NOT `supabase db push`, until the histories are reconciled. Local stack picks up 5K on next `supabase db reset`.
 
-- **Still open (optional):** a real live signup smoke (signup → `bootstrap_tenant` → authed bench) against prod. Deferred — schema + RPC + env + gate all verified, and 5H exercised `bootstrap_tenant` locally against the same migrations.
+## 5L — CRITICAL auth fix: role-claim collision (2026-06-01)
+
+**Found while building Block 1 (driving a real signup → bench flow).** The access-token hook wrote the member role (`owner`/...) into the JWT's top-level `role` claim. `role` is PostgREST's RESERVED claim — it runs `SET ROLE <value>` per authenticated request. No Postgres role `owner` exists, so EVERY authenticated PostgREST query died with `role "owner" does not exist`. The bench gate's `tenant_members` count was one of those → returned null → bounced EVERY valid session to `/signin`. **The app was unusable for any logged-in user, and it was deployed.** Plain sign-in bounced too, not just my signup change.
+
+**Why prior gates missed it:** 5H gate was getUser-only + reached the bench via the action's in-flight redirect (no authed PostgREST query). 5J tested claim integrity with injected JWTs AND the test harness hardcodes `set local role authenticated` — so neither ever exercised the real PostgREST `SET ROLE`-from-claim path. The earlier "live deploy PASS" this session verified unauth redirect + env + schema but deferred the live authed smoke (which would have caught it).
+
+**Fix** (`supabase/migrations/20260601130000_auth_role_claim_fix_5l.sql`, applied local + hosted via MCP `apply_migration`):
+- Hook emits the member role as `tenant_role` (non-reserved); leaves `role` = `authenticated`. 5J membership gate preserved.
+- `jwt_role()` reads `tenant_role` (keeps 5K search_path='' hardening). `has_role`/`is_owner`/all RLS policies flow through it — no policy changes. App gate reads only `tenant_id` (unaffected).
+- Test harness `actAs()` updated to inject the real post-5L shape (`role: authenticated` + `tenant_role`), so the role-matrix probes now mirror reality.
+
+**Verified:** isolated gate repro now returns `role=authenticated`, `tenant_role=owner`, `tenant_members count=1`, authed SELECT works. **Live browser: fresh sign-in reaches the Working Bench** (screenshot evidence). 80/80 tests green, typecheck/lint/craft clean.
+
+**Pending:** `moretech-codex-review` on the 5L auth change (MG requested). Hosted DB already fixed; commit syncs the repo.
+
+- **Still open (optional):** a real live signup smoke against prod (deferred). Now lower-risk since the local end-to-end authed path is proven post-5L.
 
 ## Container runtime note (2026-05-31)
 

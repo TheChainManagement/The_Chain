@@ -29,9 +29,18 @@ export async function actAs(
   claims: { sub?: string; tenant_id: string; role: string },
 ): Promise<void> {
   await client.query('set local role authenticated');
+  // Mirror the real post-5L token shape: PostgREST's reserved `role` claim stays
+  // `authenticated` (the DB role), and the member role rides in `tenant_role`
+  // (what jwt_role() reads). The `role` field of the param is the MEMBER role for
+  // caller convenience, so map it onto `tenant_role` here.
   await client.query('select set_config($1, $2, true)', [
     'request.jwt.claims',
-    JSON.stringify(claims),
+    JSON.stringify({
+      sub: claims.sub,
+      tenant_id: claims.tenant_id,
+      role: 'authenticated',
+      tenant_role: claims.role,
+    }),
   ]);
 }
 
