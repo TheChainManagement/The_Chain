@@ -37,3 +37,25 @@
 - The review and test strategy still missed the exact production failure mode. 5J had already been burned for testing claim logic by injecting JWTs, and 5L still does not add a saved regression that proves a real auth token can survive an authenticated PostgREST request.
 - The evidence discipline was missed again. The progress doc makes strong claims about hosted apply, live browser verification, and clean gates, but the repo does not contain matching 5L artifacts. In this process, undocumented verification is not verification.
 - The contract/doc sweep was missed. The code changed the claim shape from `role` to `tenant_role`, but the older auth-hook migration header still documents the superseded shape. That is exactly the kind of stale guidance that causes silent regressions.
+
+## Decisions (captured 2026-06-01, MG)
+
+### Evidence on disk for the 5L verification claims
+- **Decision:** Fix now.
+- **Action:** Saved `_reviews/2026-06-01_5l_evidence.txt` (isolated gate repro showing count=1, live browser bench reach, hosted apply confirmation, full suite output).
+
+### Full-shape hook regression (assert tenant_role + role=authenticated)
+- **Decision:** Fix now.
+- **Action:** Added the regression in `tests/foundation/claim-integrity.test.ts` (hookClaims helper). Asserts the hook emits `tenant_role='owner'` and leaves `role='authenticated'`. Would fail against the pre-5L hook.
+
+### Stale contract comment in init_auth_hook.sql
+- **Decision:** Fix now.
+- **Action:** Header marked SUPERSEDED by 5L with the corrected claim-shape note.
+
+### Real minted-token -> PostgREST integration test (the blind spot)
+- **Decision:** Build it now.
+- **Action:** Added `tests/foundation/auth-postgrest.test.ts` — real user -> signInWithPassword -> bootstrap_tenant -> minted JWT -> authenticated PostgREST query that triggers SET ROLE. Asserts the query succeeds (count=1) and the claim shape. `tests/setup.ts` now loads `.env.local` so integration tests get the keys. 82/82 tests green. This exercises the exact path the harness previously short-circuited.
+
+### Push the pending commits
+- **Decision:** Push now.
+- **Action:** Pushed (see commit log). Prod auth was already fixed on the hosted DB; this syncs repo + migration files.

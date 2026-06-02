@@ -1,3 +1,8 @@
+// Load local env (Supabase URL + anon/service keys) for integration tests that
+// hit the live PostgREST/auth API. Next loads .env.local itself; vitest does not.
+import { config as loadEnv } from 'dotenv';
+loadEnv({ path: '.env.local' });
+
 // Extends Vitest's `expect` with jest-dom matchers (toBeInTheDocument, etc.).
 // Safe to load for node-env DB tests too — it only augments the matcher set.
 import '@testing-library/jest-dom/vitest';
