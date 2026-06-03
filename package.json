@@ -17,6 +17,8 @@
     "test:watch": "vitest",
     "check:craft": "node scripts/check-craft.mjs",
     "verify:foundation": "node scripts/verify-foundation.mjs",
+    "seed:bench": "node scripts/seed-bench.mjs",
+    "bench:inventory": "node scripts/bench-inventory.mjs",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status"

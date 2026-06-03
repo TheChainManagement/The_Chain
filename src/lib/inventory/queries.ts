@@ -2,11 +2,11 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   type InventoryListRow,
-  mapListRow,
   mapProductDetail,
+  mapViewRow,
   type ProductDetail,
   type RawDetailProduct,
-  type RawListProduct,
+  type RawInventoryViewRow,
   type StatusFilter,
   sanitizeSearch,
 } from './transform';
@@ -20,10 +20,10 @@ import {
  * returns no row (→ the caller 404s). Row→model mapping lives in transform.ts
  * (pure, unit-tested).
  *
- * On-hand / allocated / in-transit are summed across locations in transform.ts
- * for the list. Once `seed-5k` exists, the index-optimized aggregate moves to a
- * `security_invoker` view (Foundation's schema + indexes already support it);
- * the read shape these helpers expose stays the same.
+ * The list reads the `inventory_list_v` aggregate view (security_invoker), so the
+ * per-SKU on-hand sum + tenant-wide classification join run set-based in SQL and
+ * scale to the 5k acceptance target (see scripts/bench-inventory.mjs). The detail
+ * path still embeds per-location rows directly.
  */
 
 export type {
@@ -39,18 +39,24 @@ export type {
 export interface ListInventoryOptions {
   search?: string | null;
   status?: StatusFilter;
+  /** Restrict to these product ids (used by the supplier filter). Empty → no rows. */
+  productIds?: string[] | null;
 }
 
 export async function listInventory(
   supabase: SupabaseClient,
   opts: ListInventoryOptions = {},
 ): Promise<InventoryListRow[]> {
+  if (opts.productIds && opts.productIds.length === 0) {
+    return [];
+  }
+
+  // Reads the index-optimized aggregate view (security_invoker → RLS still fences
+  // to the caller's tenant). Sum-by-SKU + tenant-wide classification happen in SQL.
   let query = supabase
-    .from('products')
+    .from('inventory_list_v')
     .select(
-      `id, sku, name, status, unit_of_measure,
-       inventory_levels ( on_hand, allocated, in_transit ),
-       product_classifications ( abc_class, xyz_class, location_id )`,
+      'id, sku, name, status, unit_of_measure, on_hand, allocated, in_transit, abc_class, xyz_class',
     )
     .order('sku', { ascending: true });
 
@@ -66,12 +72,32 @@ export async function listInventory(
     query = query.or(`sku.ilike.*${term}*,name.ilike.*${term}*`);
   }
 
-  const { data, error } = await query.returns<RawListProduct[]>();
+  if (opts.productIds) {
+    query = query.in('id', opts.productIds);
+  }
+
+  const { data, error } = await query.returns<RawInventoryViewRow[]>();
   if (error) {
     throw new Error(`listInventory failed: ${error.message}`);
   }
 
-  return (data ?? []).map(mapListRow);
+  return (data ?? []).map(mapViewRow);
+}
+
+/** Product ids sourced by a supplier (for the supplier filter), RLS-scoped. */
+export async function productIdsForSupplier(
+  supabase: SupabaseClient,
+  supplierId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('product_suppliers')
+    .select('product_id')
+    .eq('supplier_id', supplierId)
+    .returns<{ product_id: string }[]>();
+  if (error) {
+    throw new Error(`productIdsForSupplier failed: ${error.message}`);
+  }
+  return (data ?? []).map((r) => r.product_id);
 }
 
 export async function getProductDetail(

@@ -140,6 +140,40 @@ export function pickClassification<T extends { location_id: string | null }>(
   return list.find((r) => r.location_id == null) ?? list[0] ?? null;
 }
 
+/**
+ * Row shape from the `inventory_list_v` aggregate view (Block 3 5k path). The
+ * per-SKU sum + tenant-wide classification join is done set-based in SQL; this
+ * just coerces the flat row. mapListRow below stays as the documented contract
+ * the view implements (and keeps its unit tests meaningful).
+ */
+export interface RawInventoryViewRow {
+  id: string;
+  sku: string;
+  name: string;
+  status: ProductStatus;
+  unit_of_measure: string | null;
+  on_hand: number | string;
+  allocated: number | string;
+  in_transit: number | string;
+  abc_class: string | null;
+  xyz_class: string | null;
+}
+
+export function mapViewRow(r: RawInventoryViewRow): InventoryListRow {
+  return {
+    id: r.id,
+    sku: r.sku,
+    name: r.name,
+    status: r.status,
+    unitOfMeasure: r.unit_of_measure,
+    onHand: num(r.on_hand),
+    allocated: num(r.allocated),
+    inTransit: num(r.in_transit),
+    abcClass: r.abc_class,
+    xyzClass: r.xyz_class,
+  };
+}
+
 export function mapListRow(p: RawListProduct): InventoryListRow {
   const cls = pickClassification(p.product_classifications);
   const levels = p.inventory_levels ?? [];
