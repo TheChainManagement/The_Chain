@@ -2,6 +2,8 @@
 
 *Date: 2026-06-02. Phase 6, Tranche A. Status: built + live-verified, NOT yet Codex-gated or pushed.*
 
+> **Scope honesty (2026-06-03, after Codex round-2):** Block 3 is a **vertical slice, NOT FEATURES-complete.** Delivered: catalog ledger, search/status/supplier filters, SKU detail + data-backed first-stocked hop, create/edit/archive, bulk archive, 5k aggregate view + local directional bench. **Still owed by the FEATURES.md contract (engine-blocked, tracked to later blocks):** ABC-class + stockout-risk filters (Blocks 7/9), the real forecast→recommendation→PO policy chain on the SKU detail (Block 8 engine), bulk supplier-reassign/tag (ticketed), and the official Vercel Preview SLO bench (ticketed). Do not read this file as "Block 3 done."
+
 ## What shipped this checkpoint (vertical slice)
 
 The catalog's first real surface — create a SKU, see it in the ledger, open its bench.

@@ -7,8 +7,17 @@ p95: 20.1 ms  (target < 1200 ms)
 min/max: 17.9 / 20.1 ms
 
 NOTE: local Postgres on the dev box, not the Vercel Preview harness in
-MASTER_PROMPT. Directional, not the official SLO number — but it exercises the
-real RLS + view aggregation. EXPLAIN below confirms index usage.
+MASTER_PROMPT. Directional, not the official SLO number, but it exercises the
+real RLS + view aggregation.
+
+CORRECTION (2026-06-03, Codex round-2): an earlier note claimed "no seq scan."
+That was an overclaim. The product lookup IS a Bitmap Index Scan on
+products_tenant_id_sku_key (no seq scan there). But the plan below contains a
+Seq Scan on public.product_classifications pc. It is harmless at this scale: the
+bench tenant seeds no classification rows, so the scan hits 0 rows at ~0ms cost
+(loops=5000 x rows=0). It will need an index once classifications are populated
+(Block 7). The "no seq scan" phrasing in commit 4c32f22 was wrong and is retracted
+here.
 
 ## EXPLAIN (ANALYZE, BUFFERS)
 ```

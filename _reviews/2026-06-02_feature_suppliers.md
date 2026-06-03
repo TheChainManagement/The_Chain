@@ -2,6 +2,8 @@
 
 *Date: 2026-06-02. Phase 6, Tranche A. Built + live-verified, committed local. Codex deferred (runs over Blocks 3+4 together).*
 
+> **Scope honesty (2026-06-03, after Codex round-2):** Block 4 is a **vertical slice, NOT FEATURES-complete.** Delivered: supplier roster/detail, create/edit/archive (open-PO guard), bidirectional product↔supplier links with atomic single-primary RPC, and the ReliabilityRibbon in its pending shape. **Still owed by the FEATURES.md contract (engine-blocked, tracked to Blocks 10/11):** lead-time history (median+p90), performance timeline, a lit ribbon with real OTIF/scorecard values, and forecast/policy recompute on lead-time edit (Block 8 engine). The ribbon today is a placeholder, not a delivered reliability feature. Do not read this file as "Block 4 done."
+
 ## What shipped
 
 The supplier roster + the product↔supplier bridge that fills Block 3's empty
