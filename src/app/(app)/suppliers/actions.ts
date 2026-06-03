@@ -201,15 +201,6 @@ export async function archiveSupplier(
   return { ok: true, supplierId };
 }
 
-/** Clear the current primary link for a product (so a new one can be set). */
-async function clearPrimary(supabase: Server, productId: string): Promise<void> {
-  await supabase
-    .from('product_suppliers')
-    .update({ is_primary: false })
-    .eq('product_id', productId)
-    .eq('is_primary', true);
-}
-
 export async function linkSupplier(
   _prev: LinkActionState,
   formData: FormData,
@@ -230,25 +221,17 @@ export async function linkSupplier(
   }
 
   const supabase = await createSupabaseServer();
-  const tenantId = await resolveTenantId(supabase);
-  if (!tenantId) {
-    return { ok: false, error: PERMISSION_MESSAGE };
-  }
 
-  // Only one is_primary per (tenant, product) is enforced by a partial unique
-  // index — clear the existing primary first so the insert can't collide.
-  if (isPrimary) {
-    await clearPrimary(supabase, productId);
-  }
-
-  const { error } = await supabase.from('product_suppliers').insert({
-    tenant_id: tenantId,
-    product_id: productId,
-    supplier_id: supplierId,
-    unit_cost: parseNumOrNull(unitCost),
-    lead_time_days: parseIntOrNull(leadTime),
-    moq: parseIntOrNull(moq),
-    is_primary: isPrimary,
+  // Atomic: link_supplier clears any existing primary + inserts in one tx, so the
+  // partial unique index can't collide and a race can't strand the SKU. RLS in the
+  // SECURITY INVOKER function enforces tenant + role; tenant_id comes from the JWT.
+  const { error } = await supabase.rpc('link_supplier', {
+    p_product_id: productId,
+    p_supplier_id: supplierId,
+    p_unit_cost: parseNumOrNull(unitCost),
+    p_lead_time_days: parseIntOrNull(leadTime),
+    p_moq: parseIntOrNull(moq),
+    p_is_primary: isPrimary,
   });
 
   if (error) {
@@ -271,21 +254,19 @@ export async function setPrimarySupplier(
   }
 
   const supabase = await createSupabaseServer();
-  await clearPrimary(supabase, productId);
 
-  const { data, error } = await supabase
-    .from('product_suppliers')
-    .update({ is_primary: true })
-    .eq('product_id', productId)
-    .eq('supplier_id', supplierId)
-    .select('product_id')
-    .maybeSingle<{ product_id: string }>();
+  // Atomic clear+set inside one tx (SECURITY INVOKER → RLS enforces tenant+role).
+  // Raises no_data_found when the link is missing or the caller can't touch it.
+  const { error } = await supabase.rpc('set_primary_supplier', {
+    p_product_id: productId,
+    p_supplier_id: supplierId,
+  });
 
   if (error) {
+    if (/not found/i.test(error.message)) {
+      return { ok: false, error: 'That supplier link no longer exists.' };
+    }
     return { ok: false, error: mapSupplierWriteError(error.code, error.message) };
-  }
-  if (!data) {
-    return { ok: false, error: PERMISSION_MESSAGE };
   }
 
   revalidatePath(`/inventory/${productId}`);

@@ -98,5 +98,16 @@ export async function getProductDetail(
     return null;
   }
 
-  return mapProductDetail(data);
+  // First receipt anchors the lifetime chain's STOCKED link. Earliest receipt
+  // movement, RLS-scoped; null until any stock lands (the chain stays pending).
+  const { data: firstReceipt } = await supabase
+    .from('stock_movements')
+    .select('occurred_at')
+    .eq('product_id', productId)
+    .eq('type', 'receipt')
+    .order('occurred_at', { ascending: true })
+    .limit(1)
+    .maybeSingle<{ occurred_at: string }>();
+
+  return { ...mapProductDetail(data), firstStockedAt: firstReceipt?.occurred_at ?? null };
 }

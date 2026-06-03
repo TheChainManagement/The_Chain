@@ -261,17 +261,35 @@ export interface LinkInput {
   moq?: string;
 }
 
+/** Parsed-number check: 'blank' | 'bad' | a finite number. */
+function checkNumber(raw: string | undefined): 'blank' | 'bad' | number {
+  if (!raw?.trim()) {
+    return 'blank';
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 'bad';
+}
+
 export function validateLinkInput(input: LinkInput): ValidationResult {
   if (!input.supplierId?.trim()) {
     return { ok: false, error: 'Pick a supplier to link.' };
   }
+
+  const cost = checkNumber(input.unitCost);
+  if (cost === 'bad') {
+    return { ok: false, error: 'Unit cost must be a number.' };
+  }
+  if (typeof cost === 'number' && cost < 0) {
+    return { ok: false, error: 'Unit cost cannot be negative.' };
+  }
+
   for (const [label, raw] of [
-    ['Unit cost', input.unitCost],
     ['Lead time', input.leadTimeDays],
     ['MOQ', input.moq],
   ] as const) {
-    if (raw?.trim() && !Number.isFinite(Number(raw))) {
-      return { ok: false, error: `${label} must be a number.` };
+    const n = checkNumber(raw);
+    if (n === 'bad' || (typeof n === 'number' && (!Number.isInteger(n) || n < 0))) {
+      return { ok: false, error: `${label} must be a whole number of 0 or more.` };
     }
   }
   return { ok: true };
