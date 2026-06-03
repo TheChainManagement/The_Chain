@@ -1,42 +1,51 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
-import { StatNumber } from '@/components/StatNumber/StatNumber';
-import { type InventoryListRow, listInventory } from '@/lib/inventory/queries';
+import { listInventory, productIdsForSupplier } from '@/lib/inventory/queries';
 import { normalizeStatusFilter, sanitizeSearch } from '@/lib/inventory/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { listSupplierOptions } from '@/lib/suppliers/queries';
 import { AddSku } from './AddSku';
 import { InventoryControls } from './InventoryControls';
-import styles from './inventory.module.css';
+import { InventoryLedger } from './InventoryLedger';
 
 export const metadata = { title: 'Inventory · The Chain' };
 
 /**
  * Inventory — the SKU catalog ledger (Block 3). Server Component: reads the
- * RLS-scoped catalog (filtered by the ?q=&status= params) and renders a dense,
- * hairline-divided ledger (no cards). On-hand renders through <StatNumber>; the
- * whole row routes to the SKU's bench.
+ * RLS-scoped catalog (filtered by ?q=&status=&supplier=) from the aggregate view
+ * and hands rows to the selectable ledger. The supplier filter narrows to SKUs a
+ * supplier sources (product_suppliers); the bench scales to 5k via the view.
  */
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; supplier?: string }>;
 }): Promise<ReactNode> {
   const sp = await searchParams;
   const search = sp.q ?? '';
   const status = normalizeStatusFilter(sp.status);
-  const filtering = Boolean(sanitizeSearch(search)) || status !== 'active';
+  const supplierId = sp.supplier ?? '';
+  const filtering = Boolean(sanitizeSearch(search)) || status !== 'active' || Boolean(supplierId);
 
   const supabase = await createSupabaseServer();
-  const rows = await listInventory(supabase, { search, status });
+  const supplierOptions = await listSupplierOptions(supabase);
+
+  // Supplier filter resolves to a product-id set the list query intersects with.
+  const productIds = supplierId ? await productIdsForSupplier(supabase, supplierId) : null;
+  const rows = await listInventory(supabase, { search, status, productIds });
 
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Catalog · on-hand by SKU" title="Inventory" actions={<AddSku />} />
 
-      <InventoryControls search={search} status={status} />
+      <InventoryControls
+        search={search}
+        status={status}
+        supplierId={supplierId}
+        supplierOptions={supplierOptions}
+      />
 
       {rows.length === 0 ? (
         <Panel
@@ -50,69 +59,8 @@ export default async function InventoryPage({
           }
         />
       ) : (
-        <div className={styles.ledger}>
-          <div className={styles.head} aria-hidden="true">
-            <span>SKU</span>
-            <span>Product</span>
-            <span className={styles.numHead}>On hand</span>
-            <span>A · X</span>
-            <span>Status</span>
-          </div>
-          {rows.map((row) => (
-            <InventoryRow key={row.id} row={row} />
-          ))}
-        </div>
+        <InventoryLedger rows={rows} />
       )}
     </div>
-  );
-}
-
-const fmtQty = (n: number): string => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
-
-function InventoryRow({ row }: { row: InventoryListRow }): ReactNode {
-  return (
-    <Link
-      href={`/inventory/${row.id}`}
-      className={styles.row}
-      aria-label={`${row.sku} — ${row.name}`}
-    >
-      <span className={styles.cellSku}>{row.sku}</span>
-      <span className={styles.cellName}>
-        {row.name}
-        {row.unitOfMeasure ? <span className={styles.uom}>{row.unitOfMeasure}</span> : null}
-      </span>
-      <span className={styles.cellNum}>
-        <StatNumber value={fmtQty(row.onHand)} />
-      </span>
-      <span className={styles.cellClass}>
-        <ClassTag abc={row.abcClass} xyz={row.xyzClass} />
-      </span>
-      <span className={styles.cellStatus}>
-        <StatusTag status={row.status} />
-      </span>
-    </Link>
-  );
-}
-
-function ClassTag({ abc, xyz }: { abc: string | null; xyz: string | null }): ReactNode {
-  if (!abc && !xyz) {
-    return <span className={styles.classPending}>—</span>;
-  }
-  return (
-    <span className={styles.classTag}>
-      <span className={styles.classAbc}>{abc ?? '·'}</span>
-      <span className={styles.classDot} aria-hidden="true" />
-      <span className={styles.classXyz}>{xyz ?? '·'}</span>
-    </span>
-  );
-}
-
-function StatusTag({ status }: { status: InventoryListRow['status'] }): ReactNode {
-  const active = status === 'active';
-  return (
-    <span className={`${styles.statusTag} ${active ? styles.statusActive : styles.statusOff}`}>
-      <span className={styles.statusDot} aria-hidden="true" />
-      {active ? 'Active' : 'Discontinued'}
-    </span>
   );
 }

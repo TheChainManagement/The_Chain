@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { StatusFilter } from '@/lib/inventory/transform';
+import type { SupplierOption } from '@/lib/suppliers/queries';
 import styles from './inventory.module.css';
 
 /**
@@ -23,9 +24,13 @@ const STATUSES: { value: StatusFilter; label: string }[] = [
 export function InventoryControls({
   search,
   status,
+  supplierId,
+  supplierOptions,
 }: {
   search: string;
   status: StatusFilter;
+  supplierId: string;
+  supplierOptions: SupplierOption[];
 }): React.ReactNode {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,7 +43,7 @@ export function InventoryControls({
     setTerm(search);
   }, [search]);
 
-  function push(next: { q?: string; status?: StatusFilter }): void {
+  function push(next: { q?: string; status?: StatusFilter; supplier?: string }): void {
     const sp = new URLSearchParams(params.toString());
     if (next.q !== undefined) {
       if (next.q.trim()) {
@@ -52,6 +57,13 @@ export function InventoryControls({
         sp.delete('status');
       } else {
         sp.set('status', next.status);
+      }
+    }
+    if (next.supplier !== undefined) {
+      if (next.supplier) {
+        sp.set('supplier', next.supplier);
+      } else {
+        sp.delete('supplier');
       }
     }
     const qs = sp.toString();
@@ -97,6 +109,24 @@ export function InventoryControls({
           );
         })}
       </fieldset>
+
+      {supplierOptions.length > 0 ? (
+        <label className={styles.supplierFilter}>
+          <span className={styles.srOnly}>Filter by supplier</span>
+          <select
+            className={styles.supplierSelect}
+            value={supplierId}
+            onChange={(e) => push({ supplier: e.target.value })}
+          >
+            <option value="">All suppliers</option>
+            {supplierOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
     </div>
   );
 }

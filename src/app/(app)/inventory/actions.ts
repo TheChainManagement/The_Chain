@@ -141,3 +141,35 @@ export async function archiveProduct(
   revalidatePath(`/inventory/${productId}`);
   return { ok: true, productId };
 }
+
+export type BulkActionState = { ok: true; count: number } | { ok: false; error: string };
+
+/**
+ * Bulk-archive selected SKUs (soft discontinue). Direct-callable from the ledger
+ * client island. RLS gates which rows actually update (tenant + role), so the
+ * returned count reflects only what the caller was allowed to change.
+ */
+export async function bulkArchiveProducts(productIds: string[]): Promise<BulkActionState> {
+  const ids = productIds.filter(Boolean);
+  if (ids.length === 0) {
+    return { ok: false, error: 'No products selected.' };
+  }
+
+  const supabase = await createSupabaseServer();
+  const { data, error } = await supabase
+    .from('products')
+    .update({ status: 'discontinued' })
+    .in('id', ids)
+    .select('id')
+    .returns<{ id: string }[]>();
+
+  if (error) {
+    return { ok: false, error: mapWriteError(error.code, error.message) };
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+
+  revalidatePath('/inventory');
+  return { ok: true, count: data.length };
+}
