@@ -408,20 +408,6 @@
   align-items: center;
   gap: var(--spacing-4);
 }
-.doneCta {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-3) var(--spacing-5);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-on-signal);
-  background: var(--color-signal);
-  border: 1px solid var(--color-signal);
-  text-decoration: none;
-  transition: background var(--duration-quick) var(--ease-spring-soft);
-}
-.doneCta:hover {
-  background: var(--color-signal-bright);
-  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
-}
+/* The "View catalog" CTA reuses the shared cobalt nav-link (page.module.css .cta)
+   rather than a bespoke button — it is navigation, and there is one sanctioned
+   cobalt-link path. */

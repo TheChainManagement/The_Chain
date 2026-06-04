@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { type ReactNode, useCallback, useMemo, useState, useTransition } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import type { KindSpec } from '@/lib/import/field-specs';
 import { autoMap, type ColumnMapping, missingRequired } from '@/lib/import/mapping';
@@ -151,7 +152,7 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
                 : ' Every row passed.'}
             </p>
             <div className={styles.doneActions}>
-              <Link href="/inventory" className={styles.doneCta}>
+              <Link href="/inventory" className={pageStyles.cta}>
                 View catalog
               </Link>
               <button type="button" className={styles.backLink} onClick={reset}>

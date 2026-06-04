@@ -100,4 +100,17 @@ describe('mapRows (valid rows survive bad rows)', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toMatchObject({ row: 2, code: 'missing_required' });
   });
+
+  it('rejects a duplicate natural key within the file (first wins, later flagged)', () => {
+    const rows = [
+      { SKU: 'DUP', Name: 'First' },
+      { SKU: 'OK', Name: 'Other' },
+      { SKU: 'DUP', Name: 'Second (duplicate)' },
+    ];
+    const result = mapRows(rows, productSpec, mapping);
+    expect(result.payloads.map((p) => p.externalId)).toEqual(['DUP', 'OK']);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ row: 3, field: 'sku', code: 'duplicate_key' }),
+    );
+  });
 });

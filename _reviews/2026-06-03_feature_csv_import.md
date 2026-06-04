@@ -62,7 +62,11 @@ on-disk evidence of record is the DOM/DB facts below.
    with `entities_processed {product: 3}`. No console errors (`preview_console_logs`
    level=error returned none).
 
-## Tests (21 new; suite 155/155)
+## Tests (25 new; suite 159/159)
+
+(+4 from the Codex round-1 fixes: duplicate-natural-key rejection, and the
+`mapper.memorable.test.tsx` RTL artifact — connectors render, required-missing
+state, click-to-connect.)
 
 - `tests/import/mapping.test.ts` — normalizeHeader, autoMap heuristic (one-header-
   one-field), missing/unmapped, coercion (number/integer/enum + status default),

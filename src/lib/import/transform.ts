@@ -25,7 +25,13 @@ export interface RowError {
   /** 1-based CSV row number (data rows, header excluded). */
   row: number;
   field?: string;
-  code: 'missing_required' | 'invalid_number' | 'invalid_integer' | 'invalid_enum' | 'schema';
+  code:
+    | 'missing_required'
+    | 'invalid_number'
+    | 'invalid_integer'
+    | 'invalid_enum'
+    | 'duplicate_key'
+    | 'schema';
   message: string;
 }
 
@@ -203,14 +209,28 @@ export function mapRows(
 ): MapRowsResult {
   const payloads: CanonicalPayload[] = [];
   const errors: RowError[] = [];
+  const keyField = naturalKeyField(spec.kind);
+  const seenKeys = new Set<string>();
 
   rows.forEach((row, i) => {
     const result = rowToPayload(i + 1, row, spec, mapping);
-    if (result.payload) {
-      payloads.push(result.payload);
-    } else {
+    if (!result.payload) {
       errors.push(...result.errors);
+      return;
     }
+    // Reject a natural key that an earlier row already claimed (the contract:
+    // "no duplicate natural keys"). Without this the last dupe silently wins.
+    if (seenKeys.has(result.payload.externalId)) {
+      errors.push({
+        row: i + 1,
+        field: keyField.key,
+        code: 'duplicate_key',
+        message: `Duplicate ${keyField.label} "${result.payload.externalId}" — an earlier row already used it.`,
+      });
+      return;
+    }
+    seenKeys.add(result.payload.externalId);
+    payloads.push(result.payload);
   });
 
   return { payloads, errors, total: rows.length };
