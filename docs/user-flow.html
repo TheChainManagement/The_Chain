@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Chain — User Flow</title>
+  <!-- Source of truth for the diagram is docs/USER_FLOW.md. Keep them in sync. -->
+  <style>
+    :root { --ink:#11161c; --mid:#54616f; --line:#d7dce2; --cobalt:#0942b5; --bg:#f7f8fa; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--bg); }
+    header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; position:sticky; top:0; z-index:5; }
+    header h1 { font-size:16px; margin:0; letter-spacing:0.02em; }
+    header .sub { color: var(--mid); font-size:13px; }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; margin-left:auto; font-size:12px; color:var(--mid); }
+    .legend span { display:inline-flex; align-items:center; gap:6px; }
+    .sw { width:12px; height:12px; border-radius:2px; display:inline-block; }
+    .controls { display:flex; gap:8px; align-items:center; }
+    .controls button { border:1px solid var(--line); background:#fff; color:var(--ink); width:30px; height:30px; border-radius:6px; font-size:16px; cursor:pointer; }
+    .controls button:hover { border-color: var(--cobalt); }
+    #stage { overflow:auto; height: calc(100vh - 64px); padding:24px; }
+    #out { transform-origin: top left; transition: transform 80ms ease-out; }
+    #out svg { max-width:none !important; height:auto; }
+    .mermaid { font-size: 13px; }
+    .err { color:#b5142b; font-family: ui-monospace, monospace; padding:24px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>The Chain — User Flow</h1>
+      <div class="sub">MVP (Wave 1) + wired-for future waves · source: docs/USER_FLOW.md</div>
+    </div>
+    <div class="controls">
+      <button id="zout" title="Zoom out">−</button>
+      <button id="zin" title="Zoom in">+</button>
+      <button id="zreset" title="Reset">&#8674;</button>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:#1a8c5c"></i>Shipped</span>
+      <span><i class="sw" style="background:#be7c0e"></i>Partial</span>
+      <span><i class="sw" style="background:#0942b5"></i>Wave 1 MVP</span>
+      <span><i class="sw" style="background:#11161c"></i>System job</span>
+      <span><i class="sw" style="background:#e7eaee;border:1px dashed #9aa6b2"></i>Future wave</span>
+    </div>
+  </header>
+  <div id="stage"><div id="out"></div></div>
+
+  <script type="text/x-mermaid" id="src">
+flowchart TD
+  classDef shipped fill:#1a8c5c,color:#ffffff,stroke:#0f5a3a,stroke-width:1px;
+  classDef partial fill:#be7c0e,color:#ffffff,stroke:#7a4f08,stroke-width:1px;
+  classDef wave1 fill:#0942b5,color:#ffffff,stroke:#062c78,stroke-width:1px;
+  classDef system fill:#11161c,color:#ffffff,stroke:#000000,stroke-width:1px;
+  classDef future fill:#e7eaee,color:#11161c,stroke:#9aa6b2,stroke-width:1px,stroke-dasharray:5 3;
+
+  subgraph MKT["① Discovery — Marketing site (Block 17)"]
+    M1["Landing / hero<br/>(chain animation)"]:::partial
+    M2["How it works"]:::wave1
+    M3["Pricing"]:::wave1
+    M1 --> M2 --> M3
+  end
+
+  subgraph ACC["② Account (Block 1)"]
+    A1["Sign up<br/>14-day trial created"]:::shipped
+    A2["Sign in"]:::shipped
+    A3["Forgot password<br/>(needs Resend)"]:::wave1
+    A4["Signup → workshop morph"]:::shipped
+  end
+  M1 -->|Start trial| A1
+  M3 -->|Start trial| A1
+  A1 --> A4 --> ONB
+  A2 --> DASH
+
+  subgraph ONB["③ Onboarding — dual path (Block 2)"]
+    O0{"Path picker"}:::wave1
+    O1["Connect QuickBooks<br/>OAuth + first sync"]:::wave1
+    O2["Upload CSV history"]:::wave1
+    O3["Start fresh<br/>guided minimums"]:::wave1
+    O4["Preparing your workshop<br/>(first forecast batch)"]:::wave1
+    O0 --> O1 --> O4
+    O0 --> O2 --> O4
+    O0 --> O3 --> O4
+  end
+  O4 --> DASH
+
+  DASH["④ /today — health dashboard (Block 15)<br/>today's chain · metrics · Claude rail · alerts<br/>(shell shipped, centerpiece planned)"]:::partial
+  DASH --> INV
+  DASH --> FORE
+  DASH --> REO
+  DASH --> ALERTS
+  DASH --> SET
+
+  subgraph ING["⑤ Data ingestion (Blocks 5, 6)"]
+    I1["CSV import — products<br/>upload → map → preview → commit"]:::shipped
+    I2["CSV import — suppliers + sales/movements"]:::wave1
+    I3["QuickBooks 2-way sync<br/>items · vendors · POs · bills · sales"]:::wave1
+    I4["Sync conflicts review"]:::wave1
+  end
+  I1 --> INV
+  I2 --> INV
+  I2 --> SUP
+  I2 --> SALES[("stock_movements<br/>(sales history)")]:::system
+  I3 --> INV
+  I3 --> SUP
+  I3 --> SALES
+  I3 --> REO
+
+  subgraph MD["⑥ Master data (Blocks 3, 4)"]
+    INV["Inventory / SKU catalog<br/>list · detail · search · edit/archive · bulk"]:::shipped
+    SUP["Suppliers<br/>roster · detail · links · reliability ribbon"]:::shipped
+    INVD["SKU detail<br/>position · classification · policy chain"]:::shipped
+    INV --> INVD
+  end
+  INV -->|Import catalog| I1
+
+  subgraph PIPE["⑦ Nightly intelligence batch — system (Blocks 7,8,9,10)"]
+    P1["Classify ABC + XYZ<br/>(value + ADI/CV² from sales)"]:::wave1
+    P2["Forecast demand<br/>(Nixtla; method routed by class;<br/>cold-start ladder; beats-naive gate)"]:::wave1
+    P3["Derive policy<br/>safety stock z·σ·√L · reorder point ·<br/>order qty · DOS · stockout risk"]:::wave1
+    P4["Supplier scorecard rollup<br/>OTIF · empirical lead time + stddev"]:::wave1
+    P1 --> P2 --> P3
+    P4 -. empirical lead time/σ .-> P3
+  end
+  SALES --> P1
+  SUP --> P4
+
+  subgraph INTEL["⑧ Intelligence surfaces"]
+    FORE["Forecasts view (Block 8)<br/>history + forecast + confidence bands"]:::wave1
+    QUAD["Classification quadrant (Block 7)<br/>ABC×XYZ grid, drag-zoom"]:::wave1
+    POL["Optimization / policy (Block 9)<br/>what-if: service level · lead time · supplier"]:::wave1
+    WIDG["DOS + Stockout Risk widgets"]:::wave1
+  end
+  P2 --> FORE
+  P1 --> QUAD
+  P3 --> POL
+  P3 --> WIDG
+  WIDG --> INVD
+  INVD --> FORE
+  INVD --> POL
+
+  subgraph LOOP["⑨ Reorder loop — the hero (Blocks 11, 13)"]
+    ALERTS["Alerts (Block 13)<br/>actionable memos: stockout · overstock · late PO"]:::wave1
+    REO["Reorder queue (Block 11)<br/>recommendations grouped by supplier"]:::wave1
+    PO["PO detail — the visible chain<br/>recommend → approve → export → receive"]:::wave1
+    RCV["Receive (partial/full)<br/>updates on-hand + scorecard"]:::wave1
+    REO --> PO --> RCV
+  end
+  P3 --> ALERTS
+  P3 --> REO
+  ALERTS -->|cobalt CTA| REO
+  PO -->|approve| QBOW["Write PO back to QuickBooks"]:::wave1
+  RCV --> SALES
+  RCV -. promised vs actual .-> P4
+
+  INS["⑩ AI insights — Claude (Block 12)<br/>explains forecasts/policy/reorder · never the forecaster"]:::wave1
+  INS -. overlays .-> FORE
+  INS -. overlays .-> POL
+  INS -. overlays .-> REO
+  INS -. overlays .-> DASH
+
+  subgraph OPS["⑪ Flow / ops"]
+    AUD["Audit log (Block 14)<br/>every state change · ROI-ready · tier-gated"]:::wave1
+    I4
+  end
+  RCV --> AUD
+  PO --> AUD
+  INV --> AUD
+
+  subgraph SETB["⑫ Settings + billing (Block 16)"]
+    SET["Settings"]:::wave1
+    BILL["Trial countdown · billing<br/>(Stripe wired, off at launch)"]:::wave1
+    SET --> BILL
+  end
+
+  subgraph FUT["⑬ Future waves — wired-for, NOT in MVP"]
+    F2["Wave 2 — Multi-location<br/>location selector · transfer recs"]:::future
+    F3["Wave 3 — Multi-user roles<br/>planner/warehouse/finance/manager/owner"]:::future
+    F4["Wave 4 — Barcode + guided cycle counts"]:::future
+    F5["Wave 5 — Rutter adapter<br/>NetSuite · Xero · Shopify · Square · etc."]:::future
+    F6["Wave 6 — ROI Impact Dashboard<br/>(reads the audit log)"]:::future
+    F7["Wave 7+ — Distribution-ERP natives<br/>Cin7 · Fishbowl · Katana · Zoho · Unleashed"]:::future
+  end
+  DASH -.-> F2
+  DASH -.-> F3
+  INV -.-> F4
+  ING -.-> F5
+  AUD -.-> F6
+  ING -.-> F7
+  </script>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', maxTextSize: 500000, flowchart: { htmlLabels: true, curve: 'basis' } });
+
+    const out = document.getElementById('out');
+    // Build a .mermaid node via textContent (no innerHTML) so the literal <br/> in
+    // labels survives; mermaid.run() does its own safe DOM rendering.
+    const node = document.createElement('pre');
+    node.className = 'mermaid';
+    node.textContent = document.getElementById('src').textContent;
+    out.appendChild(node);
+
+    try {
+      await mermaid.run({ nodes: [node] });
+    } catch (e) {
+      const err = document.createElement('div');
+      err.className = 'err';
+      err.textContent = 'Could not render the diagram: ' + (e && e.message ? e.message : String(e));
+      out.appendChild(err);
+    }
+
+    let scale = 1;
+    const apply = () => { out.style.transform = 'scale(' + scale + ')'; };
+    document.getElementById('zin').onclick = () => { scale = Math.min(3, scale + 0.15); apply(); };
+    document.getElementById('zout').onclick = () => { scale = Math.max(0.3, scale - 0.15); apply(); };
+    document.getElementById('zreset').onclick = () => { scale = 1; apply(); };
+  </script>
+</body>
+</html>
