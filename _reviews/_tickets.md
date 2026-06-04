@@ -22,3 +22,20 @@ Deferred:
 - **Encoding: Latin-1** — the browser `FileReader.readAsText` assumes UTF-8 and will misdecode Latin-1 before the server sees bytes. Read as ArrayBuffer + detect/decode (UTF-8 / BOM / Latin-1) on the server; add encoding tests.
 - **Raw-px CSS → tokens** in `src/app/(app)/import/import.module.css` (300px, 8rem, 36px, 26ch, etc.) during the stack-audit pass. Craft guard passes today.
 - **Server Action layer test** for `runImport` (role-gating, revalidate, error mapping) through the action boundary.
+
+## Block 5 Wave 5.2-writers — Codex round-1 tickets (2026-06-04)
+Review: `_reviews/2026-06-04_block5_wave5_2_writers.md`. Fixed in-slice: action-boundary
+try/catch for infra throws (ensureCsvConnection/ensurePrimaryLocation); lanes memorable
+RTL artifact (`tests/import/lanes.memorable.test.tsx`). Deferred:
+- **Writer-stage failures lose CSV row numbers.** Adapter-stage (coercion/schema) errors
+  carry the row number, but writer-stage errors (unknown_sku, invalid_date for movements)
+  key by SKU, so `summary.failures.row` degrades to 0 and `sync_failures.external_ref`
+  stores the SKU not the row. Thread row provenance through the adapter/payload. → 5.2-durable.
+- **occurred_at strict parsing + TZ.** The movement writer reparses via `new Date()` →
+  `toISOString()`, which normalizes a date-only/TZ-bearing value to a UTC instant rather
+  than preserving source fidelity. Replace with a strict per-format parse + explicit TZ
+  handling; add date/encoding tests. → 5.2-durable (pairs with Latin-1 decode).
+- **Server Action layer test for `runImport`** — role-gating, revalidate, per-kind dispatch,
+  error mapping through the action boundary. (Standing from 5.1; reaffirmed.) → 5.2-durable.
+- **Raw-px tokens in `import.module.css`** now include the lane geometry (720px, 3px, 15px,
+  12px) on top of the existing 5.1 px. → stack-audit pass.

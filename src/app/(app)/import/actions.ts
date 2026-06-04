@@ -56,17 +56,24 @@ export async function runImport(input: {
     return { ok: false, error: 'You do not have permission to run this import.' };
   }
 
-  const result = await runCsvImport({
-    tenantClient: supabase,
-    tenantId,
-    kind: input.kind,
-    csvText: input.csvText,
-    mapping: input.mapping,
-    idempotencyKey: input.idempotencyKey,
-  });
+  try {
+    const result = await runCsvImport({
+      tenantClient: supabase,
+      tenantId,
+      kind: input.kind,
+      csvText: input.csvText,
+      mapping: input.mapping,
+      idempotencyKey: input.idempotencyKey,
+    });
 
-  if (result.ok) {
-    revalidatePath(REVALIDATE_BY_KIND[input.kind]);
+    if (result.ok) {
+      revalidatePath(REVALIDATE_BY_KIND[input.kind]);
+    }
+    return result;
+  } catch {
+    // Infra provisioning (sync_run, default location, CSV connection) throws on
+    // hard failure; map it to the action contract so it never blows through the
+    // boundary as an unhandled rejection. The user sees a clean retry message.
+    return { ok: false, error: 'Something went wrong during the import. Please try again.' };
   }
-  return result;
 }
