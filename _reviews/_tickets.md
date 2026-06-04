@@ -39,3 +39,18 @@ RTL artifact (`tests/import/lanes.memorable.test.tsx`). Deferred:
   error mapping through the action boundary. (Standing from 5.1; reaffirmed.) → 5.2-durable.
 - **Raw-px tokens in `import.module.css`** now include the lane geometry (720px, 3px, 15px,
   12px) on top of the existing 5.1 px. → stack-audit pass.
+
+## Block 5 Wave 5.2-durable — open items (2026-06-04)
+Shipped: threshold-gated durable importWorkflow + admin write core + live progress bar.
+Evidence `_reviews/2026-06-04_block5-wave5_2-durable.md`. Deferred:
+- **Terminal-failure propagation.** A durable step that ultimately fails (after DevKit
+  retries) leaves sync_run status='running'; the client poll cap hands off softly but
+  the run isn't marked 'failed'. Add RetryableError/FatalError classification in the
+  step + a failed-state write so the poller can show a real failure.
+- **Large CSV input → Blob.** The whole csvText is passed as the workflow input
+  (persisted with the run). Stage to Vercel Blob + read ranges for the 50k path
+  instead of inlining megabytes of run state.
+- **Official perf bench on Vercel Preview.** 10k<30s p95 + 50k no-OOM must run on a
+  seeded Preview deploy (Local World is synchronous, so dev timing isn't the SLO).
+- Still open from earlier 5.2 tickets: true streaming parse, Latin-1/Windows-1252
+  decode, recurring re-upload UI, writer-stage row provenance, runImport action-layer test.

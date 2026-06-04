@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { type ReactNode, useCallback, useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useCallback, useMemo, useRef, useState, useTransition } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
@@ -9,13 +9,17 @@ import type { ImportableKind, KindSpec } from '@/lib/import/field-specs';
 import { autoMap, type ColumnMapping, missingRequired } from '@/lib/import/mapping';
 import { type ParsedCsv, parseCsv } from '@/lib/import/parse';
 import { mapRows } from '@/lib/import/transform';
-import { type ImportActionResult, runImport } from './actions';
+import { getImportProgress, type ImportActionResult, runImport } from './actions';
 import { ColumnMapper } from './ColumnMapper';
 import styles from './import.module.css';
 import { PreviewPane } from './PreviewPane';
 import { UploadZone } from './UploadZone';
 
-type Step = 'upload' | 'map' | 'preview' | 'done';
+type Step = 'upload' | 'map' | 'preview' | 'running' | 'done';
+
+/** Poll cadence + cap for a durable import (≈8 min before a soft hand-off). */
+const POLL_MS = 800;
+const POLL_MAX = 600;
 
 /** Where the done screen sends you to see what just landed. */
 const DESTINATION: Record<ImportableKind, { href: string; label: string }> = {
@@ -37,7 +41,11 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [parseError, setParseError] = useState('');
   const [result, setResult] = useState<ImportActionResult | null>(null);
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const [pending, startTransition] = useTransition();
+  // The tracking key of the import currently being polled; a reset clears it so
+  // a stale poll can't clobber a fresh run.
+  const activeKey = useRef<string | null>(null);
 
   const handleFile = useCallback(
     (name: string, text: string) => {
@@ -66,22 +74,64 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
     return mapRows(parsed.rows, spec, mapping);
   }, [parsed, spec, mapping]);
 
+  // Poll a durable import until it completes (or a soft cap hands it off).
+  const poll = useCallback((trackingKey: string) => {
+    activeKey.current = trackingKey;
+    let attempts = 0;
+    const tick = async () => {
+      if (activeKey.current !== trackingKey) return; // superseded by a reset
+      attempts += 1;
+      const p = await getImportProgress(trackingKey);
+      if (activeKey.current !== trackingKey) return;
+
+      if (p.status === 'completed') {
+        setProgress(null);
+        setResult({ ok: true, summary: p.summary });
+        setStep('done');
+        return;
+      }
+      if (p.status === 'running') {
+        setProgress({ processed: p.processed, total: p.total });
+      }
+      if (attempts >= POLL_MAX) {
+        setProgress(null);
+        setResult({
+          ok: false,
+          error:
+            'This import is still running. It will finish on its own — check back in a moment.',
+        });
+        setStep('preview');
+        return;
+      }
+      setTimeout(tick, POLL_MS);
+    };
+    void tick();
+  }, []);
+
   const commit = useCallback(() => {
     const idempotencyKey = crypto.randomUUID();
     startTransition(async () => {
       const res = await runImport({ kind: spec.kind, csvText, mapping, idempotencyKey });
+      if (res.ok && 'async' in res) {
+        setProgress({ processed: 0, total: 0 });
+        setStep('running');
+        poll(res.trackingKey);
+        return;
+      }
       setResult(res);
       if (res.ok) setStep('done');
     });
-  }, [csvText, mapping, spec.kind]);
+  }, [csvText, mapping, spec.kind, poll]);
 
   const reset = useCallback(() => {
+    activeKey.current = null; // stop any in-flight poll
     setStep('upload');
     setFileName('');
     setCsvText('');
     setParsed(null);
     setMapping({});
     setResult(null);
+    setProgress(null);
     setParseError('');
   }, []);
 
@@ -145,7 +195,24 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
         </>
       ) : null}
 
-      {step === 'done' && result?.ok ? (
+      {step === 'running' ? (
+        <Panel prefix="Importing" title={`Bringing in your ${spec.label.toLowerCase()}`}>
+          <div className={styles.runningBody}>
+            <p className={styles.doneCopy}>
+              This is a large file, so it&rsquo;s running durably — it survives interruptions and
+              picks up where it left off. You can keep this tab open.
+            </p>
+            <ProgressBar processed={progress?.processed ?? 0} total={progress?.total ?? 0} />
+            <p className={styles.progressLabel}>
+              {progress && progress.total > 0
+                ? `${progress.processed.toLocaleString()} of ${progress.total.toLocaleString()} rows`
+                : 'Preparing…'}
+            </p>
+          </div>
+        </Panel>
+      ) : null}
+
+      {step === 'done' && result?.ok && 'summary' in result ? (
         <Panel
           prefix="Imported"
           title={`${result.summary.imported} ${spec.label.toLowerCase()} landed`}
@@ -186,7 +253,10 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 function Stepper({ step }: { step: Step }): ReactNode {
-  const activeIndex = STEPS.findIndex((s) => s.key === step);
+  // 'running' is a large-file substep between preview and done — show preview as
+  // complete and done as the active target.
+  const lookupStep = step === 'running' ? 'done' : step;
+  const activeIndex = STEPS.findIndex((s) => s.key === lookupStep);
   return (
     <ol className={styles.stepper} aria-label="Import progress">
       {STEPS.map((s, i) => {
@@ -199,5 +269,21 @@ function Stepper({ step }: { step: Step }): ReactNode {
         );
       })}
     </ol>
+  );
+}
+
+/** The live cobalt fill for a durable import's progress. */
+export function ProgressBar({ processed, total }: { processed: number; total: number }): ReactNode {
+  const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+  return (
+    <div
+      className={styles.progressTrack}
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+    </div>
   );
 }

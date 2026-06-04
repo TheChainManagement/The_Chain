@@ -25,13 +25,13 @@
  */
 
 import 'server-only';
-import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CanonicalPayload, PullResultError } from '@/lib/source-adapter';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { CsvSourceAdapter } from './csv-adapter';
 import type { ImportableKind } from './field-specs';
 import type { ColumnMapping } from './mapping';
+import { movementSourceRef, parseOccurredAt } from './writers-shared';
 
 export interface ImportFailure {
   row: number;
@@ -160,7 +160,7 @@ function writeForKind(
   }
 }
 
-async function ensureCsvConnection(
+export async function ensureCsvConnection(
   admin: SupabaseClient,
   tenantId: string,
   capabilities: unknown,
@@ -332,8 +332,8 @@ async function writeStockMovements(
       });
       continue;
     }
-    const occurred = new Date(a.occurredAt);
-    if (Number.isNaN(occurred.getTime())) {
+    const occurredIso = parseOccurredAt(a.occurredAt);
+    if (occurredIso === null) {
       rowErrors.push({
         externalId: a.productExternalId,
         code: 'invalid_date',
@@ -341,7 +341,6 @@ async function writeStockMovements(
       });
       continue;
     }
-    const occurredIso = occurred.toISOString();
     rows.push({
       tenant_id: tenantId,
       product_id: productId,
@@ -399,18 +398,10 @@ interface StockMovementRow {
   occurred_at: string;
 }
 
-function movementSourceRef(
-  sku: string,
-  type: string,
-  quantity: number,
-  occurredIso: string,
-): string {
-  return createHash('sha1')
-    .update([sku, type, String(quantity), occurredIso].join(' '))
-    .digest('hex');
-}
-
-async function ensurePrimaryLocation(admin: SupabaseClient, tenantId: string): Promise<string> {
+export async function ensurePrimaryLocation(
+  admin: SupabaseClient,
+  tenantId: string,
+): Promise<string> {
   const { data: existing } = await admin
     .from('locations')
     .select('id')
