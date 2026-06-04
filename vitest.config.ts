@@ -17,7 +17,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     // Mirror the tsconfig `@/*` -> `src/*` path alias so tests can import app code.
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    // `server-only` throws on import outside an RSC bundle; stub it so integration
+    // tests can exercise the server modules (commit core, admin client) directly.
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'server-only': fileURLToPath(new URL('./tests/stubs/empty.ts', import.meta.url)),
+    },
   },
   test: {
     environment: 'node',
