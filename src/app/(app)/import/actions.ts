@@ -9,13 +9,30 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 /**
  * Commit a CSV import (Block 5). Direct-callable from the preview pane.
  *
- * Verifies the caller's tenant + role from the JWT (mirrors the products RLS
- * gate so a viewer is rejected before any write), then hands off to the commit
- * core. The core upserts products through this same RLS client; only the
- * sync bookkeeping uses the service-role path.
+ * Verifies the caller's tenant + per-kind role from the JWT (mirrors each
+ * table's RLS write gate so a viewer is rejected before any work), then hands
+ * off to the commit core. The core writes master data through this same RLS
+ * client; only the sync bookkeeping + default-location provisioning use the
+ * service-role path.
+ *
+ * The role sets differ by table: products and suppliers accept
+ * owner|manager|planner, but stock_movements accepts owner|manager|warehouse
+ * (a planner forecasts, a warehouse role moves stock). RLS is the real net;
+ * this gate just returns a clean message before doing the work.
  */
 
-const WRITE_ROLES = new Set(['owner', 'manager', 'planner']);
+const WRITE_ROLES_BY_KIND: Record<ImportableKind, ReadonlySet<string>> = {
+  product: new Set(['owner', 'manager', 'planner']),
+  supplier: new Set(['owner', 'manager', 'planner']),
+  stock_movement: new Set(['owner', 'manager', 'warehouse']),
+};
+
+// After a successful import, refresh the surface that reads the new rows.
+const REVALIDATE_BY_KIND: Record<ImportableKind, string> = {
+  product: '/inventory',
+  supplier: '/suppliers',
+  stock_movement: '/inventory',
+};
 
 export type ImportActionResult =
   | { ok: true; summary: ImportSummary }
@@ -35,8 +52,8 @@ export async function runImport(input: {
   if (!tenantId) {
     return { ok: false, error: 'Your session expired. Sign in again to import.' };
   }
-  if (!role || !WRITE_ROLES.has(role)) {
-    return { ok: false, error: 'You do not have permission to import into this catalog.' };
+  if (!role || !WRITE_ROLES_BY_KIND[input.kind].has(role)) {
+    return { ok: false, error: 'You do not have permission to run this import.' };
   }
 
   const result = await runCsvImport({
@@ -49,7 +66,7 @@ export async function runImport(input: {
   });
 
   if (result.ok) {
-    revalidatePath('/inventory');
+    revalidatePath(REVALIDATE_BY_KIND[input.kind]);
   }
   return result;
 }

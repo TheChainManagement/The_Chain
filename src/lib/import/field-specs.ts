@@ -39,6 +39,19 @@ export interface CanonicalFieldSpec {
    * idempotent upsert and to label failures). Exactly one per kind.
    */
   isNaturalKey?: boolean;
+  /**
+   * The natural key is matched case-insensitively (e.g. supplier name, which
+   * upserts on `lower(name)`). In-file de-dup folds case to match the DB key.
+   * SKUs are codes and stay case-sensitive.
+   */
+  caseFold?: boolean;
+  /**
+   * The natural key uniquely identifies a row, so a repeat in one file is a
+   * mistake (products, suppliers). Default true. Movements set this false: a SKU
+   * appears in every sale of that product, so rows are NOT deduped on it — true
+   * duplicates are collapsed downstream by the content-hash source_ref instead.
+   */
+  rowUnique?: boolean;
 }
 
 export interface KindSpec {
@@ -102,7 +115,9 @@ const SUPPLIER_FIELDS: readonly CanonicalFieldSpec[] = [
     required: true,
     type: 'string',
     isNaturalKey: true,
+    caseFold: true,
     aliases: ['name', 'supplier', 'vendor', 'suppliername', 'vendorname', 'company'],
+    hint: 'Matched case-insensitively. Re-importing the same supplier updates it, never duplicates.',
   },
   {
     key: 'defaultLeadTimeDays',
@@ -136,6 +151,7 @@ const STOCK_MOVEMENT_FIELDS: readonly CanonicalFieldSpec[] = [
     required: true,
     type: 'string',
     isNaturalKey: true,
+    rowUnique: false, // a SKU recurs across every movement of that product
     aliases: ['sku', 'item', 'itemnumber', 'productcode', 'product'],
     hint: 'Must match a SKU already in your catalog.',
   },

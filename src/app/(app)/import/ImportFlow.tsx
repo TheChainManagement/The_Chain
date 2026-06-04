@@ -5,7 +5,7 @@ import { type ReactNode, useCallback, useMemo, useState, useTransition } from 'r
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
-import type { KindSpec } from '@/lib/import/field-specs';
+import type { ImportableKind, KindSpec } from '@/lib/import/field-specs';
 import { autoMap, type ColumnMapping, missingRequired } from '@/lib/import/mapping';
 import { type ParsedCsv, parseCsv } from '@/lib/import/parse';
 import { mapRows } from '@/lib/import/transform';
@@ -16,6 +16,13 @@ import { PreviewPane } from './PreviewPane';
 import { UploadZone } from './UploadZone';
 
 type Step = 'upload' | 'map' | 'preview' | 'done';
+
+/** Where the done screen sends you to see what just landed. */
+const DESTINATION: Record<ImportableKind, { href: string; label: string }> = {
+  product: { href: '/inventory', label: 'View catalog' },
+  supplier: { href: '/suppliers', label: 'View suppliers' },
+  stock_movement: { href: '/inventory', label: 'View catalog' },
+};
 
 /**
  * ImportFlow — the upload → map → preview → commit state machine (client).
@@ -145,15 +152,20 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
         >
           <div className={styles.doneBody}>
             <p className={styles.doneCopy}>
-              {result.summary.imported} row{result.summary.imported === 1 ? '' : 's'} committed to
-              your catalog from <strong>{fileName}</strong>.
+              {result.summary.imported} row{result.summary.imported === 1 ? '' : 's'} committed from{' '}
+              <strong>{fileName}</strong>.
+              {result.summary.skipped > 0
+                ? ` ${result.summary.skipped} ${result.summary.skipped === 1 ? 'row was' : 'rows were'} already on file and left untouched.`
+                : ''}
               {result.summary.failed > 0
-                ? ` ${result.summary.failed} row${result.summary.failed === 1 ? '' : 's'} were skipped and logged for review.`
-                : ' Every row passed.'}
+                ? ` ${result.summary.failed} ${result.summary.failed === 1 ? 'row was' : 'rows were'} skipped and logged for review.`
+                : result.summary.skipped > 0
+                  ? ''
+                  : ' Every row passed.'}
             </p>
             <div className={styles.doneActions}>
-              <Link href="/inventory" className={pageStyles.cta}>
-                View catalog
+              <Link href={DESTINATION[spec.kind].href} className={pageStyles.cta}>
+                {DESTINATION[spec.kind].label}
               </Link>
               <button type="button" className={styles.backLink} onClick={reset}>
                 Import another file

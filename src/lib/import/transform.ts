@@ -210,6 +210,9 @@ export function mapRows(
   const payloads: CanonicalPayload[] = [];
   const errors: RowError[] = [];
   const keyField = naturalKeyField(spec.kind);
+  // Movements set rowUnique:false — a SKU recurs across every sale, so we don't
+  // dedup on it (true dupes collapse downstream on the content-hash source_ref).
+  const dedupRows = keyField.rowUnique !== false;
   const seenKeys = new Set<string>();
 
   rows.forEach((row, i) => {
@@ -220,16 +223,23 @@ export function mapRows(
     }
     // Reject a natural key that an earlier row already claimed (the contract:
     // "no duplicate natural keys"). Without this the last dupe silently wins.
-    if (seenKeys.has(result.payload.externalId)) {
-      errors.push({
-        row: i + 1,
-        field: keyField.key,
-        code: 'duplicate_key',
-        message: `Duplicate ${keyField.label} "${result.payload.externalId}" — an earlier row already used it.`,
-      });
-      return;
+    // Case-folded keys (supplier name) fold to match the DB's lower(name) upsert,
+    // so "Acme" and "acme" in one file collide here instead of failing at the DB.
+    if (dedupRows) {
+      const dedupKey = keyField.caseFold
+        ? result.payload.externalId.toLowerCase()
+        : result.payload.externalId;
+      if (seenKeys.has(dedupKey)) {
+        errors.push({
+          row: i + 1,
+          field: keyField.key,
+          code: 'duplicate_key',
+          message: `Duplicate ${keyField.label} "${result.payload.externalId}" — an earlier row already used it.`,
+        });
+        return;
+      }
+      seenKeys.add(dedupKey);
     }
-    seenKeys.add(result.payload.externalId);
     payloads.push(result.payload);
   });
 

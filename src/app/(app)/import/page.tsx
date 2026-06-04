@@ -2,22 +2,22 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { getKindSpec } from '@/lib/import/field-specs';
-import { ImportFlow } from './ImportFlow';
+import { ImportWorkbench } from './ImportWorkbench';
 
 export const metadata = { title: 'Import · The Chain' };
 
 /**
- * Import — CSV ingestion (Block 5). Server Component: hands the product import
- * spec to the client flow (upload → map → preview → commit). Wave 5.1 drives the
- * product kind; suppliers + sales/movements join as additional tabs in 5.2.
+ * Import — CSV ingestion (Block 5). Server Component: hands the three importable
+ * specs to the client workbench (pick a lane → upload → map → preview → commit).
+ * Products, suppliers, and sales/movements each share the same kind-driven flow.
  */
 export default function ImportPage(): ReactNode {
-  const productSpec = getKindSpec('product');
+  const specs = [getKindSpec('product'), getKindSpec('supplier'), getKindSpec('stock_movement')];
 
   return (
     <div className={pageStyles.stack}>
-      <PageHeader eyebrow="Ingestion · bring your catalog in" title="Import" />
-      <ImportFlow spec={productSpec} />
+      <PageHeader eyebrow="Ingestion · bring your operation in" title="Import" />
+      <ImportWorkbench specs={specs} />
     </div>
   );
 }
