@@ -90,6 +90,12 @@ export function ImportFlow({ spec }: { spec: KindSpec }): ReactNode {
         setStep('done');
         return;
       }
+      if (p.status === 'failed') {
+        setProgress(null);
+        setResult({ ok: false, error: p.error });
+        setStep('preview');
+        return;
+      }
       if (p.status === 'running') {
         setProgress({ processed: p.processed, total: p.total });
       }

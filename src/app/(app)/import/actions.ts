@@ -51,7 +51,16 @@ export type ImportActionResult =
 export type ImportProgress =
   | { status: 'running'; processed: number; total: number }
   | { status: 'completed'; summary: ImportSummary }
+  | { status: 'failed'; error: string }
   | { status: 'unknown' };
+
+const KIND_VALUES = new Set<ImportableKind>(['product', 'supplier', 'stock_movement']);
+
+function asKind(value: unknown): ImportableKind | null {
+  return typeof value === 'string' && KIND_VALUES.has(value as ImportableKind)
+    ? (value as ImportableKind)
+    : null;
+}
 
 export async function runImport(input: {
   kind: ImportableKind;
@@ -159,6 +168,7 @@ export async function getImportProgress(trackingKey: string): Promise<ImportProg
         processed?: number;
         total?: number;
         done?: boolean;
+        kind?: string;
         imported?: number;
         skipped?: number;
         failed?: number;
@@ -168,7 +178,18 @@ export async function getImportProgress(trackingKey: string): Promise<ImportProg
   if (!data) return { status: 'unknown' };
 
   const c = data.cursor ?? {};
+
+  if (data.status === 'failed') {
+    return { status: 'failed', error: 'The import did not finish. Please try again.' };
+  }
+
   if (data.status === 'completed') {
+    // The durable run wrote out-of-band, so the surface that reads the new rows
+    // is refreshed here (the synchronous path does this inline). Fires ~once: the
+    // client stops polling as soon as it sees completed.
+    const kind = asKind(c.kind);
+    if (kind) revalidatePath(REVALIDATE_BY_KIND[kind]);
+
     const imported = c.imported ?? 0;
     const skipped = c.skipped ?? 0;
     const failed = c.failed ?? 0;

@@ -54,3 +54,15 @@ Evidence `_reviews/2026-06-04_block5-wave5_2-durable.md`. Deferred:
   seeded Preview deploy (Local World is synchronous, so dev timing isn't the SLO).
 - Still open from earlier 5.2 tickets: true streaming parse, Latin-1/Windows-1252
   decode, recurring re-upload UI, writer-stage row provenance, runImport action-layer test.
+
+## Block 5 Wave 5.2-durable — Codex round-1 (2026-06-04)
+Review `_reviews/2026-06-04_block5_wave5_2_durable.md`. Fixed in-slice: durable-completion
+revalidatePath; `failed` progress state surfaced to the client. Deferred:
+- **Mark sync_run 'failed' on terminal step failure.** Needs RetryableError/FatalError
+  classification in the step so transient retries don't flash a false failure; only a
+  FatalError (or exhausted retries) writes status='failed'. The client already handles it.
+- **Workflow-boundary crash-resume integration test** — drive importWorkflow through a
+  deliberate process.exit mid-run and assert same final state (not just the core).
+- **Playwright memorable-element artifact harness** — persistable visible-craft proof
+  (the preview screenshot tool doesn't persist to disk in this env).
+- Raw px (6px/12px) in the progress styles → stack-audit (with the existing import.module.css px ticket).
