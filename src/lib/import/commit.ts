@@ -117,6 +117,9 @@ export async function runCsvImport(
         sync_run_id: syncRunId,
         entity_type: kind,
         external_ref: e.externalId ?? null,
+        // external_ref carries the natural key; the CSV row lives in payload so
+        // the persisted failure record has both (it's not only in the UI preview).
+        payload: e.row != null ? { row: e.row } : null,
         error_code: e.code,
         error_message: e.message,
       })),

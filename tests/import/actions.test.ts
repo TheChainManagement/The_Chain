@@ -13,6 +13,9 @@ const h = vi.hoisted(() => ({
   ensureCsvConnection: vi.fn(async () => 'conn1'),
   start: vi.fn(async () => ({ runId: 'wf1' })),
   revalidatePath: vi.fn(),
+  adminUpdate: vi.fn((_payload?: Record<string, unknown>) => ({
+    eq: async () => ({ data: null, error: null }),
+  })),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
@@ -26,6 +29,7 @@ vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdmin: () => ({
     from: () => ({
       insert: () => ({ select: () => ({ single: async () => ({ data: { id: 'run1' }, error: null }) }) }),
+      update: h.adminUpdate,
     }),
   }),
 }));
@@ -46,8 +50,10 @@ beforeEach(() => {
   h.claims = { tenant_id: 't1', tenant_role: 'owner' };
   h.runCsvImport.mockReset();
   h.runCsvImport.mockResolvedValue({ ok: true, summary: { syncRunId: 's', imported: 1, skipped: 0, failed: 0, total: 1, failures: [] } });
-  h.start.mockClear();
+  h.start.mockReset();
+  h.start.mockResolvedValue({ runId: 'wf1' });
   h.revalidatePath.mockClear();
+  h.adminUpdate.mockClear();
 });
 
 describe('runImport — auth gating', () => {
@@ -105,5 +111,14 @@ describe('runImport — routing + revalidation', () => {
     h.runCsvImport.mockRejectedValueOnce(new Error('boom'));
     const res = await runImport(input('product'));
     expect(res.ok).toBe(false);
+  });
+
+  it('marks the pre-created run failed if the workflow fails to start (no orphan)', async () => {
+    h.start.mockRejectedValueOnce(new Error('start boom'));
+    const res = await runImport(input('product', bigCsv));
+    expect(res.ok).toBe(false);
+    // the orphaned sync_run was marked failed, not left 'running'
+    expect(h.adminUpdate).toHaveBeenCalledTimes(1);
+    expect(h.adminUpdate.mock.calls[0]?.[0]).toMatchObject({ status: 'failed' });
   });
 });

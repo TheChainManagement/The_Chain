@@ -60,9 +60,12 @@ export async function runImportDurable(params: RunDurableParams): Promise<Import
   try {
     return await runImportDurableInner(admin, params);
   } catch (err) {
-    // CSV-import failures are deterministic (bad data / schema), so a retry won't
-    // help: mark the run failed so the poller shows it instead of spinning to the
-    // soft cap. If a later retry does succeed, finalize() overwrites to completed.
+    // Mark the run failed so the poller surfaces it instead of spinning to the
+    // soft cap. CSV-import failures are deterministic in practice (bad data /
+    // schema / permission), so this is correct for the common case; a successful
+    // later retry overwrites to completed via finalize(). Precise
+    // Retryable-vs-Fatal classification (to avoid a transient false-failure flash
+    // before a retry succeeds) is ticketed.
     await markFailed(admin, syncRunId, err);
     throw err;
   }
@@ -108,6 +111,7 @@ async function runImportDurableInner(
         sync_run_id: syncRunId,
         entity_type: kind,
         external_ref: e.externalId ?? null,
+        payload: e.row != null ? { row: e.row } : null,
         error_code: e.code,
         error_message: e.message,
       })),

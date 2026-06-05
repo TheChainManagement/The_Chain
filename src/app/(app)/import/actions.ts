@@ -138,15 +138,29 @@ async function startDurableImport(input: {
     return { ok: false, error: 'Could not start the import. Please try again.' };
   }
 
-  await start(importWorkflow, [
-    {
-      tenantId: input.tenantId,
-      kind: input.kind,
-      csvText: input.csvText,
-      mapping: input.mapping,
-      syncRunId: runRow.id,
-    },
-  ]);
+  try {
+    await start(importWorkflow, [
+      {
+        tenantId: input.tenantId,
+        kind: input.kind,
+        csvText: input.csvText,
+        mapping: input.mapping,
+        syncRunId: runRow.id,
+      },
+    ]);
+  } catch (err) {
+    // The run row exists but the workflow never started — don't leave it stuck on
+    // 'running' (the poller would spin to its cap). Mark it failed.
+    await admin
+      .from('sync_runs')
+      .update({
+        status: 'failed',
+        finished_at: new Date().toISOString(),
+        error_log: [err instanceof Error ? err.message : 'workflow failed to start'],
+      })
+      .eq('id', runRow.id);
+    return { ok: false, error: 'Could not start the import. Please try again.' };
+  }
 
   return { ok: true, async: true, trackingKey };
 }
