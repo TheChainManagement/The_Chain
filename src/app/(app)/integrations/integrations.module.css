@@ -1,0 +1,197 @@
+/* Integrations — source connectors index + the QuickBooks connect panel.
+   Color/spacing/shadow/motion via design tokens. Cobalt is reserved for the
+   chain's single intent slot (the igniting sync links) — chrome (marks, source
+   links) stays deep-slate so the chain is the only cobalt on the surface.
+   Structural sizes + font-sizes use raw px, matching the existing modules
+   (the raw-px→token migration is the tracked stack-audit ticket). */
+
+/* ----- Index: connector grid ----- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.sourceCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  transition: border-color var(--duration-base) var(--ease-spring-soft);
+}
+.sourceCard:hover {
+  border-color: var(--color-mid);
+}
+.sourceCardMuted {
+  background: var(--color-inset);
+  opacity: 0.72;
+}
+
+.sourceMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+
+.sourceName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-deep);
+}
+.sourceBlurb {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-hairline);
+}
+
+.sourceCta {
+  align-self: flex-start;
+  margin-top: var(--spacing-2);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-deep);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-hairline);
+  transition: border-color var(--duration-quick) var(--ease-spring-soft);
+}
+.sourceCta:hover {
+  border-color: var(--color-deep);
+}
+.sourceMutedNote {
+  margin-top: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+/* ----- QuickBooks connect panel ----- */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+  padding: var(--spacing-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+
+.panelHead {
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: flex-start;
+}
+.panelMark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  color: var(--color-deep);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+.panelTitle {
+  margin: 0 0 var(--spacing-2);
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--color-deep);
+}
+.panelLede {
+  margin: 0;
+  max-width: 64ch;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-mid);
+}
+
+/* The memorable sync chain. */
+.syncChain {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.syncChainCell {
+  min-width: 0;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-6);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+
+.panelActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.previewNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-dim);
+}
+
+.error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-stop);
+}
+
+@media (max-width: 720px) {
+  .syncChain {
+    grid-template-columns: 1fr;
+  }
+}

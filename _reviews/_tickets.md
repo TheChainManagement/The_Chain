@@ -92,3 +92,37 @@ Suite 192/192.
 - **Workflow-boundary crash-resume integration test** — needs process-crash simulation
   in the DevKit runtime; the resume LOGIC is unit-tested on the core.
 - **Raw-px → tokens** — held for the holistic post-Path-3 stack audit; craft guard passes.
+
+## Block 6 Wave 6.1 (QBO adapter) — deferred from Codex 2026-06-05
+Delivered this wave: the `QboSourceAdapter` engine, the connect screen with the
+memorable forming chain, the cursor-drop fix (constant `floor` vs running
+watermark), CSS cobalt demotion, the relocated/deepened memorable artifact, the
+preview error-taxonomy surfacing, and the occurred_at TZ test.
+
+Deferred to Wave 6.2 (live OAuth, needs Intuit creds in .env.local):
+- **OAuth connect + `/api/qbo/oauth/callback`** — exchange code, encrypt tokens
+  (`pgsodium`/Vault), insert `source_connections` with capabilities.
+- **`qboInitialSyncWorkflow`** — durable run wiring the adapter to the commit path;
+  the 60-second OAuth→first-sync SLO; token refresh + expiry alert.
+- **Live PO write-back** — zero-duplicate round-trip verified against the sandbox.
+- **Watermark tie-breaker** — `Metadata.LastUpdatedTime >` can skip rows sharing the
+  boundary timestamp across runs; add an Id tie-breaker (`> ts OR (= ts AND Id > x)`)
+  AND persist the final watermark on the terminal page (nextCursor=null currently
+  drops it). Real only once incremental sync is wired.
+
+Deferred to Wave 6.3:
+- **`qboIncrementalSyncWorkflow`** + 15-min cron in `vercel.ts` + Intuit webhook
+  (`createWebhook`) with signature verification.
+- **Conflict policy** (server-wins / last-write-wins / needs_review) + `sync_conflicts`
+  writes + `/flow/sync-conflicts` view + `resolveSyncConflict` + disconnect/revoke.
+
+Deliberate design decisions (documented, not bugs):
+- **PO round-trip identity** uses `DocNumber` (deterministic, queryable idempotency
+  key) + `PrivateNote` (full tenant_id + internal PO id), NOT QBO "metadata fields" —
+  QBO PurchaseOrder has no arbitrary metadata KV. Revisit a `CustomField` carry when
+  write-back is live-verified in 6.2.
+- **`stock_movement.source_ref`** is per-line (`qbo:bill:401:1`), not the bare QBO
+  entity id — multi-line Bills/SalesReceipts need per-line uniqueness for dedup.
+- **`occurred_at`** rewrites date-only `TxnDate` to midnight UTC; a full datetime
+  passes through verbatim. Pinned by test.
+- **inventory_level** mapping (Item.QtyOnHand) deferred; capability flag is false.

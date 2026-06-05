@@ -27,7 +27,14 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.tsx'],
+    include: [
+      'tests/**/*.test.ts',
+      'tests/**/*.test.tsx',
+      'src/**/*.test.tsx',
+      // Memorable-element artifacts live beside their evidence in _reviews/
+      // (MASTER_PROMPT) but must still run in CI.
+      '_reviews/**/*_memorable.test.tsx',
+    ],
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // DB tests share one Postgres; run files serially to avoid interference.
