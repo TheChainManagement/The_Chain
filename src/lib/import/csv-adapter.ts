@@ -59,6 +59,7 @@ function isImportableKind(kind: EntityKind): kind is ImportableKind {
 function toPullError(error: RowError): PullResultError {
   return {
     externalId: String(error.row),
+    row: error.row,
     code: error.code,
     message: error.message,
   };

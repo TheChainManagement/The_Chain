@@ -55,8 +55,24 @@ interface PreparedWrite {
 }
 
 export async function runImportDurable(params: RunDurableParams): Promise<ImportSummary> {
-  const { tenantId, kind, csvText, mapping, syncRunId } = params;
+  const { syncRunId } = params;
   const admin = createSupabaseAdmin();
+  try {
+    return await runImportDurableInner(admin, params);
+  } catch (err) {
+    // CSV-import failures are deterministic (bad data / schema), so a retry won't
+    // help: mark the run failed so the poller shows it instead of spinning to the
+    // soft cap. If a later retry does succeed, finalize() overwrites to completed.
+    await markFailed(admin, syncRunId, err);
+    throw err;
+  }
+}
+
+async function runImportDurableInner(
+  admin: SupabaseClient,
+  params: RunDurableParams,
+): Promise<ImportSummary> {
+  const { tenantId, kind, csvText, mapping, syncRunId } = params;
 
   const adapter = new CsvSourceAdapter({ [kind]: { csvText, mapping } });
   const pull = await adapter.pull(kind, null, syncRunId);
@@ -99,7 +115,7 @@ export async function runImportDurable(params: RunDurableParams): Promise<Import
   }
 
   const failures: ImportFailure[] = allErrors.slice(0, FAILURE_PREVIEW).map((e) => ({
-    row: Number(e.externalId) || 0,
+    row: e.row ?? (Number(e.externalId) || 0),
     message: e.message,
   }));
 
@@ -250,6 +266,7 @@ async function prepareMovements(
     if (!productId) {
       rowErrors.push({
         externalId: a.productExternalId,
+        row: item.sourceRow,
         code: 'unknown_sku',
         message: `No SKU "${a.productExternalId}" in your catalog. Import that product first.`,
       });
@@ -259,6 +276,7 @@ async function prepareMovements(
     if (occurredIso === null) {
       rowErrors.push({
         externalId: a.productExternalId,
+        row: item.sourceRow,
         code: 'invalid_date',
         message: `Movement for "${a.productExternalId}" has an unreadable date "${a.occurredAt}".`,
       });
@@ -317,6 +335,17 @@ async function writeProgress(
   total: number,
 ): Promise<void> {
   await admin.from('sync_runs').update({ cursor: { processed, total, kind } }).eq('id', syncRunId);
+}
+
+async function markFailed(admin: SupabaseClient, syncRunId: string, err: unknown): Promise<void> {
+  await admin
+    .from('sync_runs')
+    .update({
+      status: 'failed',
+      finished_at: new Date().toISOString(),
+      error_log: [err instanceof Error ? err.message : String(err)],
+    })
+    .eq('id', syncRunId);
 }
 
 async function finalize(

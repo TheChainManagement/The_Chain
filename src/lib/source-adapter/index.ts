@@ -98,10 +98,18 @@ export interface CanonicalPayload<E extends EntityKind = EntityKind> {
   externalUpdatedAt?: string;
   attributes: CanonicalAttributesByKind[E];
   schemaVersion: number;
+  /**
+   * 1-based source row this payload came from (CSV data row), when the source is
+   * row-oriented. Lets a writer-stage failure (e.g. unknown SKU) be reported with
+   * its real row number instead of the natural key.
+   */
+  sourceRow?: number;
 }
 
 export interface PullResultError {
   externalId?: string;
+  /** 1-based source row, when known. */
+  row?: number;
   code: string;
   message: string;
 }

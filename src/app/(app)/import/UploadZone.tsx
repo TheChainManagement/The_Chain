@@ -1,6 +1,7 @@
 'use client';
 
 import { type DragEvent, type ReactNode, useId, useRef, useState } from 'react';
+import { decodeCsvBytes } from '@/lib/import/parse';
 import styles from './import.module.css';
 
 /**
@@ -22,8 +23,13 @@ export function UploadZone({
 
   function read(file: File): void {
     const reader = new FileReader();
-    reader.onload = () => onFile(file.name, String(reader.result ?? ''));
-    reader.readAsText(file);
+    // Read bytes (not text) so the encoding is detected here, not assumed UTF-8 —
+    // legacy Excel/Windows-1252 exports decode correctly instead of mojibaking.
+    reader.onload = () => {
+      const buffer = reader.result;
+      if (buffer instanceof ArrayBuffer) onFile(file.name, decodeCsvBytes(buffer));
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   function onDrop(e: DragEvent<HTMLLabelElement>): void {

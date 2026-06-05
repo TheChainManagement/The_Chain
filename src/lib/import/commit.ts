@@ -126,7 +126,7 @@ export async function runCsvImport(
   await finalizeRun(admin, syncRunId, 'completed', write.count, kind, []);
 
   const failures: ImportFailure[] = allErrors.slice(0, FAILURE_PREVIEW).map((e) => ({
-    row: Number(e.externalId) || 0,
+    row: e.row ?? (Number(e.externalId) || 0),
     message: e.message,
   }));
 
@@ -327,6 +327,7 @@ async function writeStockMovements(
     if (!productId) {
       rowErrors.push({
         externalId: a.productExternalId,
+        row: item.sourceRow,
         code: 'unknown_sku',
         message: `No SKU "${a.productExternalId}" in your catalog. Import that product first.`,
       });
@@ -336,6 +337,7 @@ async function writeStockMovements(
     if (occurredIso === null) {
       rowErrors.push({
         externalId: a.productExternalId,
+        row: item.sourceRow,
         code: 'invalid_date',
         message: `Movement for "${a.productExternalId}" has an unreadable date "${a.occurredAt}".`,
       });

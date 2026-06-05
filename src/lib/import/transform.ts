@@ -186,6 +186,7 @@ export function rowToPayload(
       externalId,
       attributes: parsed.data,
       schemaVersion: CANONICAL_SCHEMA_VERSION,
+      sourceRow: rowNo,
     },
     errors: [],
   };

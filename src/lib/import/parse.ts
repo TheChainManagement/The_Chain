@@ -32,6 +32,22 @@ function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
+/**
+ * Decode raw file bytes to text with encoding detection. The browser's
+ * `readAsText` assumes UTF-8 and mojibakes legacy spreadsheet exports, so we read
+ * bytes instead and decode here: try UTF-8 strictly, and on invalid UTF-8 fall
+ * back to Windows-1252 (the Latin-1 superset Excel emits). A UTF-8 BOM is stripped
+ * by TextDecoder automatically.
+ */
+export function decodeCsvBytes(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
 export function parseCsv(text: string): ParsedCsv {
   const clean = stripBom(text);
   const result = Papa.parse<Record<string, string>>(clean, {

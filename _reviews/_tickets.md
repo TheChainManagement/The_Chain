@@ -66,3 +66,29 @@ revalidatePath; `failed` progress state surfaced to the client. Deferred:
 - **Playwright memorable-element artifact harness** — persistable visible-craft proof
   (the preview screenshot tool doesn't persist to disk in this env).
 - Raw px (6px/12px) in the progress styles → stack-audit (with the existing import.module.css px ticket).
+
+## ✅ RESOLVED — Block 5 import ticket-cleanup sweep (2026-06-04)
+Knocked out the recurring self-contained Codex findings so they stop boomeranging:
+- **Writer-stage row provenance** — `CanonicalPayload.sourceRow` + `PullResultError.row`
+  thread the CSV row number; movement unknown_sku/invalid_date failures and
+  `summary.failures.row` now carry the real row. (both sync + durable paths)
+- **runImport Server Action-layer test** — `tests/import/actions.test.ts`: per-kind
+  role gating, small/large threshold routing, revalidate, error mapping (8 cases).
+- **Terminal-failure marking** — `runImportDurable` wraps the run; a deterministic
+  failure marks `sync_runs.status='failed'`, which the poller now surfaces.
+- **Latin-1 / Windows-1252 decode** — `decodeCsvBytes` (UTF-8 strict → win-1252
+  fallback); UploadZone reads bytes not text. Verified live (Latin-1 "Crémerie Niño"
+  decoded in-page; UTF-8 "Café au lait" round-tripped to DB). +6 unit cases.
+- **occurred_at strict parse** — date-like guard + sane year window; rejects bare
+  numbers a loose `new Date()` would misread.
+Suite 192/192.
+
+## STILL BLOCKED (real reasons, not deferred-by-laziness)
+- **10k<30s / 50k perf bench** — needs a seeded Vercel Preview deploy (Local World
+  runs synchronously, so local timing isn't the SLO). Streaming parse + Blob input
+  staging pair with this.
+- **Playwright memorable-element artifact harness** — needs Playwright wired into the
+  repo (browser install + config). RTL + live verification is the current standard.
+- **Workflow-boundary crash-resume integration test** — needs process-crash simulation
+  in the DevKit runtime; the resume LOGIC is unit-tested on the core.
+- **Raw-px → tokens** — held for the holistic post-Path-3 stack audit; craft guard passes.
