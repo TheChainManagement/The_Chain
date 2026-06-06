@@ -25,3 +25,18 @@ export function serverEnv() {
     SUPABASE_SERVICE_ROLE_KEY: required('SUPABASE_SERVICE_ROLE_KEY'),
   };
 }
+
+/**
+ * QuickBooks Online OAuth env (Block 6 Wave 6.2). Server-only, lazy — only the
+ * QBO connect paths read it, so the rest of the app runs without these set.
+ */
+export function qboEnv() {
+  const environment = process.env.QBO_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+  return {
+    QBO_CLIENT_ID: required('QBO_CLIENT_ID'),
+    QBO_CLIENT_SECRET: required('QBO_CLIENT_SECRET'),
+    QBO_ENVIRONMENT: environment as 'sandbox' | 'production',
+    QBO_REDIRECT_URI: required('QBO_REDIRECT_URI'),
+    QBO_TOKEN_ENC_KEY: required('QBO_TOKEN_ENC_KEY'),
+  };
+}

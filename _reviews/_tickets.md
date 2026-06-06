@@ -126,3 +126,31 @@ Deliberate design decisions (documented, not bugs):
 - **`occurred_at`** rewrites date-only `TxnDate` to midnight UTC; a full datetime
   passes through verbatim. Pinned by test.
 - **inventory_level** mapping (Item.QtyOnHand) deferred; capability flag is false.
+
+## Block 6 Wave 6.2a (live OAuth) — Codex 2026-06-05 dispositions
+Fixed in-slice: half-connected persistence bug (creds written before status flips
+to active), env-gating (configured flag → unavailable state instead of a crashing
+Connect button), memorable artifact deepened (now drives the connected "Run sync"
+live path, not just the sample preview), connection-layer integration test
+(save/load/status/deactivate + ciphertext-at-rest, validates the persistence fix),
+FEATURES.md pgsodium→app-side-AES contract corrected.
+
+Ticketed / documented:
+- **idempotency_key on connect/sync/disconnect actions** — MASTER_PROMPT names the
+  rule for external-WRITE actions. startQboConnect (cookie + read), runQboLiveSync
+  (read-only + last_synced stamp), disconnectQbo (revoke) are naturally idempotent
+  and create NO external records, so a literal idempotency_key param would be
+  unused cargo-cult. The genuine record-creating external write — the PO push —
+  already carries idempotencyKey in the adapter. Revisit if MG wants the literal
+  param on these. (Decision logged in the Codex review.)
+- **Callback-route + Server-Action-layer integration tests** — the connection/factory
+  layer is now covered (tests/qbo/connection.test.ts); the Next request-context route
+  + action wrappers still need a harness. Ticketed.
+- **True Playwright 3-state memorable capture** (pre/mid/post during first sync after
+  connect) — Playwright isn't wired in the repo (shared infra ticket from Block 5).
+  Current artifact is RTL driving the real ConnectPanel live + sample paths.
+- **Raw-px → tokens** in integrations.module.css — same holistic stack-audit ticket
+  as Block 6.1 (MG already dispositioned; craft guard passes; matches codebase
+  convention for font/structural sizes).
+- **Production env + redirect URI** — QBO_* + QBO_TOKEN_ENC_KEY in Vercel Production
+  + the production redirect URI registered on the Intuit app (for live prod use).

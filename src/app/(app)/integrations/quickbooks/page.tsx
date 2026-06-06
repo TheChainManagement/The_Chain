@@ -1,19 +1,53 @@
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
+import { qboEnv } from '@/lib/env';
+import { getQboStatus } from '@/lib/qbo/connection';
+import { createSupabaseServer } from '@/lib/supabase/server';
 import { ConnectPanel } from './ConnectPanel';
 
 export const metadata = { title: 'QuickBooks Online · The Chain' };
 
 /**
- * QuickBooks Online connect screen (Block 6). Server Component shell; the
- * interactive connect + chain reveal lives in `ConnectPanel`.
+ * QuickBooks Online connect screen (Block 6). Server shell: reads the tenant's
+ * connection status + the OAuth callback's status flag, hands them to the
+ * interactive `ConnectPanel`.
  */
-export default function QuickBooksPage(): ReactNode {
+export default async function QuickBooksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}): Promise<ReactNode> {
+  const sp = await searchParams;
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.auth.getClaims();
+  const tenantId = data?.claims?.tenant_id as string | undefined;
+
+  const status = tenantId ? await getQboStatus(supabase, tenantId) : { connected: false };
+
+  let environment = 'sandbox';
+  let configured = false;
+  try {
+    environment = qboEnv().QBO_ENVIRONMENT;
+    configured = true;
+  } catch {
+    // QBO env not set on this deploy — ConnectPanel renders an unavailable state
+    // instead of a Connect button that would throw on click.
+  }
+
+  const banner = sp.connected ? 'connected' : sp.qbo_error ? `error:${sp.qbo_error}` : null;
+
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Integrations · native two-way sync" title="QuickBooks Online" />
-      <ConnectPanel />
+      <ConnectPanel
+        connected={status.connected}
+        configured={configured}
+        realmId={status.realmId}
+        lastSyncedAt={status.lastSyncedAt ?? null}
+        environment={environment}
+        banner={banner}
+      />
     </div>
   );
 }

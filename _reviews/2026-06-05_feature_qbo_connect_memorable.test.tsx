@@ -7,48 +7,63 @@ import { SyncChain, type SyncLink } from '@/app/(app)/integrations/quickbooks/Sy
 /**
  * Memorable-element artifact (Block 6, MASTER_PROMPT "visible craft" gate).
  *
- * The QBO connect screen's signature is the cobalt chain forming as the first
- * sync runs. This drives the REAL `ConnectPanel` through the three states the
- * spec's required artifact captures — pre-connect (the shape it will earn),
- * mid/post-sync (links igniting to formed) — with the sandbox action mocked, plus
- * a direct `SyncChain` mid-sync frame asserting the ignite + cobalt connector.
+ * The QBO connect screen's signature is the cobalt chain forming as a sync runs.
+ * This drives the REAL `ConnectPanel` through both run paths — the sample preview
+ * (not-connected) AND the live "Run sync" (connected), the feature's signature
+ * flow — asserting pre-connect (the shape it will earn) → post-sync (links
+ * formed, counts surfaced), plus a direct `SyncChain` mid-sync ignite frame.
  *
- * Lives in `_reviews/` per MASTER_PROMPT; vitest.config includes the
- * `_reviews` memorable-test glob so it still runs in CI.
+ * The network is mocked (jsdom). A true Playwright 3-state capture is ticketed
+ * (Playwright isn't wired in the repo). Lives in `_reviews/` per MASTER_PROMPT;
+ * vitest.config includes the `_reviews` memorable-test glob so it runs in CI.
  */
 
+const RESULT = { catalog: 5, suppliers: 4, ordered: 2, inTransit: 1, receipts: 3, sales: 3, errors: 0 };
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+
 vi.mock('@/app/(app)/integrations/actions', () => ({
-  runQboSandboxSync: vi.fn(async () => ({
-    ok: true,
-    result: { catalog: 5, suppliers: 4, ordered: 2, inTransit: 1, receipts: 3, sales: 3, errors: 0 },
-  })),
+  runQboSandboxSync: vi.fn(async () => ({ ok: true, live: false, result: RESULT })),
+  runQboLiveSync: vi.fn(async () => ({ ok: true, live: true, result: RESULT })),
+  startQboConnect: vi.fn(),
+  disconnectQbo: vi.fn(),
 }));
+
+const BASE = { realmId: '9341454816836171', lastSyncedAt: null, environment: 'sandbox', banner: null };
 
 describe('QBO connect — the chain forms as the sync runs (memorable element)', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('drives ConnectPanel pre-connect → post-sync, igniting the chain to formed', async () => {
-    render(<ConnectPanel />);
+  it('not-connected: the sample preview ignites the chain to formed', async () => {
+    render(<ConnectPanel {...BASE} connected={false} configured banner={null} />);
 
-    // Pre-connect: the chain shows the shape it will earn — all three pending.
     expect(document.querySelectorAll('[data-state="pending"]')).toHaveLength(3);
     expect(document.querySelector('[data-state="active"]')).toBeNull();
 
-    const button = screen.getByRole('button', { name: /run sandbox preview/i });
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: /preview with sample data/i }));
+    await waitFor(() => expect(screen.getByText(/catalog/i)).toBeInTheDocument(), { timeout: 5000 });
 
-    // The reveal plays out on real timers; the "Preview complete" note marks the
-    // done state (one render after the last link forms).
-    await waitFor(() => expect(screen.getByText(/Preview complete/i)).toBeInTheDocument(), {
-      timeout: 5000,
-    });
-
-    // Post-sync: every link formed, real adapter counts surfaced, CTA flips.
     expect(document.querySelectorAll('[data-state="done"]')).toHaveLength(3);
     expect(screen.getByText('4 vendors')).toBeInTheDocument();
     expect(screen.getByText('1 open')).toBeInTheDocument();
-    expect(screen.getByText(/catalog/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /re-run sandbox preview/i })).toBeInTheDocument();
+  });
+
+  it('connected: "Run sync" forms the chain from the live pull (the signature flow)', async () => {
+    render(<ConnectPanel {...BASE} connected configured banner="connected" />);
+
+    // Connected shell: status line + the live-sync CTA.
+    expect(screen.getByText(/connected ·/i)).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-state="pending"]')).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: /^run sync$/i }));
+    // "Re-run sync" only appears on done — an unambiguous done marker.
+    await waitFor(() => expect(screen.getByRole('button', { name: /re-run sync/i })).toBeInTheDocument(), {
+      timeout: 5000,
+    });
+
+    expect(document.querySelectorAll('[data-state="done"]')).toHaveLength(3);
+    expect(screen.getByText('4 vendors')).toBeInTheDocument();
+    expect(screen.getByText('Catalog')).toBeInTheDocument();
   });
 
   it('mid-sync frame: the active link ignites and a formed link connects cobalt', () => {
@@ -61,7 +76,7 @@ describe('QBO connect — the chain forms as the sync runs (memorable element)',
 
     const active = container.querySelector('[data-state="active"]');
     expect(active).toBeInTheDocument();
-    expect(active?.querySelectorAll('span').length).toBeGreaterThan(2); // the ignite sweep
+    expect(active?.querySelectorAll('span').length).toBeGreaterThan(2);
     expect(container.querySelector('[data-state="done"]')).toHaveAttribute('data-connector', 'cobalt');
   });
 });

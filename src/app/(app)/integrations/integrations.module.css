@@ -148,6 +148,32 @@
   color: var(--color-mid);
 }
 
+.connStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: var(--spacing-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-mid);
+}
+.connDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-flow);
+}
+
+.bannerOk {
+  margin: 0;
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+}
+
 /* The memorable sync chain. */
 .syncChain {
   display: grid;

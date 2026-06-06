@@ -260,12 +260,12 @@
 
 **Dependencies:**
 - Other features: Wave 1 Foundation (`SourceAdapter`), Master data.
-- Services: Intuit QBO SDK + OAuth 2.0, Workflow DevKit, Supabase Postgres + `pgsodium`.
+- Services: Intuit QBO SDK + OAuth 2.0, Workflow DevKit, Supabase Postgres. **Token encryption-at-rest: app-side AES-256-GCM** (`QBO_TOKEN_ENC_KEY`), NOT `pgsodium` — pgsodium is deprecated on PG15+ Supabase (the init migration's `encrypted_credentials` note anticipated this). Decided + shipped 2026-06-05 Wave 6.2a.
 - Data: `source_connections`, `sync_runs`, `sync_failures`, `sync_conflicts`, `products`, `suppliers`, `purchase_orders`, `stock_movements`.
 
 **Step-by-step build sequence:**
 1. Build `/app/integrations/quickbooks` panel. "Connect" CTA initiates OAuth via Server Action.
-2. Build `/api/qbo/oauth/callback` route handler. Exchange code, encrypt tokens with `pgsodium`, insert `source_connections` row with `status=active`, `capabilities` jsonb set.
+2. Build `/api/qbo/oauth/callback` route handler. Exchange code, encrypt tokens with app-side AES-256-GCM (stored in `source_connections.encrypted_credentials` bytea via the service-role base64 bridge RPCs), insert `source_connections` row with `status=active`, `capabilities` jsonb set.
 3. Implement `QboSourceAdapter` conforming to `SourceAdapter`. `pull(kind, cursor, idempotencyKey)` paginates QBO API per kind. `push('purchase_order', payload, idempotencyKey)` writes back generated POs idempotently using The Chain's PO id as a metadata round-trip identifier.
 4. `qboInitialSyncWorkflow(connectionId)` — full pull of items → vendors → POs → bills → sales. Cursor persisted in `sync_runs.cursor` between steps. Sales/bills normalize into `stock_movements` with `occurred_at` from QBO source dates.
 5. `qboIncrementalSyncWorkflow(connectionId, since)` — delta sync, triggered by `vercel.ts` cron every 15 minutes AND by Intuit's auto-webhook via Workflow DevKit `createWebhook()` at `/.well-known/workflow/v1/webhook/:token`.

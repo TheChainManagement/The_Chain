@@ -1,115 +1,154 @@
 'use server';
 
+import { randomBytes } from 'node:crypto';
+import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { qboEnv } from '@/lib/env';
 import { QboClient, QboSourceAdapter } from '@/lib/qbo';
-import { FixtureTransport } from '@/lib/qbo/fixtures';
 import {
-  type CanonicalPayload,
-  type Cursor,
-  type EntityKind,
-  FatalError,
-  type PullResult,
-  RetryableError,
-} from '@/lib/source-adapter';
+  deactivateQboConnection,
+  loadQboConnection,
+  markConnectionSynced,
+} from '@/lib/qbo/connection';
+import { createQboAdapterForTenant } from '@/lib/qbo/factory';
+import { FixtureTransport } from '@/lib/qbo/fixtures';
+import { buildAuthorizeUrl, fetchTokenHttp, revokeToken } from '@/lib/qbo/oauth';
+import { type QboSyncOutcome, summarizeQboPull } from '@/lib/qbo/summary';
+import { FatalError, RetryableError } from '@/lib/source-adapter';
+import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
- * QBO sandbox sync (Wave 6.1).
+ * QBO connect + sync actions (Block 6 Wave 6.2).
  *
- * Runs the REAL `QboSourceAdapter` + `QboClient` + mappers against the fixture
- * transport — the same code path live OAuth drives in Wave 6.2 — and returns the
- * canonical counts the connect screen forms its chain from. It is read-only by
- * design: a preview imports nothing into the tenant, so it needs no write role
- * and no Intuit credentials, only a signed-in session.
+ * - `runQboSandboxSync` — read-only preview against fixtures (no creds, Wave 6.1).
+ * - `startQboConnect` — owner/manager kicks the OAuth flow (CSRF state cookie).
+ * - `runQboLiveSync` — read-only pull against the connected sandbox/company; the
+ *   chain forms from the operator's real data. (Durable write-to-DB is Wave 6.2b.)
+ * - `disconnectQbo` — revoke + deactivate; tenant data is left intact.
+ *
+ * The error catch maps the adapter taxonomy so the UI can tell rate-limit from
+ * auth (an expired refresh token) from a generic fault.
  */
 
-export interface QboSandboxResult {
-  catalog: number;
-  suppliers: number;
-  ordered: number;
-  inTransit: number;
-  receipts: number;
-  sales: number;
-  errors: number;
-}
+const STATE_COOKIE = 'qbo_oauth_state';
+const PRIVILEGED = new Set(['owner', 'manager']);
 
-export type QboSandboxOutcome =
-  | { ok: true; result: QboSandboxResult }
-  | { ok: false; error: string };
-
-/** Drain a kind to exhaustion, following the adapter's resume cursor. */
-async function drain(
-  adapter: QboSourceAdapter,
-  kind: EntityKind,
-): Promise<{ items: CanonicalPayload[]; errors: number }> {
-  const items: CanonicalPayload[] = [];
-  let errors = 0;
-  let cursor: Cursor | null = null;
-
-  // Bounded so a misbehaving cursor can never spin forever.
-  for (let page = 0; page < 1000; page++) {
-    const res: PullResult = await adapter.pull(kind, cursor, `sandbox:${kind}`);
-    items.push(...res.items);
-    errors += res.errors.length;
-    if (!res.nextCursor) break;
-    cursor = res.nextCursor;
-  }
-
-  return { items, errors };
-}
-
-export async function runQboSandboxSync(): Promise<QboSandboxOutcome> {
+async function tenantAndRole(): Promise<{ tenantId?: string; role?: string }> {
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
-  const tenantId = data?.claims?.tenant_id as string | undefined;
-  if (!tenantId) {
-    return { ok: false, error: 'Your session expired. Sign in again to preview a sync.' };
+  return {
+    tenantId: data?.claims?.tenant_id as string | undefined,
+    role: data?.claims?.tenant_role as string | undefined,
+  };
+}
+
+function mapSyncError(err: unknown): QboSyncOutcome {
+  if (err instanceof RetryableError) {
+    return { ok: false, error: 'QuickBooks is rate-limiting the request. Try again in a moment.' };
   }
+  if (err instanceof FatalError) {
+    return {
+      ok: false,
+      error:
+        err.code === 'auth' || err.code === 'oauth'
+          ? 'QuickBooks needs to be reconnected. The connection may have expired.'
+          : 'QuickBooks returned an error while reading your data.',
+    };
+  }
+  return { ok: false, error: 'The sync could not run. Please try again.' };
+}
+
+export async function runQboSandboxSync(): Promise<QboSyncOutcome> {
+  const { tenantId } = await tenantAndRole();
+  if (!tenantId)
+    return { ok: false, error: 'Your session expired. Sign in again to preview a sync.' };
 
   try {
     const client = new QboClient(
       { realmId: 'sandbox', environment: 'sandbox' },
       new FixtureTransport(),
     );
-    const adapter = new QboSourceAdapter(client, tenantId);
-
-    const products = await drain(adapter, 'product');
-    const suppliers = await drain(adapter, 'supplier');
-    const orders = await drain(adapter, 'purchase_order');
-    const movements = await drain(adapter, 'stock_movement');
-
-    const status = (p: CanonicalPayload) => (p.attributes as { status?: string }).status;
-    const mvType = (m: CanonicalPayload) => (m.attributes as { type?: string }).type;
-
-    return {
-      ok: true,
-      result: {
-        catalog: products.items.length,
-        suppliers: suppliers.items.length,
-        ordered: orders.items.length,
-        inTransit: orders.items.filter((p) => status(p) === 'sent').length,
-        receipts: movements.items.filter((m) => mvType(m) === 'receipt').length,
-        sales: movements.items.filter((m) => mvType(m) === 'sale').length,
-        errors: products.errors + suppliers.errors + orders.errors + movements.errors,
-      },
-    };
+    const result = await summarizeQboPull(new QboSourceAdapter(client, tenantId));
+    return { ok: true, result, live: false };
   } catch (err) {
-    // Preserve the adapter's taxonomy so the UI can tell rate-limit from auth
-    // from a mapper fault (the live OAuth path in Wave 6.2 leans on this).
-    if (err instanceof RetryableError) {
-      return {
-        ok: false,
-        error: 'QuickBooks is rate-limiting the request. Try again in a moment.',
-      };
+    return mapSyncError(err);
+  }
+}
+
+export async function startQboConnect(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  const { tenantId, role } = await tenantAndRole();
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  if (!role || !PRIVILEGED.has(role)) {
+    return { ok: false, error: 'Only an owner or manager can connect QuickBooks.' };
+  }
+
+  const env = qboEnv();
+  const state = randomBytes(16).toString('hex');
+  (await cookies()).set(STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: env.QBO_REDIRECT_URI.startsWith('https'),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  });
+  return {
+    ok: true,
+    url: buildAuthorizeUrl({
+      clientId: env.QBO_CLIENT_ID,
+      redirectUri: env.QBO_REDIRECT_URI,
+      state,
+    }),
+  };
+}
+
+export async function runQboLiveSync(): Promise<QboSyncOutcome> {
+  const { tenantId } = await tenantAndRole();
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+
+  const admin = createSupabaseAdmin();
+  try {
+    const handle = await createQboAdapterForTenant(admin, tenantId, Date.now());
+    if (!handle) return { ok: false, error: 'QuickBooks is not connected yet.' };
+
+    const result = await summarizeQboPull(handle.adapter);
+    await markConnectionSynced(admin, handle.connectionId, new Date().toISOString());
+    revalidatePath('/integrations/quickbooks');
+    return { ok: true, result, live: true };
+  } catch (err) {
+    return mapSyncError(err);
+  }
+}
+
+export async function disconnectQbo(): Promise<{ ok: boolean; error?: string }> {
+  const { tenantId, role } = await tenantAndRole();
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  if (!role || !PRIVILEGED.has(role)) {
+    return { ok: false, error: 'Only an owner or manager can disconnect QuickBooks.' };
+  }
+
+  const admin = createSupabaseAdmin();
+  try {
+    const conn = await loadQboConnection(admin, tenantId);
+    if (conn) {
+      const env = qboEnv();
+      // Best-effort revoke; a failed revoke shouldn't block the local disconnect.
+      try {
+        await revokeToken(fetchTokenHttp, {
+          clientId: env.QBO_CLIENT_ID,
+          clientSecret: env.QBO_CLIENT_SECRET,
+          token: conn.credentials.refreshToken,
+        });
+      } catch {
+        // ignore — we still deactivate locally
+      }
     }
-    if (err instanceof FatalError) {
-      return {
-        ok: false,
-        error:
-          err.code === 'auth'
-            ? 'QuickBooks rejected the connection. Reconnect required.'
-            : 'QuickBooks returned an error while reading your data.',
-      };
-    }
-    return { ok: false, error: 'The sandbox preview could not run. Please try again.' };
+    await deactivateQboConnection(admin, tenantId);
+    revalidatePath('/integrations/quickbooks');
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Could not disconnect. Please try again.' };
   }
 }
