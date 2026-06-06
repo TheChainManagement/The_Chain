@@ -15,7 +15,8 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * connect screen with a status flag. Tokens never touch the URL or the logs.
  */
 
-export const dynamic = 'force-dynamic';
+// No `export const dynamic` here: it's incompatible with cacheComponents (Next 16),
+// and this handler is inherently dynamic anyway (reads cookies + searchParams).
 
 const STATE_COOKIE = 'qbo_oauth_state';
 const DEST = '/integrations/quickbooks';
