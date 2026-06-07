@@ -8,10 +8,14 @@ import { SyncChain, type SyncLink } from '@/app/(app)/integrations/quickbooks/Sy
  * Memorable-element artifact (Block 6, MASTER_PROMPT "visible craft" gate).
  *
  * The QBO connect screen's signature is the cobalt chain forming as a sync runs.
- * This drives the REAL `ConnectPanel` through both run paths — the sample preview
- * (not-connected) AND the live "Run sync" (connected), the feature's signature
- * flow — asserting pre-connect (the shape it will earn) → post-sync (links
- * formed, counts surfaced), plus a direct `SyncChain` mid-sync ignite frame.
+ * As of Wave 6.2b the connected "Run sync" is a durable import: it kicks
+ * `runQboInitialSync` and polls `getQboSyncProgress` while the chain forms link
+ * by link (CATALOG → SUPPLIERS → SALES), then links the operator straight into
+ * the freshly imported catalog. This drives the REAL `ConnectPanel` through both
+ * run paths — the sample preview (not-connected) AND the durable live sync
+ * (connected) — asserting pre-connect (the shape it will earn) → post-sync
+ * (links formed, written counts surfaced, import nav shown), plus a direct
+ * `SyncChain` mid-sync ignite frame.
  *
  * The network is mocked (jsdom). A true Playwright 3-state capture is ticketed
  * (Playwright isn't wired in the repo). Lives in `_reviews/` per MASTER_PROMPT;
@@ -24,7 +28,8 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 vi.mock('@/app/(app)/integrations/actions', () => ({
   runQboSandboxSync: vi.fn(async () => ({ ok: true, live: false, result: RESULT })),
-  runQboLiveSync: vi.fn(async () => ({ ok: true, live: true, result: RESULT })),
+  runQboInitialSync: vi.fn(async () => ({ ok: true, trackingKey: 'tk-1' })),
+  getQboSyncProgress: vi.fn(async () => ({ status: 'completed', counts: RESULT })),
   startQboConnect: vi.fn(),
   disconnectQbo: vi.fn(),
 }));
@@ -41,14 +46,18 @@ describe('QBO connect — the chain forms as the sync runs (memorable element)',
     expect(document.querySelector('[data-state="active"]')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /preview with sample data/i }));
-    await waitFor(() => expect(screen.getByText(/catalog/i)).toBeInTheDocument(), { timeout: 5000 });
+    // Wait for the chain to fully form (the timer-driven reveal lights all 3).
+    await waitFor(
+      () => expect(document.querySelectorAll('[data-state="done"]')).toHaveLength(3),
+      { timeout: 5000 },
+    );
 
-    expect(document.querySelectorAll('[data-state="done"]')).toHaveLength(3);
+    expect(screen.getByText('5 products')).toBeInTheDocument();
     expect(screen.getByText('4 vendors')).toBeInTheDocument();
-    expect(screen.getByText('1 open')).toBeInTheDocument();
+    expect(screen.getByText('6 movements')).toBeInTheDocument();
   });
 
-  it('connected: "Run sync" forms the chain from the live pull (the signature flow)', async () => {
+  it('connected: durable "Run sync" forms the chain AND links into the imported catalog', async () => {
     render(<ConnectPanel {...BASE} connected configured banner="connected" />);
 
     // Connected shell: status line + the live-sync CTA.
@@ -62,15 +71,20 @@ describe('QBO connect — the chain forms as the sync runs (memorable element)',
     });
 
     expect(document.querySelectorAll('[data-state="done"]')).toHaveLength(3);
-    expect(screen.getByText('4 vendors')).toBeInTheDocument();
+    expect(screen.getByText('5 products')).toBeInTheDocument();
     expect(screen.getByText('Catalog')).toBeInTheDocument();
+
+    // The Wave 6.2b payoff: the data is written, and the panel routes to it.
+    expect(screen.getByText(/imported into your catalog/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view inventory/i })).toHaveAttribute('href', '/inventory');
+    expect(screen.getByRole('link', { name: /view suppliers/i })).toHaveAttribute('href', '/suppliers');
   });
 
   it('mid-sync frame: the active link ignites and a formed link connects cobalt', () => {
     const links: SyncLink[] = [
-      { step: 'SUPPLIERS', label: '4 vendors', state: 'done', when: 'synced' },
-      { step: 'ORDERED', label: '2 orders', state: 'active' },
-      { step: 'IN TRANSIT', label: '1 open', state: 'pending' },
+      { step: 'CATALOG', label: '5 products', state: 'done', when: 'synced' },
+      { step: 'SUPPLIERS', label: '4 vendors', state: 'active' },
+      { step: 'SALES', label: '6 movements', state: 'pending' },
     ];
     const { container } = render(<SyncChain links={links} />);
 

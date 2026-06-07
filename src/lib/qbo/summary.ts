@@ -15,6 +15,11 @@ export interface QboPullSummary {
   receipts: number;
   sales: number;
   errors: number;
+  /**
+   * Non-inventory movement lines (service sales, fees) skipped on a durable
+   * import. Optional: the read-only preview counts every line, so it omits this.
+   */
+  skipped?: number;
 }
 
 /** Result shape shared by the sandbox preview + the live sync actions. */

@@ -209,6 +209,26 @@
   color: var(--color-dim);
 }
 
+/* Post-import nav: where the freshly written rows now live. Deep-slate, not
+   cobalt — the chain stays the only cobalt on the surface. */
+.importedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+  align-items: center;
+}
+.importedLink {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--color-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.importedLink:hover {
+  text-decoration-thickness: 2px;
+}
+
 .error {
   margin: 0;
   font-family: var(--font-body);

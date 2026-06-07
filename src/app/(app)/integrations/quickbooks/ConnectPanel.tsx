@@ -1,34 +1,62 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import type { ChainState } from '@/components/ChainLink/ChainLink';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { QboPullSummary } from '@/lib/qbo/summary';
-import { disconnectQbo, runQboLiveSync, runQboSandboxSync, startQboConnect } from '../actions';
+import {
+  disconnectQbo,
+  getQboSyncProgress,
+  runQboInitialSync,
+  runQboSandboxSync,
+  startQboConnect,
+} from '../actions';
 import styles from '../integrations.module.css';
 import { SyncChain, type SyncLink } from './SyncChain';
 
 /**
- * ConnectPanel — the QBO connect surface (Block 6 Wave 6.2).
+ * ConnectPanel — the QBO connect surface (Block 6).
  *
  * Two modes off the server-resolved connection status:
  *   - Not connected → "Connect QuickBooks" (OAuth redirect) + a sample-data
- *     preview fallback (Wave 6.1).
- *   - Connected → "Run sync" pulls the operator's REAL data and the chain forms
- *     from it; "Disconnect" revokes. (Durable write-into-catalog is Wave 6.2b.)
+ *     preview fallback (Wave 6.1) that reveals the chain on a timer.
+ *   - Connected → "Run sync" kicks the durable `qboInitialSyncWorkflow`, which
+ *     writes the operator's real QuickBooks data INTO the catalog. The chain
+ *     forms link by link from real phase progress (poll-driven, Wave 6.2b), and
+ *     on completion the panel links straight to the freshly imported rows.
  *
- * The chain reveal (SUPPLIERS → ORDERED → IN TRANSIT igniting in sequence) is
- * shared across both run paths.
+ * The chain reveal (CATALOG → SUPPLIERS → SALES igniting in sequence) is shared
+ * across both run paths; only what advances the stage differs (timer vs. poll).
  */
 
 type Status = 'idle' | 'working' | 'syncing' | 'done' | 'error';
+type Mode = 'sample' | 'live';
 
 const TOTAL_LINKS = 3;
 const REVEAL_MS = 700;
-const STEPS = ['SUPPLIERS', 'ORDERED', 'IN TRANSIT'] as const;
-const PENDING_LABELS = ['Vendors', 'Purchase orders', 'Open POs'] as const;
+const POLL_MS = 1000;
+const POLL_CAP = 600; // ~10 min ceiling; durable runs finish far sooner
+const STEPS = ['CATALOG', 'SUPPLIERS', 'SALES'] as const;
+const PENDING_LABELS = ['Items', 'Vendors', 'Sales'] as const;
+
+/** Map a workflow phase to how many chain links should be lit. */
+function phaseToStage(phase: string): number {
+  switch (phase) {
+    case 'product':
+      return 0;
+    case 'supplier':
+      return 1;
+    case 'stock_movement':
+      return 2;
+    case 'done':
+      return TOTAL_LINKS;
+    default:
+      return 0;
+  }
+}
 
 export interface ConnectPanelProps {
   connected: boolean;
@@ -54,9 +82,9 @@ function buildLinks(result: QboPullSummary | null, stage: number, revealing: boo
   const labels: string[] =
     result && revealing
       ? [
+          plural(result.catalog, 'product'),
           plural(result.suppliers, 'vendor'),
-          plural(result.ordered, 'order'),
-          result.inTransit > 0 ? `${result.inTransit} open` : 'All received',
+          plural(result.receipts + result.sales, 'movement'),
         ]
       : [...PENDING_LABELS];
 
@@ -74,6 +102,8 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 const ERROR_COPY: Record<string, string> = {
   state_mismatch: 'That connection attempt expired. Please try connecting again.',
   forbidden: 'Only an owner or manager can connect QuickBooks.',
@@ -85,7 +115,10 @@ const ERROR_COPY: Record<string, string> = {
 function bannerContent(banner: string | null): { tone: 'ok' | 'stop'; text: string } | null {
   if (!banner) return null;
   if (banner === 'connected') {
-    return { tone: 'ok', text: 'QuickBooks connected. Run a sync to watch your chain form.' };
+    return {
+      tone: 'ok',
+      text: 'QuickBooks connected. Run a sync to import your data and watch your chain form.',
+    };
   }
   if (banner.startsWith('error:')) {
     const code = banner.slice(6);
@@ -107,12 +140,24 @@ export function ConnectPanel({
 }: ConnectPanelProps): ReactNode {
   const router = useRouter();
   const [status, setStatus] = useState<Status>('idle');
+  const [mode, setMode] = useState<Mode>('live');
   const [result, setResult] = useState<QboPullSummary | null>(null);
   const [stage, setStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  // Guards a poll loop against setState after unmount / a superseding run.
+  const cancelledRef = useRef(false);
   useEffect(() => {
-    if (status !== 'syncing') return;
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
+
+  // Sample-preview reveal is timer-driven; the live sync drives its own stage
+  // from poll progress, so the timer only runs in 'sample' mode.
+  useEffect(() => {
+    if (status !== 'syncing' || mode !== 'sample') return;
     if (stage >= TOTAL_LINKS) {
       setStatus('done');
       return;
@@ -120,7 +165,58 @@ export function ConnectPanel({
     const delay = prefersReducedMotion() ? 0 : REVEAL_MS;
     const id = setTimeout(() => setStage((s) => s + 1), delay);
     return () => clearTimeout(id);
-  }, [status, stage]);
+  }, [status, mode, stage]);
+
+  const pollLiveSync = useCallback(
+    async (trackingKey: string): Promise<void> => {
+      // The sync_run is created before the workflow starts, so a persistent
+      // "unknown" means a real fault (missing run / bad key / RLS mismatch), not
+      // just a not-yet-visible row. Tolerate a brief window, then fail fast
+      // instead of spinning to the 10-minute cap.
+      let unknownStreak = 0;
+      for (let i = 0; i < POLL_CAP; i++) {
+        if (cancelledRef.current) return;
+        const progress = await getQboSyncProgress(trackingKey);
+        if (cancelledRef.current) return;
+
+        if (progress.status === 'unknown') {
+          unknownStreak++;
+          if (unknownStreak >= 3) {
+            setError('We lost track of that sync. Please try again.');
+            setStatus('error');
+            return;
+          }
+          await sleep(POLL_MS);
+          continue;
+        }
+        unknownStreak = 0;
+
+        if (progress.status === 'failed') {
+          setError('The sync did not finish. Please try again.');
+          setStatus('error');
+          return;
+        }
+        if (progress.status === 'running' || progress.status === 'completed') {
+          setResult(progress.counts);
+        }
+        if (progress.status === 'running') {
+          setStage(phaseToStage(progress.phase));
+        }
+        if (progress.status === 'completed') {
+          setStage(TOTAL_LINKS);
+          setStatus('done');
+          router.refresh(); // freshly imported rows surface in nav + other routes
+          return;
+        }
+        await sleep(POLL_MS);
+      }
+      if (!cancelledRef.current) {
+        setError('The sync is taking longer than expected. Check back shortly.');
+        setStatus('error');
+      }
+    },
+    [router],
+  );
 
   async function handleConnect(): Promise<void> {
     setStatus('working');
@@ -134,10 +230,11 @@ export function ConnectPanel({
     window.location.href = outcome.url; // hand off to Intuit's consent screen
   }
 
-  async function handleSync(live: boolean): Promise<void> {
+  async function handleSamplePreview(): Promise<void> {
     setStatus('working');
     setError(null);
-    const outcome = live ? await runQboLiveSync() : await runQboSandboxSync();
+    setMode('sample');
+    const outcome = await runQboSandboxSync();
     if (!outcome.ok) {
       setError(outcome.error);
       setStatus('error');
@@ -146,6 +243,22 @@ export function ConnectPanel({
     setResult(outcome.result);
     setStage(0);
     setStatus('syncing');
+  }
+
+  async function handleLiveSync(): Promise<void> {
+    setStatus('working');
+    setError(null);
+    setMode('live');
+    setResult(null);
+    setStage(0);
+    const outcome = await runQboInitialSync();
+    if (!outcome.ok) {
+      setError(outcome.error);
+      setStatus('error');
+      return;
+    }
+    setStatus('syncing');
+    await pollLiveSync(outcome.trackingKey);
   }
 
   async function handleDisconnect(): Promise<void> {
@@ -164,6 +277,7 @@ export function ConnectPanel({
   const links = buildLinks(result, stage, revealing);
   const busy = status === 'working' || status === 'syncing';
   const note = bannerContent(banner);
+  const imported = status === 'done' && mode === 'live';
 
   return (
     <section className={styles.panel} aria-label="QuickBooks Online">
@@ -174,8 +288,8 @@ export function ConnectPanel({
         <div>
           <h2 className={styles.panelTitle}>QuickBooks Online</h2>
           <p className={styles.panelLede}>
-            The native two-way sync. The Chain reads your items, vendors, purchase orders, bills,
-            and sales, and writes generated POs back.
+            The native QuickBooks sync. The Chain reads your items, vendors, purchase orders, bills,
+            and sales into your catalog. (Writing generated POs back is on the way.)
           </p>
           {connected ? (
             <p className={styles.connStatus}>
@@ -201,8 +315,13 @@ export function ConnectPanel({
       {status === 'done' && result ? (
         <div className={styles.counts} aria-live="polite">
           <StatNumber label="Catalog" value={result.catalog} size="panel" tone="mid" />
-          <StatNumber label="Receipts" value={result.receipts} size="panel" tone="mid" />
-          <StatNumber label="Sales" value={result.sales} size="panel" tone="mid" />
+          <StatNumber label="Suppliers" value={result.suppliers} size="panel" tone="mid" />
+          <StatNumber
+            label="Movements"
+            value={result.receipts + result.sales}
+            size="panel"
+            tone="mid"
+          />
           <StatNumber
             label="Errors"
             value={result.errors}
@@ -215,17 +334,32 @@ export function ConnectPanel({
       <div className={styles.panelActions}>
         {connected ? (
           <>
-            <ActionButton onClick={() => handleSync(true)} loading={busy}>
+            <ActionButton onClick={handleLiveSync} loading={busy}>
               {status === 'done' ? 'Re-run sync' : 'Run sync'}
             </ActionButton>
             <ActionButton variant="secondary" onClick={handleDisconnect} disabled={busy}>
               Disconnect
             </ActionButton>
-            <span className={styles.previewNote}>
-              {status === 'done'
-                ? 'Read-only preview of your QuickBooks. Importing into your catalog is the next release.'
-                : 'Pulls your live QuickBooks data. Nothing is written back.'}
-            </span>
+            {imported ? (
+              <span className={styles.importedLinks}>
+                <span className={styles.previewNote}>
+                  Imported into your catalog.
+                  {result && (result.skipped ?? 0) > 0
+                    ? ` ${result.skipped} non-inventory ${(result.skipped ?? 0) === 1 ? 'line' : 'lines'} skipped.`
+                    : ''}
+                </span>
+                <Link href="/inventory" className={styles.importedLink}>
+                  View inventory
+                </Link>
+                <Link href="/suppliers" className={styles.importedLink}>
+                  View suppliers
+                </Link>
+              </span>
+            ) : (
+              <span className={styles.previewNote}>
+                Pulls your live QuickBooks data and imports it into your catalog.
+              </span>
+            )}
           </>
         ) : (
           <>
@@ -234,12 +368,12 @@ export function ConnectPanel({
                 Connect QuickBooks
               </ActionButton>
             ) : null}
-            <ActionButton variant="secondary" onClick={() => handleSync(false)} disabled={busy}>
+            <ActionButton variant="secondary" onClick={handleSamplePreview} disabled={busy}>
               Preview with sample data
             </ActionButton>
             <span className={styles.previewNote}>
               {configured
-                ? 'Connect to sync your real data, or preview the chain with a sample set.'
+                ? 'Connect to import your real data, or preview the chain with a sample set.'
                 : 'QuickBooks connect is not configured on this deployment yet. Preview the chain with a sample set.'}
             </span>
           </>

@@ -154,3 +154,28 @@ Ticketed / documented:
   convention for font/structural sizes).
 - **Production env + redirect URI** — QBO_* + QBO_TOKEN_ENC_KEY in Vercel Production
   + the production redirect URI registered on the Intuit app (for live prod use).
+
+## Block 6 Wave 6.2b — Codex round-1 tickets (2026-06-06)
+Review `_reviews/2026-06-06_block6_wave6_2b_qbo_durable_sync.md`. Fixed in-slice:
+UI lede no longer overclaims PO write-back; poller fast-fails on persistent
+`unknown` (missing run / bad key / RLS) instead of spinning to the 10-min cap.
+Deferred (slice boundary — Wave 6.3 unless noted):
+- **`qboIncrementalSyncWorkflow` + 15-min `vercel.ts` cron + Intuit webhook**
+  (`createWebhook()` signature-verified) — delta sync. (FEATURES §QBO step 5.)
+- **Conflict policy + `/flow/sync-conflicts` + `resolveSyncConflict`** — server-wins
+  for our POs, LWW by external_updated_at for catalog/vendor, never overwrite
+  receipts, needs_review otherwise. (FEATURES §QBO step 6.)
+- **PO write-into-`purchase_orders`** on initial sync — needs the line-item +
+  PO-status model. Adapter `push('purchase_order',…)` already exists + is unit
+  tested but isn't called from production yet (that's the write-back, Wave 6.3).
+- **60s OAuth→first-sync SLO** measured on a seeded Vercel Preview; **generated-PO
+  round-trip** zero-dup test against the sandbox. (FEATURES §QBO acceptance.)
+- **Supplier contact enrichment** — QBO email/phone/web are pulled but not yet
+  persisted (the supplier writer matches the CSV columns; add a contact jsonb write).
+- **Playwright 3-state memorable capture** — infra-blocked (Playwright not wired);
+  jsdom RTL artifact stands in. (Standing across blocks.)
+- **Action-layer integration tests** for `runQboInitialSync` / `getQboSyncProgress`
+  (role-gating, run pre-create, revalidate, error mapping) — the memorable test
+  mocks both. (Standing across blocks.)
+- **Raw-px → tokens** in `integrations.module.css` (incl. the new `.importedLink`
+  12px / 3px) — stack-audit pass. No font-size token exists yet in this file.

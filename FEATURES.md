@@ -289,7 +289,9 @@
 - [ ] Webhook signature verification on every Intuit webhook callback before any processing.
 - [ ] **Memorable element visible in preview screenshot or Playwright interaction test.**
 
-**What's memorable:** The connect screen shows a live cobalt chain forming as the first sync runs — supplier link forms first as vendors arrive, ordered link forms as POs arrive, then in-transit link if any open PO is mid-flight. You watch your existing QBO state become a visible chain in real time. (Required visible artifact: Playwright test captures the connect screen at three states: pre-connect, mid-sync, post-sync, showing the chain growing.)
+**What's memorable:** The connect screen shows a live cobalt chain forming as the durable initial sync runs — the **CATALOG** link forms as items arrive as products, **SUPPLIERS** as vendors arrive, **SALES** as bills + sales movements land. Each link ignites from REAL workflow phase progress (not a timer), and on completion the panel links straight into the freshly imported `/inventory` + `/suppliers`. You watch your QuickBooks data become a visible, navigable chain in real time. (POs are read-only-counted to inform the run, not yet written; write-back is Wave 6.3.) (Required visible artifact: Playwright test captures the connect screen at three states: pre-connect, mid-sync, post-sync, showing the chain growing.)
+
+> **Contract note (2026-06-06, Wave 6.2b):** the chain was originally specced supplier → ordered → in-transit (for the 6.2a read-only preview). It was changed to CATALOG → SUPPLIERS → SALES so it reflects what the durable sync actually writes into the catalog. MG approved keeping the new sequence; may be revisited if it doesn't fit alongside the inventory-controls surfaces.
 
 ---
 
