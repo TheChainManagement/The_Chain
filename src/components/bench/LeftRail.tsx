@@ -18,6 +18,7 @@ const NAV = [
   { href: '/inventory', label: 'Inventory' },
   { href: '/forecasts', label: 'Forecasts' },
   { href: '/suppliers', label: 'Suppliers' },
+  { href: '/purchase-orders', label: 'Purchase Orders' },
   { href: '/import', label: 'Import' },
   { href: '/integrations', label: 'Integrations' },
   { href: '/reorder', label: 'Reorder' },

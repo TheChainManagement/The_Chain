@@ -89,6 +89,8 @@ afterAll(async () => {
     await admin.from('sync_failures').delete().eq('tenant_id', tenantId);
     await admin.from('sync_runs').delete().eq('tenant_id', tenantId);
     await admin.from('source_connections').delete().eq('tenant_id', tenantId);
+    await admin.from('purchase_order_lines').delete().eq('tenant_id', tenantId);
+    await admin.from('purchase_orders').delete().eq('tenant_id', tenantId);
     await admin.from('stock_movements').delete().eq('tenant_id', tenantId);
     await admin.from('products').delete().eq('tenant_id', tenantId);
     await admin.from('suppliers').delete().eq('tenant_id', tenantId);
@@ -109,7 +111,9 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
     expect(counts.catalog).toBe(5);
     expect(counts.suppliers).toBe(4);
     expect(counts.receipts + counts.sales).toBeGreaterThan(0);
-    expect(counts.ordered).toBeGreaterThan(0);
+    // Two fixture POs (PO-1001 open, PO-1002 closed); only the open one is in transit.
+    expect(counts.ordered).toBe(2);
+    expect(counts.inTransit).toBe(1);
     expect(counts.errors).toBe(0);
 
     expect(await count('products')).toBe(5);
@@ -138,11 +142,104 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
     expect(mv?.source_ref?.startsWith('qbo:')).toBe(true); // real entity ref, not a content hash
   });
 
+  it('enriches suppliers with QBO contact details and the vendor id', async () => {
+    const { data: sup } = await admin
+      .from('suppliers')
+      .select('contact, qbo_vendor_id, external_ids')
+      .eq('tenant_id', tenantId)
+      .eq('name', 'Atchafalaya Distributing')
+      .single<{
+        contact: { email?: string; phone?: string };
+        qbo_vendor_id: string | null;
+        external_ids: { qbo?: string };
+      }>();
+
+    expect(sup?.qbo_vendor_id).toBe('56');
+    expect(sup?.external_ids?.qbo).toBe('56');
+    expect(sup?.contact?.email).toBe('orders@atchafalaya-dist.example');
+    expect(sup?.contact?.phone).toBe('(985) 555-0142');
+  });
+
+  it('imports POs with their lines, resolving the supplier + product refs', async () => {
+    expect(await count('purchase_orders')).toBe(2);
+    expect(await count('purchase_order_lines')).toBe(3); // PO-1001 has 2 lines, PO-1002 has 1
+
+    const { data: po } = await admin
+      .from('purchase_orders')
+      .select('id, supplier_id, status, total, external_po_id, external_reference, recommended_by, expected_delivery_at')
+      .eq('tenant_id', tenantId)
+      .eq('external_reference', 'PO-1001')
+      .single<{
+        id: string;
+        supplier_id: string;
+        status: string;
+        total: number;
+        external_po_id: string;
+        recommended_by: string;
+        expected_delivery_at: string | null;
+      }>();
+
+    expect(po?.supplier_id).toBeTruthy(); // resolved via suppliers.external_ids->>'qbo'
+    expect(po?.status).toBe('sent');
+    expect(Number(po?.total)).toBe(840);
+    expect(po?.external_po_id).toBe('301');
+    expect(po?.recommended_by).toBe('external');
+    expect(po?.expected_delivery_at).toBeTruthy();
+
+    const { data: line } = await admin
+      .from('purchase_order_lines')
+      .select('product_id, ordered_qty')
+      .eq('po_id', po?.id)
+      .limit(1)
+      .single<{ product_id: string; ordered_qty: number }>();
+    expect(line?.product_id).toBeTruthy(); // resolved via products.external_ids->>'qbo'
+  });
+
+  it('prunes stale PO lines when a PO shrinks on re-sync', async () => {
+    const { data: po } = await admin
+      .from('purchase_orders')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('external_reference', 'PO-1001')
+      .single<{ id: string }>();
+    const { data: prod } = await admin
+      .from('products')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .limit(1)
+      .single<{ id: string }>();
+
+    // Simulate a prior, LONGER version of the PO: an extra line QBO no longer sends.
+    await admin.from('purchase_order_lines').insert({
+      tenant_id: tenantId,
+      po_id: po?.id,
+      line_no: 99,
+      product_id: prod?.id,
+      ordered_qty: 7,
+    });
+    const { count: before } = await admin
+      .from('purchase_order_lines')
+      .select('po_id', { count: 'exact', head: true })
+      .eq('po_id', po?.id);
+    expect(before).toBe(3);
+
+    const syncRunId = await newSyncRun();
+    await syncCatalogFromAdapter(admin, fixtureAdapter(tenantId), tenantId, syncRunId, connectionId);
+
+    const { count: after } = await admin
+      .from('purchase_order_lines')
+      .select('po_id', { count: 'exact', head: true })
+      .eq('po_id', po?.id);
+    expect(after).toBe(2); // the phantom line_no 99 was tail-pruned
+  });
+
   it('is idempotent: a second full run adds zero duplicate rows', async () => {
     const before = {
       products: await count('products'),
       suppliers: await count('suppliers'),
       movements: await count('stock_movements'),
+      pos: await count('purchase_orders'),
+      lines: await count('purchase_order_lines'),
     };
 
     const syncRunId = await newSyncRun();
@@ -151,5 +248,7 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
     expect(await count('products')).toBe(before.products);
     expect(await count('suppliers')).toBe(before.suppliers);
     expect(await count('stock_movements')).toBe(before.movements);
+    expect(await count('purchase_orders')).toBe(before.pos);
+    expect(await count('purchase_order_lines')).toBe(before.lines);
   });
 });

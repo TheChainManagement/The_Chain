@@ -51,6 +51,8 @@ function phaseToStage(phase: string): number {
       return 1;
     case 'stock_movement':
       return 2;
+    // POs write after the three visible links form, so keep the chain fully lit.
+    case 'purchase_order':
     case 'done':
       return TOTAL_LINKS;
     default:

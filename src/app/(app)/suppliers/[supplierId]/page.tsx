@@ -3,9 +3,15 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
+import { OrderTrack } from '@/components/OrderTrack/OrderTrack';
 import { Panel } from '@/components/Panel/Panel';
 import { ReliabilityRibbon } from '@/components/ReliabilityRibbon/ReliabilityRibbon';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import {
+  listSupplierPurchaseOrders,
+  type PurchaseOrderListRow,
+} from '@/lib/purchase-orders/queries';
+import { isOpenPo, poStatusLabel } from '@/lib/purchase-orders/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { getSupplierDetail, type SupplierDetail } from '@/lib/suppliers/queries';
 import { type LinkedProduct, otifPercent, otifTone } from '@/lib/suppliers/transform';
@@ -26,7 +32,10 @@ export default async function SupplierDetailPage({
 }): Promise<ReactNode> {
   const { supplierId } = await params;
   const supabase = await createSupabaseServer();
-  const supplier = await getSupplierDetail(supabase, supplierId);
+  const [supplier, orders] = await Promise.all([
+    getSupplierDetail(supabase, supplierId),
+    listSupplierPurchaseOrders(supabase, supplierId),
+  ]);
 
   if (!supplier) {
     notFound();
@@ -64,7 +73,47 @@ export default async function SupplierDetailPage({
         <ContactPanel supplier={supplier} />
         <ProductsPanel supplier={supplier} />
       </div>
+
+      <PurchaseOrdersPanel orders={orders} />
     </div>
+  );
+}
+
+function PurchaseOrdersPanel({ orders }: { orders: PurchaseOrderListRow[] }): ReactNode {
+  if (orders.length === 0) {
+    return (
+      <Panel
+        prefix="Procurement"
+        title="Purchase orders"
+        empty
+        emptyMessage="No purchase orders for this supplier yet. They appear here once you sync QuickBooks or raise a reorder."
+      />
+    );
+  }
+
+  return (
+    <Panel prefix="Procurement" title="Purchase orders">
+      <ul className={styles.poList}>
+        {orders.map((po) => (
+          <li key={po.id} className={styles.poRow}>
+            <span className={styles.poRef}>{po.reference}</span>
+            <OrderTrack po={po} />
+            <span className={styles.poMeta}>
+              <StatNumber
+                value={po.total == null ? null : fmtMoney(po.total)}
+                unit="$"
+                unitPosition="prefix"
+              />
+              <span
+                className={`${styles.poStatus} ${isOpenPo(po.status) ? styles.poStatusOpen : styles.poStatusDone}`}
+              >
+                {poStatusLabel(po.status)}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
 

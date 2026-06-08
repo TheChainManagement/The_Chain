@@ -1,0 +1,208 @@
+/* Purchase-order cockpit. Tokens only. */
+
+/* ----- Metric strip ----- */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-right: 1px solid var(--color-hairline);
+}
+.metric:last-child {
+  border-right: none;
+}
+.metricKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+/* ----- Featured order (hero chain) ----- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: var(--spacing-5);
+}
+.heroHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+.heroEyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.heroMeta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-mid);
+}
+.heroChain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+.heroCell {
+  min-width: 0;
+}
+
+/* ----- Ledger ----- */
+.ledger {
+  --grid: minmax(120px, 1.3fr) minmax(150px, 1.6fr) 132px 64px 110px 96px 104px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.head,
+.row {
+  display: grid;
+  grid-template-columns: var(--grid);
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: 0 var(--spacing-5);
+}
+.head {
+  height: 34px;
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.numHead {
+  text-align: right;
+}
+
+.row {
+  position: relative;
+  min-height: 56px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-hairline);
+  border-left: 2px solid transparent;
+  transition:
+    background var(--duration-quick) var(--ease-spring-soft),
+    border-left-color var(--duration-quick) var(--ease-spring-soft);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: var(--color-inset);
+  border-left-color: var(--color-divider);
+}
+.row:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+
+.cellRef {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cellSupplier {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cellTrack {
+  display: flex;
+  align-items: center;
+}
+.cellNum {
+  justify-self: end;
+  text-align: right;
+}
+.cellStatus {
+  display: flex;
+  align-items: center;
+}
+
+/* ----- Status tag ----- */
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.statusOpen {
+  color: var(--color-dim);
+}
+.statusOpen .statusDot {
+  background: var(--color-divider);
+}
+.statusDone {
+  color: var(--color-flow);
+}
+.statusDone .statusDot {
+  background: var(--color-flow);
+}
+.statusCanceled {
+  color: var(--color-stop);
+}
+.statusCanceled .statusDot {
+  background: var(--color-stop);
+}
+
+/* ----- Connect prompt (empty bench) ----- */
+.connect {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  max-width: 52ch;
+}
+.connectCopy {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-mid);
+}
+
+@media (max-width: 720px) {
+  .heroChain {
+    grid-template-columns: 1fr 1fr;
+  }
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}

@@ -175,6 +175,7 @@ export function mapPurchaseOrders(orders: QboPurchaseOrder[]): MapResult<'purcha
       po.Id,
       compact({
         supplierExternalId,
+        reference: po.DocNumber,
         status: PO_STATUS[po.POStatus ?? 'Open'] ?? 'sent',
         total: typeof po.TotalAmt === 'number' ? po.TotalAmt : undefined,
         expectedDeliveryAt: po.DueDate ? toIso(po.DueDate) : undefined,

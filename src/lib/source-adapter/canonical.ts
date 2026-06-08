@@ -62,6 +62,8 @@ const purchaseOrderLine = z.object({
 export const purchaseOrderAttributes = z.object({
   supplierExternalId: z.string().min(1),
   locationExternalId: z.string().optional(),
+  /** Operator-facing PO number (QBO DocNumber). Distinct from the entity id. */
+  reference: z.string().optional(),
   status: z.enum([
     'draft',
     'recommended',

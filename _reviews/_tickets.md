@@ -179,3 +179,10 @@ Deferred (slice boundary — Wave 6.3 unless noted):
   mocks both. (Standing across blocks.)
 - **Raw-px → tokens** in `integrations.module.css` (incl. the new `.importedLink`
   12px / 3px) — stack-audit pass. No font-size token exists yet in this file.
+
+## Block 6 Wave 6.3-A — Codex round-1 tickets (2026-06-08)
+- **Incremental sync (own session):** `qboIncrementalSyncWorkflow` (delta via `Cursor.highWatermark`) + 15-min cron in `vercel.ts` + Intuit webhook via `createWebhook()` (signature-verified) + conflict policy (server-wins for our POs / LWW by external_updated_at for catalog+vendor / never overwrite receipts / needs_review) + `/flow/sync-conflicts` + `resolveSyncConflict`. The remaining Block 6 contract.
+- **Generated-PO write-BACK (blocked):** adapter `push()` exists + unit-tested but unused in prod. Blocked until the Blocks 7-9 reorder engine generates POs to push. Wire it when there are app-origin POs.
+- **Playwright 3-state connect-screen artifact (infra-blocked):** FEATURES.md Block 6 requires a Playwright capture of the connect chain at pre-connect / mid-sync / post-sync. Still substituted by vitest/jsdom memorable tests. Needs the Playwright harness on a seeded Preview.
+- **Action-layer tests for `runQboInitialSync` / `getQboSyncProgress`:** coverage lives in sync-core + pure UI; the Server Action boundary itself is untested. Add when the action-layer harness lands (shared ticket with prior waves).
+- **No PO detail route:** cockpit rows link to the supplier. A dedicated `/purchase-orders/[id]` detail (line table, receipts, history) when the lifecycle (Blocks 10-11) gives it content.

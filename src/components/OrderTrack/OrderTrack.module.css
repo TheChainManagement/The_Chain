@@ -1,0 +1,53 @@
+/* OrderTrack — compact PO chain. Tokens only. Diamond nodes echo the chain's
+   notch motif; reached links fill cobalt (the single intent slot). */
+
+.track {
+  display: inline-flex;
+  align-items: center;
+}
+
+.seg {
+  display: inline-flex;
+  align-items: center;
+}
+
+.node {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: var(--color-bg);
+  border: 1px solid var(--color-hairline);
+  transition:
+    background var(--duration-base) var(--ease-spring-soft),
+    border-color var(--duration-base) var(--ease-spring-soft),
+    box-shadow var(--duration-base) var(--ease-spring-soft);
+}
+
+.node[data-state="done"] {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+}
+
+/* The frontier link — where the order is right now. Cobalt fill + a soft wash
+   ring so the eye lands on it. */
+.node[data-state="active"] {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  box-shadow: 0 0 0 3px var(--color-signal-dim);
+}
+
+.node[data-state="pending"] {
+  background: var(--color-bg);
+  border-color: var(--color-hairline);
+}
+
+.bar {
+  width: 18px;
+  height: 1px;
+  background: var(--color-hairline);
+  transition: background var(--duration-base) var(--ease-spring-soft);
+}
+
+.bar[data-done="true"] {
+  background: var(--color-signal-line);
+}

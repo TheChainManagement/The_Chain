@@ -10,13 +10,15 @@
  * It pulls the operator's QuickBooks data through the same `QboSourceAdapter` the
  * read-only connect preview uses, then writes the canonical payloads into the
  * catalog in dependency order:
- *   1. products  (items)         → products         upsert (tenant_id, sku)
- *   2. suppliers (vendors)       → suppliers         upsert (tenant_id, id by lower(name))
- *   3. movements (bills + sales) → stock_movements   upsert (tenant_id, source, source_ref, occurred_at)
+ *   1. products  (items)         → products              upsert (tenant_id, sku)
+ *   2. suppliers (vendors)       → suppliers              upsert (tenant_id, id by lower(name))
+ *   3. movements (bills + sales) → stock_movements        upsert (tenant_id, source, source_ref, occurred_at)
+ *   4. purchase orders           → purchase_orders/_lines upsert (tenant_id, external_po_id)
  *
- * Purchase orders are pulled read-only to light the "ordered / in transit" chain
- * links; writing them into `purchase_orders` rides with the write-back + conflict
- * policy in Wave 6.3 (ticketed) since it needs the line-item + PO-status model.
+ * Purchase orders write last because they reference both products and suppliers
+ * (Wave 6.3-A). The header upserts on the QBO PO id (`external_po_id`); lines
+ * upsert on (po_id, line_no) with a tail-prune so a shrunk PO converges. A PO
+ * whose lines are all non-inventory is skipped, like a non-inventory movement.
  *
  * Crash-safety:
  *   - **Idempotent upserts** per kind (same conflict keys as the CSV path).
@@ -54,8 +56,11 @@ const PAGE_CAP = 1000;
 const BATCH = 500;
 const FAILURE_PREVIEW = 20;
 
-export type SyncPhase = 'product' | 'supplier' | 'stock_movement';
-const PHASE_ORDER: SyncPhase[] = ['product', 'supplier', 'stock_movement'];
+export type SyncPhase = 'product' | 'supplier' | 'stock_movement' | 'purchase_order';
+// POs reference products + suppliers, so they write last (after both exist). It
+// also keeps the connect-screen reveal (CATALOG → SUPPLIERS → SALES) intact: the
+// three visible links finish in order, then POs land as a trailing technical phase.
+const PHASE_ORDER: SyncPhase[] = ['product', 'supplier', 'stock_movement', 'purchase_order'];
 
 /** The chain-summary counts the connect screen renders, and the run's result. */
 export interface QboSyncCounts {
@@ -74,6 +79,7 @@ interface PhaseResult {
   product?: { written: number; errors: number };
   supplier?: { written: number; errors: number };
   stock_movement?: { receipts: number; sales: number; errors: number; skipped: number };
+  purchase_order?: { ordered: number; inTransit: number; lines: number; errors: number };
 }
 
 /**
@@ -152,19 +158,20 @@ async function runPhases(
       results.product = await syncProducts(admin, adapter, tenantId, syncRunId, results);
     } else if (phase === 'supplier') {
       results.supplier = await syncSuppliers(admin, adapter, tenantId, syncRunId, results);
-    } else {
+    } else if (phase === 'stock_movement') {
       results.stock_movement = await syncMovements(admin, adapter, tenantId, syncRunId, results);
+    } else {
+      results.purchase_order = await syncPurchaseOrders(
+        admin,
+        adapter,
+        tenantId,
+        syncRunId,
+        results,
+      );
     }
   }
 
-  // POs are pulled read-only just to light the ordered / in-transit chain links.
-  const orders = await drainKind(adapter, 'purchase_order');
-  const ordered = orders.items.length;
-  const inTransit = orders.items.filter(
-    (p) => (p.attributes as { status?: string }).status === 'sent',
-  ).length;
-
-  return flatten(results, ordered, inTransit, orders.errors.length);
+  return flatten(results);
 }
 
 // ---------- per-kind sync (drain → write → record failures) ----------
@@ -208,16 +215,19 @@ async function syncSuppliers(
 
   // No JWT inside a workflow, so the case-insensitive RPC can't run; resolve
   // lower(name)->id ourselves and upsert on the (tenant_id, id) primary key.
+  // Carry the existing contact too, so enrichment MERGES rather than clobbers.
   const { data: existing } = await admin
     .from('suppliers')
-    .select('id, name')
+    .select('id, name, contact')
     .eq('tenant_id', tenantId)
-    .returns<{ id: string; name: string }[]>();
-  const byLowerName = new Map((existing ?? []).map((s) => [s.name.toLowerCase(), s.id]));
+    .returns<{ id: string; name: string; contact: Record<string, unknown> | null }[]>();
+  const byLowerName = new Map(
+    (existing ?? []).map((s) => [s.name.toLowerCase(), { id: s.id, contact: s.contact ?? {} }]),
+  );
 
   const rows = pull.items.map((item) => {
     const a = item.attributes as CanonicalPayload<'supplier'>['attributes'];
-    const existingId = byLowerName.get(a.name.toLowerCase());
+    const prior = byLowerName.get(a.name.toLowerCase());
     const row: Record<string, unknown> = {
       tenant_id: tenantId,
       name: a.name,
@@ -225,8 +235,16 @@ async function syncSuppliers(
       min_order_value: a.minOrderValue ?? null,
       status: a.status,
       external_ids: { qbo: item.externalId },
+      // Enrichment: QBO email/phone/web + the queryable vendor id (Wave 6.3-A).
+      qbo_vendor_id: item.externalId,
     };
-    if (existingId) row.id = existingId;
+    if (prior) row.id = prior.id;
+    // Merge QBO contact OVER any existing one (QBO wins per field, but a value the
+    // operator added that QBO doesn't carry survives). `merged` always spreads the
+    // prior contact first, so it can only be empty when both sides are — writing it
+    // unconditionally satisfies the NOT NULL column without ever erasing data. (A
+    // heterogeneous batch upsert would null out any row that omitted the key.)
+    row.contact = { ...(prior?.contact ?? {}), ...a.contact };
     return row;
   });
 
@@ -322,7 +340,185 @@ async function syncMovements(
   };
 }
 
+/** Open = still in flight: not received, closed, or canceled. */
+function isOpenPoStatus(status: string): boolean {
+  return status !== 'received' && status !== 'closed' && status !== 'canceled';
+}
+
+async function syncPurchaseOrders(
+  admin: SupabaseClient,
+  adapter: QboSourceAdapter,
+  tenantId: string,
+  syncRunId: string,
+  results: PhaseResult,
+): Promise<{ ordered: number; inTransit: number; lines: number; errors: number }> {
+  const pull = await drainKind(adapter, 'purchase_order');
+
+  // POs reference a vendor + items, both already written this run. Resolve each
+  // by its QBO external id through external_ids->>'qbo' (the same indirection the
+  // movement phase uses for products).
+  const qboToSupplierId = await loadQboSupplierIds(admin, tenantId);
+  const qboToProductId = await loadQboProductIds(admin, tenantId);
+
+  const rowErrors: PullResultError[] = [];
+  // Lines we drop from an IMPORTED PO because their product didn't resolve. We
+  // record these to sync_failures so a partial PO is auditable (never a silent
+  // truncation) — but they do NOT count toward the headline error total, since a
+  // mixed inventory/service PO dropping its service lines is expected, not a fault.
+  const droppedLines: PullResultError[] = [];
+  const staged: StagedPo[] = [];
+
+  for (const item of pull.items) {
+    const a = item.attributes as CanonicalPayload<'purchase_order'>['attributes'];
+    const supplierId = qboToSupplierId.get(a.supplierExternalId);
+    if (!supplierId) {
+      rowErrors.push({
+        externalId: item.externalId,
+        code: 'unknown_supplier',
+        message: `Purchase order ${a.reference ?? item.externalId} references QuickBooks vendor ${a.supplierExternalId}, which was not imported as a supplier.`,
+      });
+      continue;
+    }
+
+    const lines: PoLineRow[] = [];
+    const dropped: PullResultError[] = [];
+    for (const l of a.lines) {
+      const productId = qboToProductId.get(l.productExternalId);
+      if (!productId) {
+        dropped.push({
+          externalId: `${item.externalId}:${l.lineNo}`,
+          code: 'unmapped_po_line',
+          message: `Purchase order ${a.reference ?? item.externalId} line ${l.lineNo} references QuickBooks item ${l.productExternalId}, which is not an imported inventory product; the line was skipped.`,
+        });
+        continue;
+      }
+      lines.push({
+        line_no: l.lineNo,
+        product_id: productId,
+        ordered_qty: l.orderedQty,
+        unit_cost: l.unitCost ?? null,
+      });
+    }
+
+    // A PO whose lines are all non-inventory (service items, fees) is skipped the
+    // same way non-inventory movements are — it is not an inventory PO, not an error,
+    // and we don't surface its lines (a fully-service PO isn't ours to track).
+    if (lines.length === 0) continue;
+
+    // The PO IS being imported, so any line we couldn't map is now a visible gap
+    // between the PO's total and its lines — record it so it's never silent.
+    droppedLines.push(...dropped);
+    staged.push({
+      externalId: item.externalId,
+      status: a.status,
+      attributes: a,
+      supplierId,
+      lines,
+    });
+  }
+
+  let ordered = 0;
+  let inTransit = 0;
+  let lineCount = 0;
+
+  if (staged.length > 0) {
+    const locationId = await ensurePrimaryLocation(admin, tenantId);
+    const nowIso = new Date().toISOString();
+
+    const headerRows = staged.map((s) => ({
+      tenant_id: tenantId,
+      supplier_id: s.supplierId,
+      location_id: locationId,
+      status: s.status,
+      recommended_by: 'external',
+      external_po_id: s.externalId,
+      external_reference: s.attributes.reference ?? null,
+      total: s.attributes.total ?? null,
+      expected_delivery_at: s.attributes.expectedDeliveryAt ?? null,
+      actual_delivery_at: s.attributes.actualDeliveryAt ?? null,
+      sync_status: 'in_sync',
+      last_synced_at: nowIso,
+    }));
+
+    const { data: upserted, error: hErr } = await admin
+      .from('purchase_orders')
+      .upsert(headerRows, { onConflict: 'tenant_id,external_po_id' })
+      .select('id, external_po_id')
+      .returns<{ id: string; external_po_id: string }[]>();
+    if (hErr) throw new Error(`purchase_order upsert failed: ${hErr.message}`);
+
+    const idByExternal = new Map((upserted ?? []).map((r) => [r.external_po_id, r.id]));
+
+    // Lines mirror QBO exactly: upsert on (po_id, line_no), then prune any tail
+    // rows from an earlier, longer version of the PO so a re-sync converges.
+    const lineRows: Record<string, unknown>[] = [];
+    for (const s of staged) {
+      const poId = idByExternal.get(s.externalId);
+      if (!poId) continue;
+      for (const l of s.lines) lineRows.push({ tenant_id: tenantId, po_id: poId, ...l });
+    }
+    if (lineRows.length > 0) {
+      const { error: lErr } = await admin
+        .from('purchase_order_lines')
+        .upsert(lineRows, { onConflict: 'po_id,line_no' });
+      if (lErr) throw new Error(`purchase_order_lines upsert failed: ${lErr.message}`);
+    }
+    for (const s of staged) {
+      const poId = idByExternal.get(s.externalId);
+      if (!poId) continue;
+      const maxLineNo = s.lines.reduce((m, l) => Math.max(m, l.line_no), 0);
+      await admin.from('purchase_order_lines').delete().eq('po_id', poId).gt('line_no', maxLineNo);
+    }
+
+    ordered = staged.length;
+    inTransit = staged.filter((s) => isOpenPoStatus(s.status)).length;
+    lineCount = lineRows.length;
+    await writeProgress(admin, syncRunId, 'purchase_order', results, staged.length, staged.length);
+  }
+
+  // Dropped lines ride into sync_failures for the audit trail but stay out of the
+  // headline error count (expected for mixed inventory/service POs).
+  await recordFailures(admin, tenantId, syncRunId, 'purchase_order', [
+    ...pull.errors,
+    ...rowErrors,
+    ...droppedLines,
+  ]);
+  return { ordered, inTransit, lines: lineCount, errors: pull.errors.length + rowErrors.length };
+}
+
+async function loadQboSupplierIds(
+  admin: SupabaseClient,
+  tenantId: string,
+): Promise<Map<string, string>> {
+  const { data } = await admin
+    .from('suppliers')
+    .select('id, external_ids')
+    .eq('tenant_id', tenantId)
+    .returns<{ id: string; external_ids: { qbo?: string } | null }[]>();
+  const map = new Map<string, string>();
+  for (const s of data ?? []) {
+    const qboId = s.external_ids?.qbo;
+    if (qboId) map.set(qboId, s.id);
+  }
+  return map;
+}
+
 // ---------- shared mechanics ----------
+
+interface PoLineRow {
+  line_no: number;
+  product_id: string;
+  ordered_qty: number;
+  unit_cost: number | null;
+}
+
+interface StagedPo {
+  externalId: string;
+  status: string;
+  attributes: CanonicalPayload<'purchase_order'>['attributes'];
+  supplierId: string;
+  lines: PoLineRow[];
+}
 
 interface MovementRow {
   tenant_id: string;
@@ -413,25 +609,21 @@ async function recordFailures(
   );
 }
 
-function flatten(
-  results: PhaseResult,
-  ordered: number,
-  inTransit: number,
-  poErrors: number,
-): QboSyncCounts {
+function flatten(results: PhaseResult): QboSyncCounts {
   const m = results.stock_movement;
+  const po = results.purchase_order;
   return {
     catalog: results.product?.written ?? 0,
     suppliers: results.supplier?.written ?? 0,
-    ordered,
-    inTransit,
+    ordered: po?.ordered ?? 0,
+    inTransit: po?.inTransit ?? 0,
     receipts: m?.receipts ?? 0,
     sales: m?.sales ?? 0,
     errors:
       (results.product?.errors ?? 0) +
       (results.supplier?.errors ?? 0) +
       (m?.errors ?? 0) +
-      poErrors,
+      (po?.errors ?? 0),
     skipped: m?.skipped ?? 0,
   };
 }
@@ -455,7 +647,7 @@ async function writeProgress(
   processed: number,
   total: number,
 ): Promise<void> {
-  const counts = flatten(results, 0, 0, 0);
+  const counts = flatten(results);
   const cursor: QboSyncCursor = { ...counts, phase, processed, total, results, done: false };
   await admin.from('sync_runs').update({ cursor }).eq('id', syncRunId);
 }
@@ -483,6 +675,7 @@ async function finalize(
         product: counts.catalog,
         supplier: counts.suppliers,
         stock_movement: counts.receipts + counts.sales,
+        purchase_order: counts.ordered,
       },
       cursor,
       error_log: [],
