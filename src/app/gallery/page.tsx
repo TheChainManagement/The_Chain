@@ -1,11 +1,102 @@
 import { notFound } from 'next/navigation';
+import { ConflictCockpit } from '@/app/(app)/flow/sync-conflicts/ConflictCockpit';
+import conflictStyles from '@/app/(app)/flow/sync-conflicts/sync-conflicts.module.css';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { ChainLink } from '@/components/ChainLink/ChainLink';
 import { ClaudeInsight } from '@/components/ClaudeInsight/ClaudeInsight';
 import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import type { PendingConflict } from '@/lib/qbo/conflicts';
 import styles from './gallery.module.css';
+
+// Fixture conflicts for the Wave 6.3-C reconciliation-bench showcase. Real-feeling
+// records, organic values (MASTER_PROMPT: never Acme / round demo numbers).
+const GALLERY_CONFLICTS: PendingConflict[] = [
+  {
+    id: 'fx-product',
+    entityType: 'product',
+    entityId: 'fx-1',
+    externalRef: 'QBO:1042',
+    title: 'Galvanized Joist Hanger 2x10',
+    subtitle: 'SKU-2231',
+    policyDecision: 'needs_review',
+    createdAt: '2026-06-10T13:02:00.000Z',
+    localState: {
+      name: 'Galv Joist Hanger 2x10',
+      description: '18-gauge, triple-zinc',
+      unitOfMeasure: 'ea',
+      status: 'active',
+    },
+    remoteState: {
+      name: 'Galvanized Joist Hanger 2x10',
+      description: '18-gauge, triple-zinc',
+      unitOfMeasure: 'box of 25',
+      status: 'active',
+    },
+    fields: [
+      {
+        key: 'name',
+        label: 'Name',
+        local: 'Galv Joist Hanger 2x10',
+        remote: 'Galvanized Joist Hanger 2x10',
+        differs: true,
+      },
+      {
+        key: 'description',
+        label: 'Description',
+        local: '18-gauge, triple-zinc',
+        remote: '18-gauge, triple-zinc',
+        differs: false,
+      },
+      {
+        key: 'unitOfMeasure',
+        label: 'Unit of measure',
+        local: 'ea',
+        remote: 'box of 25',
+        differs: true,
+      },
+      { key: 'status', label: 'Status', local: 'active', remote: 'active', differs: false },
+    ],
+  },
+  {
+    id: 'fx-supplier',
+    entityType: 'supplier',
+    entityId: 'fx-2',
+    externalRef: 'QBO:88',
+    title: 'Atchafalaya Distributing',
+    subtitle: null,
+    policyDecision: 'needs_review',
+    createdAt: '2026-06-10T12:41:00.000Z',
+    localState: {
+      name: 'Atchafalaya Distributing',
+      status: 'active',
+      contact: { email: 'orders@atchafalaya-dist.com' },
+    },
+    remoteState: {
+      name: 'Atchafalaya Distributing',
+      status: 'inactive',
+      contact: { email: 'ap@atchafalaya-dist.com' },
+    },
+    fields: [
+      {
+        key: 'name',
+        label: 'Name',
+        local: 'Atchafalaya Distributing',
+        remote: 'Atchafalaya Distributing',
+        differs: false,
+      },
+      { key: 'status', label: 'Status', local: 'active', remote: 'inactive', differs: true },
+      {
+        key: 'contact',
+        label: 'Contact',
+        local: 'email: orders@atchafalaya-dist.com',
+        remote: 'email: ap@atchafalaya-dist.com',
+        differs: true,
+      },
+    ],
+  },
+];
 
 /**
  * Phase 5G base-component gallery. Dev/CI only (404 in production). This is the
@@ -162,6 +253,20 @@ export default function GalleryPage() {
             error
             errorMessage="Last sync failed at 09:02. Retrying in 12 min."
           />
+        </div>
+      </section>
+
+      {/* Sync-conflict reconciliation bench (Wave 6.3-C). */}
+      <section className={styles.section}>
+        <span className={styles.label}>SYNC CONFLICTS — reconciliation bench + resolved state</span>
+        <ConflictCockpit conflicts={GALLERY_CONFLICTS} />
+        <div className={conflictStyles.reconciled} style={{ marginTop: 'var(--spacing-5)' }}>
+          <span className={conflictStyles.reconciledLink} aria-hidden="true" />
+          <div className={conflictStyles.reconciledText}>
+            <span className={conflictStyles.reconciledStep}>RECONCILED</span>
+            <span className={conflictStyles.reconciledLabel}>Galvanized Joist Hanger 2x10</span>
+            <span className={conflictStyles.reconciledNote}>Merged field by field</span>
+          </div>
         </div>
       </section>
     </main>

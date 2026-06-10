@@ -304,12 +304,23 @@
   color: var(--color-warn);
   background: color-mix(in srgb, var(--color-warn) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-warn) 28%, transparent);
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+.conflictBadge:hover {
+  background: color-mix(in srgb, var(--color-warn) 14%, transparent);
 }
 .conflictDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--color-warn);
+}
+.conflictGo {
+  padding-left: 8px;
+  margin-left: 4px;
+  border-left: 1px solid color-mix(in srgb, var(--color-warn) 28%, transparent);
+  color: var(--color-signal);
 }
 .deltaCounts {
   display: flex;

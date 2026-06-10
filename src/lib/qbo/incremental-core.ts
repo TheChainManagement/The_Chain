@@ -221,8 +221,20 @@ async function applyProductDeltas(
       entityId: local.id,
       externalRef: item.externalId,
       decision,
-      local: { name: local.name, status: local.status },
-      remote: { name: a.name, status: a.status },
+      // Full QBO-owned field set (not just name/status) so the resolution
+      // cockpit can apply accept_remote / merge without re-pulling from QBO.
+      local: {
+        name: local.name,
+        description: local.description,
+        unitOfMeasure: local.unit_of_measure,
+        status: local.status,
+      },
+      remote: {
+        name: a.name,
+        description: a.description ?? null,
+        unitOfMeasure: a.unitOfMeasure ?? null,
+        status: a.status,
+      },
     });
   }
 }
@@ -338,8 +350,10 @@ async function applySupplierDeltas(
       entityId: local.id,
       externalRef: item.externalId,
       decision,
-      local: { name: local.name, status: local.status },
-      remote: { name: a.name, status: a.status },
+      // Full QBO-owned field set (incl. contact) so the resolution cockpit can
+      // apply accept_remote / merge without re-pulling from QBO.
+      local: { name: local.name, status: local.status, contact: local.contact },
+      remote: { name: a.name, status: a.status, contact: mergedContact },
     });
   }
 }

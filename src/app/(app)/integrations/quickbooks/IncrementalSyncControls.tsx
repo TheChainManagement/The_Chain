@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
@@ -100,10 +101,13 @@ export function IncrementalSyncControls({
       </div>
 
       {pendingConflicts > 0 ? (
-        <p className={styles.conflictBadge} role="status">
+        <Link className={styles.conflictBadge} href="/flow/sync-conflicts">
           <span className={styles.conflictDot} aria-hidden="true" />
           {pendingConflicts} {pendingConflicts === 1 ? 'change needs' : 'changes need'} review
-        </p>
+          <span className={styles.conflictGo} aria-hidden="true">
+            Resolve →
+          </span>
+        </Link>
       ) : null}
 
       {summary ? (

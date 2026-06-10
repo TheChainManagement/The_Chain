@@ -1,0 +1,331 @@
+/* Sync-conflicts reconciliation cockpit (Wave 6.3-C). Tokens only. */
+
+.emptyCopy {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 56ch;
+  margin: 0 0 var(--spacing-4);
+}
+
+.emptyLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-signal-line);
+  padding-bottom: 2px;
+}
+.emptyLink:hover {
+  border-bottom-color: var(--color-signal);
+}
+
+.cockpit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.lede {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 64ch;
+  margin: 0;
+}
+.ledeCount {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-deep);
+}
+
+.benchList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* ----- one reconciliation bench ----- */
+
+.bench {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: 0;
+  padding: var(--spacing-5);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.bench[data-merging] {
+  border-color: var(--color-divider);
+  box-shadow: var(--shadow-panel-focus);
+}
+
+.benchHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+.benchTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.benchKind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.benchTitle {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-deep);
+  margin: 0;
+}
+.benchSub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-mid);
+}
+.diffTag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-warn);
+  border: 1px solid color-mix(in srgb, var(--color-warn) 32%, transparent);
+  background: color-mix(in srgb, var(--color-warn) 8%, transparent);
+  padding: 3px 8px;
+}
+
+/* ----- the two diverged columns ----- */
+
+.benchColumns {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.6fr) 1fr 1fr;
+  border: 1px solid var(--color-hairline);
+  border-bottom: 0;
+}
+.colHead {
+  grid-column: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+  color: var(--color-dim);
+}
+/* first column header is the empty label gutter */
+.benchColumns > .colHead:first-of-type {
+  grid-column: 2;
+}
+.colHead[data-side="remote"] {
+  border-left: 1px solid var(--color-hairline);
+}
+
+.fieldRow {
+  display: contents;
+}
+.fieldLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  padding: var(--spacing-3);
+  border-bottom: 1px solid var(--color-hairline);
+  display: flex;
+  align-items: center;
+}
+
+.cell {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 0;
+  border-bottom: 1px solid var(--color-hairline);
+  padding: var(--spacing-3);
+  cursor: default;
+  transition:
+    background var(--duration-quick) var(--ease-tick),
+    box-shadow var(--duration-quick) var(--ease-tick);
+}
+.cell[data-side="remote"] {
+  border-left: 1px solid var(--color-hairline);
+}
+/* a field that differs gets a soft warn wash on both sides until resolved */
+.fieldRow[data-differs] .cell {
+  background: color-mix(in srgb, var(--color-warn) 6%, var(--color-surface));
+}
+
+/* merge mode: differing cells become pickable */
+.cell[data-pickable="true"] {
+  cursor: pointer;
+}
+/* hover/chosen are scoped under .fieldRow[data-differs] so they out-specify the
+   differing-row cream wash (.fieldRow[data-differs] .cell), which would otherwise
+   win and hide the cobalt selection. */
+.fieldRow[data-differs] .cell[data-pickable="true"]:hover {
+  background: var(--color-signal-dim);
+}
+/* the chosen winning value lights cobalt — the single intent slot */
+.fieldRow[data-differs] .cell[data-chosen="true"] {
+  background: var(--color-signal);
+  color: var(--color-on-signal);
+  box-shadow: var(--shadow-cobalt-inner);
+}
+/* cobalt-on-cobalt: the global cobalt focus ring would vanish on a chosen cell, so
+   give it the deep-slate ring the doctrine prescribes for cobalt surfaces. */
+.fieldRow[data-differs] .cell[data-chosen="true"]:focus-visible {
+  outline-color: var(--color-deep);
+}
+
+.error {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+  margin: var(--spacing-3) 0 0;
+}
+
+/* ----- actions ----- */
+
+.benchActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.mergeHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-mid);
+}
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-left: auto;
+}
+
+/* ----- the reconcile beat: two columns converge into one cobalt link ----- */
+
+.reconciled {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: 0;
+  padding: var(--spacing-5);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  animation: settle var(--duration-base) var(--ease-tick) both;
+}
+.reconciledLink {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  background: var(--color-signal);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+  /* a chain-link silhouette: rounded outer, square-ish inner cut */
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  animation: ignite var(--duration-reveal) var(--ease-spring-soft) both;
+}
+.reconciledLink::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border: 2px solid var(--color-on-signal);
+  opacity: 0.85;
+}
+.reconciledText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reconciledStep {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+}
+.reconciledLabel {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-deep);
+}
+.reconciledNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--color-mid);
+}
+
+@keyframes ignite {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0.2;
+  }
+  100% {
+    transform: scaleX(1);
+    transform-origin: left center;
+    opacity: 1;
+  }
+}
+@keyframes settle {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reconciled,
+  .reconciledLink {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .benchColumns {
+    grid-template-columns: 1fr 1fr;
+  }
+  .benchColumns > .colHead:first-of-type {
+    display: none;
+  }
+  .fieldLabel {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+    padding-bottom: var(--spacing-1);
+  }
+}
