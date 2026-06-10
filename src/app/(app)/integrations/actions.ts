@@ -8,11 +8,13 @@ import { qboEnv } from '@/lib/env';
 import { QboClient, QboSourceAdapter } from '@/lib/qbo';
 import { deactivateQboConnection, loadQboConnection } from '@/lib/qbo/connection';
 import { FixtureTransport } from '@/lib/qbo/fixtures';
+import type { IncrementalSummary } from '@/lib/qbo/incremental-core';
 import { buildAuthorizeUrl, fetchTokenHttp, revokeToken } from '@/lib/qbo/oauth';
 import { type QboPullSummary, type QboSyncOutcome, summarizeQboPull } from '@/lib/qbo/summary';
 import { FatalError, RetryableError } from '@/lib/source-adapter';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { qboIncrementalSyncWorkflow } from '@/workflows/qbo-incremental';
 import { qboInitialSyncWorkflow } from '@/workflows/qbo-sync';
 
 /**
@@ -269,4 +271,96 @@ export async function disconnectQbo(): Promise<{ ok: boolean; error?: string }> 
   } catch {
     return { ok: false, error: 'Could not disconnect. Please try again.' };
   }
+}
+
+export type QboIncrementalStart = { ok: true; trackingKey: string } | { ok: false; error: string };
+export type QboIncrementalResult =
+  | { status: 'running' }
+  | { status: 'completed'; summary: IncrementalSummary }
+  | { status: 'failed'; error: string }
+  | { status: 'unknown' };
+
+const ZERO_SUMMARY: IncrementalSummary = {
+  inserted: 0,
+  updated: 0,
+  conflicts: 0,
+  needsReview: 0,
+  movements: 0,
+  errors: 0,
+};
+
+/**
+ * Manual "Sync now" — runs the same durable incremental workflow the 15-minute
+ * cron fires. Pre-creates the sync_run so the poller finds it, then starts the
+ * delta. Returns a tracking key to poll via `getQboIncrementalResult`.
+ */
+export async function runQboIncrementalSync(): Promise<QboIncrementalStart> {
+  const { tenantId, role } = await tenantAndRole();
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  if (!role || !PRIVILEGED.has(role)) {
+    return { ok: false, error: 'Only an owner or manager can sync QuickBooks.' };
+  }
+
+  const admin = createSupabaseAdmin();
+  try {
+    const conn = await loadQboConnection(admin, tenantId);
+    if (!conn) return { ok: false, error: 'QuickBooks is not connected yet.' };
+
+    const trackingKey = randomBytes(16).toString('hex');
+    const { data: runRow, error } = await admin
+      .from('sync_runs')
+      .insert({
+        tenant_id: tenantId,
+        connection_id: conn.connectionId,
+        workflow_run_id: trackingKey,
+        status: 'running',
+        started_at: new Date().toISOString(),
+        cursor: { kind: 'incremental', done: false },
+      })
+      .select('id')
+      .single<{ id: string }>();
+    if (error || !runRow)
+      return { ok: false, error: 'Could not start the sync. Please try again.' };
+
+    try {
+      await start(qboIncrementalSyncWorkflow, [
+        { tenantId, connectionId: conn.connectionId, syncRunId: runRow.id },
+      ]);
+    } catch (err) {
+      await admin
+        .from('sync_runs')
+        .update({
+          status: 'failed',
+          finished_at: new Date().toISOString(),
+          error_log: [err instanceof Error ? err.message : 'workflow failed to start'],
+        })
+        .eq('id', runRow.id);
+      return { ok: false, error: 'Could not start the sync. Please try again.' };
+    }
+
+    return { ok: true, trackingKey };
+  } catch {
+    return { ok: false, error: 'Could not start the sync. Please try again.' };
+  }
+}
+
+export async function getQboIncrementalResult(trackingKey: string): Promise<QboIncrementalResult> {
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase
+    .from('sync_runs')
+    .select('status, cursor')
+    .eq('workflow_run_id', trackingKey)
+    .maybeSingle<{ status: string; cursor: { summary?: IncrementalSummary } | null }>();
+
+  if (!data) return { status: 'unknown' };
+  if (data.status === 'failed') {
+    return { status: 'failed', error: 'The sync did not finish. Please try again.' };
+  }
+  if (data.status === 'completed') {
+    revalidatePath('/inventory');
+    revalidatePath('/suppliers');
+    revalidatePath('/integrations/quickbooks');
+    return { status: 'completed', summary: data.cursor?.summary ?? ZERO_SUMMARY };
+  }
+  return { status: 'running' };
 }

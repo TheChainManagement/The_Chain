@@ -47,6 +47,7 @@ import type {
 } from '@/lib/source-adapter';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import type { QboSourceAdapter } from './adapter';
+import { productFingerprint, supplierFingerprint } from './conflict';
 import { markConnectionSynced } from './connection';
 import { createQboAdapterForTenant } from './factory';
 
@@ -193,7 +194,10 @@ async function syncProducts(
       description: a.description ?? null,
       unit_of_measure: a.unitOfMeasure ?? null,
       status: a.status,
-      external_ids: { qbo: item.externalId },
+      // qbo_fp is the QBO-owned-field baseline the incremental conflict policy
+      // diffs against; external_updated_at is the remote change clock (Wave 6.3-B).
+      external_ids: { qbo: item.externalId, qbo_fp: productFingerprint(a) },
+      external_updated_at: item.externalUpdatedAt ?? null,
     };
   });
 
@@ -228,23 +232,31 @@ async function syncSuppliers(
   const rows = pull.items.map((item) => {
     const a = item.attributes as CanonicalPayload<'supplier'>['attributes'];
     const prior = byLowerName.get(a.name.toLowerCase());
+    // Merge QBO contact OVER any existing one (QBO wins per field, but a value the
+    // operator added that QBO doesn't carry survives). `merged` always spreads the
+    // prior contact first, so it can only be empty when both sides are — writing it
+    // unconditionally satisfies the NOT NULL column without ever erasing data. (A
+    // heterogeneous batch upsert would null out any row that omitted the key.)
+    const contact = { ...(prior?.contact ?? {}), ...a.contact };
     const row: Record<string, unknown> = {
       tenant_id: tenantId,
       name: a.name,
       default_lead_time_days: a.defaultLeadTimeDays ?? null,
       min_order_value: a.minOrderValue ?? null,
       status: a.status,
-      external_ids: { qbo: item.externalId },
+      contact,
       // Enrichment: QBO email/phone/web + the queryable vendor id (Wave 6.3-A).
       qbo_vendor_id: item.externalId,
+      // qbo_fp = the QBO-owned-field baseline for the incremental conflict policy;
+      // external_updated_at = the remote change clock (Wave 6.3-B). The fp covers the
+      // contact we actually WRITE (merged), so a clean re-sync is not seen as dirty.
+      external_ids: {
+        qbo: item.externalId,
+        qbo_fp: supplierFingerprint({ name: a.name, status: a.status, contact }),
+      },
+      external_updated_at: item.externalUpdatedAt ?? null,
     };
     if (prior) row.id = prior.id;
-    // Merge QBO contact OVER any existing one (QBO wins per field, but a value the
-    // operator added that QBO doesn't carry survives). `merged` always spreads the
-    // prior contact first, so it can only be empty when both sides are — writing it
-    // unconditionally satisfies the NOT NULL column without ever erasing data. (A
-    // heterogeneous batch upsert would null out any row that omitted the key.)
-    row.contact = { ...(prior?.contact ?? {}), ...a.contact };
     return row;
   });
 

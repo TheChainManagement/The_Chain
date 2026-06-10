@@ -34,7 +34,13 @@ vi.mock('@/app/(app)/integrations/actions', () => ({
   disconnectQbo: vi.fn(),
 }));
 
-const BASE = { realmId: '9341454816836171', lastSyncedAt: null, environment: 'sandbox', banner: null };
+const BASE = {
+  realmId: '9341454816836171',
+  lastSyncedAt: null,
+  environment: 'sandbox',
+  banner: null,
+  pendingConflicts: 0,
+};
 
 describe('QBO connect — the chain forms as the sync runs (memorable element)', () => {
   afterEach(() => vi.clearAllMocks());

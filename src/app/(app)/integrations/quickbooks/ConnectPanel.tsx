@@ -15,6 +15,7 @@ import {
   startQboConnect,
 } from '../actions';
 import styles from '../integrations.module.css';
+import { IncrementalSyncControls } from './IncrementalSyncControls';
 import { SyncChain, type SyncLink } from './SyncChain';
 
 /**
@@ -68,6 +69,8 @@ export interface ConnectPanelProps {
   lastSyncedAt: string | null;
   environment: string;
   banner: string | null;
+  /** Conflicts queued for human review (Wave 6.3-B). */
+  pendingConflicts: number;
 }
 
 function plural(n: number, word: string): string {
@@ -139,6 +142,7 @@ export function ConnectPanel({
   lastSyncedAt,
   environment,
   banner,
+  pendingConflicts,
 }: ConnectPanelProps): ReactNode {
   const router = useRouter();
   const [status, setStatus] = useState<Status>('idle');
@@ -381,6 +385,10 @@ export function ConnectPanel({
           </>
         )}
       </div>
+
+      {connected ? (
+        <IncrementalSyncControls lastSyncedAt={lastSyncedAt} pendingConflicts={pendingConflicts} />
+      ) : null}
 
       {status === 'error' && error ? (
         <p className={styles.error} role="alert">

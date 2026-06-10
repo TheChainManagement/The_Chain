@@ -275,7 +275,7 @@
 **Acceptance criteria:**
 - [ ] OAuth complete + first sync running within 60 seconds of clicking Connect (p95, against Intuit sandbox).
 - [ ] Token refresh handled silently on use; expired refresh tokens surface an alert (`kind=sync_failure`).
-- [ ] Incremental sync runs every 15 minutes by default; cron declared in `vercel.ts`.
+- [x] Incremental sync runs every 15 minutes by default; cron declared in `vercel.json` (Wave 6.3-B). NOTE: shipped in `vercel.json` rather than `vercel.ts` — MG-approved 2026-06-09 to avoid the `@vercel/config` dependency; functionally identical for a cron declaration.
 - [ ] Generated PO writes back to QBO with The Chain's `tenant_id` + internal PO id as metadata fields; round-trip lookup finds the same record without duplicates.
 - [ ] Disconnect leaves tenant data intact (no cascade delete on `products`, `suppliers`, etc.).
 - [ ] Sales + bills ingestion: each writes a `stock_movements` row with correct `type`, signed `quantity`, `occurred_at` matching QBO source date, `source='qbo'`, `source_ref` = QBO entity id. Forecasting reads from these rows.

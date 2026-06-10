@@ -25,6 +25,12 @@ export default async function QuickBooksPage({
 
   const status = tenantId ? await getQboStatus(supabase, tenantId) : { connected: false };
 
+  // Conflicts the incremental sync queued for review (Wave 6.3-B). RLS-scoped.
+  const { count: pendingConflicts } = await supabase
+    .from('sync_conflicts')
+    .select('id', { count: 'exact', head: true })
+    .eq('applied_resolution', 'pending');
+
   let environment = 'sandbox';
   let configured = false;
   try {
@@ -47,6 +53,7 @@ export default async function QuickBooksPage({
         lastSyncedAt={status.lastSyncedAt ?? null}
         environment={environment}
         banner={banner}
+        pendingConflicts={pendingConflicts ?? 0}
       />
     </div>
   );

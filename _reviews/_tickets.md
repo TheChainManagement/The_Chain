@@ -186,3 +186,13 @@ Deferred (slice boundary — Wave 6.3 unless noted):
 - **Playwright 3-state connect-screen artifact (infra-blocked):** FEATURES.md Block 6 requires a Playwright capture of the connect chain at pre-connect / mid-sync / post-sync. Still substituted by vitest/jsdom memorable tests. Needs the Playwright harness on a seeded Preview.
 - **Action-layer tests for `runQboInitialSync` / `getQboSyncProgress`:** coverage lives in sync-core + pure UI; the Server Action boundary itself is untested. Add when the action-layer harness lands (shared ticket with prior waves).
 - **No PO detail route:** cockpit rows link to the supplier. A dedicated `/purchase-orders/[id]` detail (line table, receipts, history) when the lifecycle (Blocks 10-11) gives it content.
+
+## Block 6 Wave 6.3-B — Codex round-1 tickets (2026-06-09)
+- **Wave 6.3-C — conflict resolution UI:** `/flow/sync-conflicts` cockpit + `resolveSyncConflict(conflictId, resolution, merge_payload?)` (accept_local/accept_remote/merge). Wire the IncrementalSyncControls "N changes need review" badge to link there (currently a `role=status` indicator; data is safe/queued, just no resolution surface yet).
+- **Wave 6.3-D — Intuit webhook:** `createWebhook()` at `/.well-known/workflow/v1/webhook/:token`, signature-verified, triggers `qboIncrementalSyncWorkflow` (vs polling cron only).
+- **PO delta + server-wins:** wire PO delta refresh into incremental + restore `decidePoConflict` (server-wins for app POs). Blocked on the Blocks 7-9 reorder engine generating app POs; until then every PO is external (refresh = the import path already covers it).
+- **cron in vercel.json not vercel.ts:** acceptance criterion says `vercel.ts`; shipped `vercel.json` to avoid the `@vercel/config` dependency (functionally identical). MG decision pending whether to switch.
+- **Expired-refresh-token → `sync_failure` alert:** acceptance criterion (FEATURES.md:277). Cross-cutting (applies to initial sync too) — neither path writes an `alerts` row on auth failure today; both only mark `sync_runs` failed. Needs the alerts-write helper.
+- **Receipt-revision edge cases:** test duplicate external receipts with corrected quantities + same source_ref with changed timestamps + QBO revising a bill after first sync. Append-only "never overwrite receipts" holds; the edge reconciliation is untested.
+- **Playwright 3-state connect artifact** (carried from prior waves) — infra-blocked.
+- **`CRON_SECRET` in Vercel production env** before the cron runs (safe default: unset → route refuses).
