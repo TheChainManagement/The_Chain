@@ -20,7 +20,7 @@ Every change goes through MoreTech's `PROCESS.md` (8 phases, hard checkpoints, C
 
 ## Stack
 
-- Next.js 15 App Router + React 19 + TypeScript 5 (strict)
+- Next.js 16 App Router + React 19 + TypeScript 6 (strict)
 - Tailwind CSS 4 (tokens via `@theme inline` in `src/styles/globals.css`)
 - Supabase (Postgres + RLS + Auth)
 - Vercel (Fluid Compute Node + Python; Workflow DevKit for durable orchestration; AI Gateway for Claude)
@@ -57,6 +57,6 @@ npm run lint
 - [x] Phase 2 — System Design (v2 post-Codex)
 - [x] Phase 3 — Design Direction (re-run, build-beautiful invoked, Codex v2 PASS)
 - [x] Phase 4 — Build Plan (v2 post-Codex; Foundation block + wired-for suite + adapter contract + edge cases + Phase 6 visible-craft gate)
-- [ ] **Phase 5 — Foundation (in progress)**
-- [ ] Phase 6 — Features (Wave 1)
+- [x] Phase 5 — Foundation (shipped + deployed: auth/RLS, tenancy, schema, durable-workflow scaffold; 5A–5J + 5L auth-role fix)
+- [ ] **Phase 6 — Features (Wave 1, in progress)** — Block 1 Account, Block 3 Inventory, Block 4 Suppliers, Block 5 CSV import, Block 6 QuickBooks (initial sync + PO import + incremental sync w/ conflict policy + `/flow/sync-conflicts` resolution cockpit + signature-verified Intuit webhook). All QBO sync triggers are shipped; open contract items are the `warn`-alert-on-needs_review + the PO server-wins branch test (both ticketed) and generated-PO write-back (blocked on the reorder engine). Next: the inventory-optimization/reorder engine (Blocks 7-9).
 - [ ] Phase 7 — Polish + ship
