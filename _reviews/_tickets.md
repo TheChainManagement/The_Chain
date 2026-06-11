@@ -212,3 +212,12 @@ Deferred (slice boundary — Wave 6.3 unless noted):
 - **Classification scale: p95 < 1.5s for 5k SKUs (FEATURES.md:317) + `loadQuadrant` query shape:** needs the seed-5k harness (shared with the forecast bench tickets). Current two-query + in-memory group is fine at small scale.
 - **Playwright quadrant capture (full + zoomed A/X):** FEATURES.md:326 — still substituted by the jsdom memorable test (Playwright not wired in the repo; carried ticket).
 - **Price basis for ABC:** cost-based today (no price field). Honor `revenue_basis='price'` when a price source exists.
+
+## Block 8 Wave 2a (forecasting foundation) — deferred to 2b/2c (2026-06-10)
+- **Wave 2b — durable forecast batch:** `forecastTenantBatchWorkflow` → `forecastShardWorkflow` (200-SKU shards, `tenants.forecast_concurrency_limit` cap, backpressure halves on RetryableError); calls `/api/forecast` per SKU; writes `forecasts`/`forecast_points`/`forecast_evaluations`/`inventory_policy` idempotently on `(tenant,product,run_id)`; promotes only `beats_baseline`; computes the distinct-sale-day count feeding `eligibility`; nightly cron + `recomputeForecast(productId, locationId)` action.
+- **Wave 2b — category benchmark:** `category_benchmarks` trimmed-mean over warm SKUs in the same `products.attributes.category`, refreshed in the batch; cold SKUs filled from it, never a model prediction.
+- **Wave 2b — audit cold→warming→warm transitions** (acceptance criterion).
+- **Wave 2c — the forecast chart** (`/forecasts/[productId]`): history + forecast + 80/95% confidence bands + cobalt today-diamond + RMSSE lift caption. THE memorable element + the Playwright capture. Replaces the `/forecasts` BenchStub and lights the SKU-detail "FORECASTED" lifetime-chain link.
+- **Wave 2b — forecast bench:** `bench:forecast` harness, 5k SKUs p95 < 15 min + 50k no-OOM on a seeded Preview; sharding visible in `sync_runs.error_log`.
+- **`statsforecast` cold-start/bundle weight** — measure on the first real deploy (numba/scipy). If the Vercel function is too heavy/slow, revisit (lighter method set, warm pool, or precompiled).
+- **Python function runtime test** — no pytest harness in the repo; the function is syntax-checked + TS-tested only. Add a minimal pytest (or a deployed smoke test) when the Python toolchain is wired.
