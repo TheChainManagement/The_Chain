@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
@@ -38,7 +39,18 @@ export default async function InventoryPage({
 
   return (
     <div className={pageStyles.stack}>
-      <PageHeader eyebrow="Catalog · on-hand by SKU" title="Inventory" actions={<AddSku />} />
+      <PageHeader
+        eyebrow="Catalog · on-hand by SKU"
+        title="Inventory"
+        actions={
+          <div className={pageStyles.headerActions}>
+            <Link href="/inventory/classification" className={pageStyles.headerLink}>
+              Classification
+            </Link>
+            <AddSku />
+          </div>
+        }
+      />
 
       <InventoryControls
         search={search}

@@ -202,3 +202,13 @@ Deferred (slice boundary — Wave 6.3 unless noted):
 - **PO server-wins branch test:** still no app-generated POs until the reorder engine (Blocks 7-9), so `decidePoConflict` stays an unused pure helper. Add the server-wins branch + test when PO delta refresh lands (shares the "PO delta + server-wins" ticket above).
 - **Real-route E2E for `/flow/sync-conflicts`:** the gallery showcase + RTL memorable test prove the component + the action contract, not the live route against real pending rows + the real Server Action under auth/RLS. Add when the action-layer + seeded-auth harness lands (Phase 7).
 - **RPC-transaction hardening for `resolveSyncConflict` (optional):** the action is now effectively atomic via claim-first compare-and-set + claim-release on entity-write failure. A SECURITY DEFINER RPC doing both writes in one Postgres transaction would be the gold standard (matches the existing supplier-link / base64-bridge RPC pattern). Only worth it if the compensate path ever proves insufficient.
+
+## Block 7 Wave 1 (ABC/XYZ classification) — Codex round-1 tickets (2026-06-10)
+- **Quadrant drag-zoom + filtered SKU list + URL zoom state (wave 1b):** FEATURES.md:312/318/326 — the heavier quadrant UI. Shipped static-first (MG-approved); add zoom-into-cell, a filtered SKU ledger below the grid, and zoom captured in searchParams.
+- **Classification inside `forecastTenantBatchWorkflow` + scheduled run (wave 2):** FEATURES.md:308 — classification currently runs via a synchronous Server Action; the forecast batch will own the durable/sharded scheduled run and reuse the pure `classify`/`compute` modules.
+- **Per-location classification:** `product_classifications.location_id` is wired; engine writes tenant-wide (`null`) today. Compute per (tenant, product, location) when multi-location demand exists.
+- **Threshold-version lifecycle:** a new `classification_thresholds` version should trigger a reclassify run; retain prior classifications in `audit_log` for replay; build the owner/manager threshold editor UI (only default v1 is seeded today).
+- **Forecast-view method routing (wave 2):** route intermittent SKUs (stored ADI ≥ ~1.32) to Croston/SBA/TSB in the forecast pipeline; surface the routed method on the forecast view.
+- **Classification scale: p95 < 1.5s for 5k SKUs (FEATURES.md:317) + `loadQuadrant` query shape:** needs the seed-5k harness (shared with the forecast bench tickets). Current two-query + in-memory group is fine at small scale.
+- **Playwright quadrant capture (full + zoomed A/X):** FEATURES.md:326 — still substituted by the jsdom memorable test (Playwright not wired in the repo; carried ticket).
+- **Price basis for ABC:** cost-based today (no price field). Honor `revenue_basis='price'` when a price source exists.

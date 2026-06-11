@@ -1,0 +1,48 @@
+/* ClassificationBadge — Plex Mono caps, semantic tints (never cobalt). Tokens only. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sm {
+  font-size: 10px;
+}
+.md {
+  font-size: 12px;
+}
+
+.sep {
+  color: var(--color-hairline);
+  font-weight: 400;
+}
+.empty {
+  color: var(--color-dim);
+}
+
+/* ABC — value rank by ink intensity (A vital, C trivial). */
+.abcA {
+  color: var(--color-deep);
+}
+.abcB {
+  color: var(--color-mid);
+}
+.abcC {
+  color: var(--color-dim);
+}
+
+/* XYZ — demand variability by risk tone (erratic = the one that bites). */
+.xyzX {
+  color: var(--color-flow);
+}
+.xyzY {
+  color: var(--color-warn);
+}
+.xyzZ {
+  color: var(--color-stop);
+}

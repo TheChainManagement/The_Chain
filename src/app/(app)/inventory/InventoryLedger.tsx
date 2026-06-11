@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { InventoryListRow } from '@/lib/inventory/queries';
 import { bulkArchiveProducts } from './actions';
@@ -127,7 +128,7 @@ export function InventoryLedger({ rows }: { rows: InventoryListRow[] }): React.R
               <StatNumber value={fmtQty(row.onHand)} />
             </span>
             <span className={styles.cellClass}>
-              <ClassTag abc={row.abcClass} xyz={row.xyzClass} />
+              <ClassificationBadge abc={row.abcClass} xyz={row.xyzClass} />
             </span>
             <span className={styles.cellStatus}>
               <StatusTag status={row.status} />
@@ -136,19 +137,6 @@ export function InventoryLedger({ rows }: { rows: InventoryListRow[] }): React.R
         ))}
       </div>
     </div>
-  );
-}
-
-function ClassTag({ abc, xyz }: { abc: string | null; xyz: string | null }): React.ReactNode {
-  if (!abc && !xyz) {
-    return <span className={styles.classPending}>—</span>;
-  }
-  return (
-    <span className={styles.classTag}>
-      <span className={styles.classAbc}>{abc ?? '·'}</span>
-      <span className={styles.classDot} aria-hidden="true" />
-      <span className={styles.classXyz}>{xyz ?? '·'}</span>
-    </span>
   );
 }
 

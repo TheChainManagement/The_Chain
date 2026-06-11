@@ -1,0 +1,196 @@
+/* ABC/XYZ classification cockpit (Block 7). Tokens only. */
+
+.emptyCopy,
+.awaitingCopy {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 60ch;
+  margin: 0 0 var(--spacing-4);
+}
+
+/* ----- controls strip ----- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  padding: var(--spacing-3) var(--spacing-4);
+}
+.controlsMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.metaLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.metaValue {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.controlsActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+.recomputed {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-flow);
+}
+.controlsError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+/* ----- the value × variability grid ----- */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.5fr) repeat(3, 1fr);
+  border: 1px solid var(--color-hairline);
+  border-bottom: 0;
+  border-right: 0;
+}
+.corner {
+  border-right: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+}
+.colHead,
+.rowHead {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  justify-content: center;
+  padding: var(--spacing-3);
+  background: var(--color-inset);
+  border-right: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.colHead {
+  align-items: center;
+  text-align: center;
+}
+.headGlyph {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  color: var(--color-deep);
+}
+.headSub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  min-height: 116px;
+  padding: var(--spacing-3);
+  border-right: 1px solid var(--color-hairline);
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+}
+.cellEmpty {
+  background: var(--color-bg);
+}
+/* the watch corner — high value + erratic demand reads as risk, not brand */
+.watch {
+  background: color-mix(in srgb, var(--color-warn) 7%, var(--color-surface));
+  box-shadow: inset 2px 0 0 var(--color-warn);
+}
+.watchTag {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--color-warn);
+}
+
+.cellHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+.cellValue {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-mid);
+  font-variant-numeric: tabular-nums;
+}
+
+.tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile,
+.awaitingTile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  padding: 3px 6px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: border-color var(--duration-quick) var(--ease-tick);
+}
+.tile:hover,
+.awaitingTile:hover {
+  border-color: var(--color-hairline);
+  background: var(--color-inset);
+}
+.tileSku {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tileMore {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+  padding: 2px 6px;
+}
+
+/* ----- awaiting-signal list ----- */
+
+.awaitingList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-2);
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: minmax(64px, 0.5fr) repeat(3, 1fr);
+  }
+  .headSub {
+    display: none;
+  }
+}

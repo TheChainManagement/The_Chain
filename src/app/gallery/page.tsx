@@ -1,14 +1,95 @@
 import { notFound } from 'next/navigation';
 import { ConflictCockpit } from '@/app/(app)/flow/sync-conflicts/ConflictCockpit';
 import conflictStyles from '@/app/(app)/flow/sync-conflicts/sync-conflicts.module.css';
+import { QuadrantGrid } from '@/app/(app)/inventory/classification/QuadrantGrid';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { ChainLink } from '@/components/ChainLink/ChainLink';
+import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { ClaudeInsight } from '@/components/ClaudeInsight/ClaudeInsight';
 import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import type { Quadrant } from '@/lib/classification/queries';
 import type { PendingConflict } from '@/lib/qbo/conflicts';
 import styles from './gallery.module.css';
+
+// Fixture ABC/XYZ quadrant for the Block 7 showcase. Real-feeling SKUs, organic
+// values (MASTER_PROMPT: never Acme / round demo numbers).
+const tile = (sku: string, name: string, value: number, adi: number, cv2: number) => ({
+  productId: sku,
+  sku,
+  name,
+  value,
+  adi,
+  cv2,
+});
+const GALLERY_QUADRANT: Quadrant = {
+  computedAt: '2026-06-10T19:40:00.000Z',
+  classified: 9,
+  cells: [
+    {
+      abc: 'A',
+      xyz: 'X',
+      count: 2,
+      totalValue: 48210.5,
+      items: [
+        tile('RBH-4471', 'Riverbend Hose Bibb', 31200, 1.04, 0.12),
+        tile('CPR-2210', 'Copper Pipe 3/4', 17010.5, 1.1, 0.21),
+      ],
+    },
+    {
+      abc: 'A',
+      xyz: 'Y',
+      count: 1,
+      totalValue: 22640,
+      items: [tile('SPH-0190', 'Sprinkler Head Rotor', 22640, 1.8, 0.74)],
+    },
+    {
+      abc: 'A',
+      xyz: 'Z',
+      count: 1,
+      totalValue: 19880.25,
+      items: [tile('PMP-5520', 'Booster Pump 1HP', 19880.25, 4.2, 1.63)],
+    },
+    {
+      abc: 'B',
+      xyz: 'X',
+      count: 1,
+      totalValue: 8120,
+      items: [tile('GHN-2x10', 'Galvanized Joist Hanger', 8120, 1.2, 0.18)],
+    },
+    {
+      abc: 'B',
+      xyz: 'Y',
+      count: 1,
+      totalValue: 5440.75,
+      items: [tile('VLV-0312', 'Gate Valve 2in', 5440.75, 2.1, 0.66)],
+    },
+    {
+      abc: 'B',
+      xyz: 'Z',
+      count: 1,
+      totalValue: 4990,
+      items: [tile('FTG-8841', 'PVC Elbow Fitting', 4990, 6.5, 2.41)],
+    },
+    {
+      abc: 'C',
+      xyz: 'X',
+      count: 1,
+      totalValue: 940.5,
+      items: [tile('TAP-0021', 'Teflon Tape', 940.5, 1.3, 0.3)],
+    },
+    {
+      abc: 'C',
+      xyz: 'Y',
+      count: 1,
+      totalValue: 612,
+      items: [tile('CLP-7740', 'Hose Clamp', 612, 2.9, 0.81)],
+    },
+    { abc: 'C', xyz: 'Z', count: 0, totalValue: 0, items: [] },
+  ],
+  awaitingSignal: [tile('NEW-0042', 'Drip Emitter (new)', 0, 0, 0)],
+};
 
 // Fixture conflicts for the Wave 6.3-C reconciliation-bench showcase. Real-feeling
 // records, organic values (MASTER_PROMPT: never Acme / round demo numbers).
@@ -268,6 +349,28 @@ export default function GalleryPage() {
             <span className={conflictStyles.reconciledNote}>Merged field by field</span>
           </div>
         </div>
+      </section>
+
+      {/* ABC/XYZ classification — badges + the value × variability quadrant (Block 7). */}
+      <section className={styles.section}>
+        <span className={styles.label}>
+          CLASSIFICATION BADGE — ABC value rank · XYZ variability
+        </span>
+        <div className={styles.row}>
+          <ClassificationBadge abc="A" xyz="X" size="md" />
+          <ClassificationBadge abc="A" xyz="Z" size="md" />
+          <ClassificationBadge abc="B" xyz="Y" size="md" />
+          <ClassificationBadge abc="C" xyz="Z" size="md" />
+          <ClassificationBadge abc="A" xyz={null} size="md" />
+          <ClassificationBadge abc={null} xyz={null} size="md" />
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <span className={styles.label}>
+          CLASSIFICATION QUADRANT — value × variability, watch corner lit
+        </span>
+        <QuadrantGrid quadrant={GALLERY_QUADRANT} />
       </section>
     </main>
   );

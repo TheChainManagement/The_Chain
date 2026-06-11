@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { ChainLink, type ChainState } from '@/components/ChainLink/ChainLink';
+import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber, type StatTone } from '@/components/StatNumber/StatNumber';
 import {
@@ -223,12 +224,8 @@ function ClassificationPanel({ product }: { product: ProductDetail }): ReactNode
     <Panel prefix="Classification" title="ABC · XYZ">
       <div className={styles.classGrid}>
         <div className={styles.classCell}>
-          <span className={styles.classKey}>ABC</span>
-          <span className={styles.classValue}>{c.abcClass ?? '·'}</span>
-        </div>
-        <div className={styles.classCell}>
-          <span className={styles.classKey}>XYZ</span>
-          <span className={styles.classValue}>{c.xyzClass ?? '·'}</span>
+          <span className={styles.classKey}>Class</span>
+          <ClassificationBadge abc={c.abcClass} xyz={c.xyzClass} size="md" />
         </div>
         <div className={styles.classConsumption}>
           <span className={styles.classKey}>Annual consumption value</span>

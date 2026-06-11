@@ -1,5 +1,25 @@
 /* Shared bench-surface layout primitives. Tokens only. */
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+.headerLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-signal-line);
+  padding-bottom: 2px;
+  transition: border-color var(--duration-quick) var(--ease-tick);
+}
+.headerLink:hover {
+  border-bottom-color: var(--color-signal);
+}
+
 .pageHeader {
   display: flex;
   align-items: flex-end;
