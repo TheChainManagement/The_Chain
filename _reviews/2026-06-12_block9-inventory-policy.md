@@ -64,7 +64,7 @@ Block 9's FEATURES memorable element.
 
 ## Verification
 
-- **Tests: suite 451/451** (31 new: compute 19 — z-table, band-σ, SS reduction + lead-σ
+- **Tests: suite 452/452 after round-1** (31 new: compute 19 — z-table, band-σ, SS reduction + lead-σ
   widening, MOQ floor, DOS, risk-at-ROP = 50%, degenerate σ, clamps; derive integration 3 —
   promoted→row with audit-trigger proof, service-level persistence with smaller-SS check,
   skip-no-lead-time; save-action 4 — gate, clamp-then-engine-rerun, no-policy guard,
@@ -84,6 +84,23 @@ Block 9's FEATURES memorable element.
   three levers render, scrub ripples the ribbon with the roll armed, supplier swap re-aims
   lead time (9d → 14d empirical), **scrubbing performs ZERO writes** (the action fires only
   on the explicit Save), Save disabled until dirty.
+
+## Codex round-1 (2026-06-12, review `_reviews/2026-06-12_block9_inventory_policy.md`)
+
+ALL findings fixed in-slice — the big one was REAL: **multi-location was broken on the
+bench** (per-location policy rows rendered as colliding SKU rows; locations untargetable;
+`limit(1)` picked an arbitrary row). Location is now an explicit dimension end to end:
+ledger keys + links carry (product, location), `loadWhatIfInputs` targets the requested
+location with a deterministic lowest-id fallback, the bench title names the location, and a
+multi-location integration test seeds a second location and proves rows/targeting/positions.
+Also fixed: `lead_time_source` STORED on the policy row (migration `20260612150000` — the
+read-time label recompute could drift from the number; helper deleted), `/inventory/policy`
+loading.tsx, @720px responsive overrides (house pattern — the review was right), read-model
+integration tests (queries/whatif), and the plugin compliance audit's false-miss of its own
+review document (artifact marked run-produced/optional in the registry — root cause was
+sequencing, the audit runs before the review is saved). Standing pushback: Playwright
+artifact (infra-blocked; RTL + the live in-browser scrub recorded above). Decisions appended
+to the review file.
 
 ## Honest scope notes
 
