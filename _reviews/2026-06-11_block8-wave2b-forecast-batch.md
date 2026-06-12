@@ -185,15 +185,22 @@ fills cold SKUs from fresh `category_benchmarks`, and reports progress to a live
   `block8_forecast_bundle_rpc`, `block7_classification_snapshot_rpc` — security advisors show
   only the same 4 pre-existing accepted WARNs; the two SECURITY-INVOKER RPCs added zero.
 
+## ✅ Production verification COMPLETE (2026-06-12, post-MG bypass click)
+
+MG enabled Protection Bypass for Automation (secret designated as the
+`VERCEL_AUTOMATION_BYPASS_SECRET` system env var). `FORECAST_API_SECRET` rotated, redeploy
+bound both, then the LIVE production function verified both ways:
+- bypass header + no app secret → the FUNCTION's own `{"ok": false, "error": "unauthorized"}`
+  HTTP 401 (edge admits the batch; our gate refuses strangers);
+- bypass + app secret → 200, real AutoETS forecast from the production Lambda (yhat 13.57,
+  95% bands, honest beats_baseline=false on the short test series).
+The prod batch path (chunk step → edge bypass → Python function) is fully live.
+
 ## Pending infra (MG/manual)
 
-- **Enable "Protection Bypass for Automation"** (Vercel dashboard → the-chain → Settings →
-  Deployment Protection). One click; Vercel then injects `VERCEL_AUTOMATION_BYPASS_SECRET`
-  on the next deploy and the prod forecast batch can reach its own function. Until then the
-  prod batch's modeled SKUs will dead-letter as retryable failures (cold benchmark fills and
-  everything else still work).
-- The same applies to the **Intuit webhook registration** (standing pending item): the
-  registered URL needs `?x-vercel-protection-bypass=<secret>` appended (the documented
-  query-param pattern for third-party webhooks) while deployment protection is on.
-- First real prod batch: watch the Python function cold start (statsforecast import + numba).
+- **Intuit webhook registration** (standing item from 6.3): the registered URL needs
+  `?x-vercel-protection-bypass=<secret>` appended (the documented query-param pattern for
+  third-party webhooks) while deployment protection is on.
+- First real prod batch at scale: watch the Python function cold start (statsforecast import
+  + numba) — single calls verified fast enough; the 5k SLO bench remains ticketed.
 - Standing QBO prod env vars + webhook registration (unchanged from 6.3).
