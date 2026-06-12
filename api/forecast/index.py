@@ -26,7 +26,17 @@ Response JSON:
 import hmac
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler
+
+# Deploy-size shim (MUST run before the statsforecast import): the real fugue
+# (statsforecast's distributed layer, never used here) drags pyarrow into the
+# bundle and over the 500 MB Lambda cap. When fugue isn't installed, the local
+# import-surface stubs in _shims/ stand in. See _shims/README.md.
+try:
+    import fugue  # noqa: F401
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "_shims"))
 
 import numpy as np
 import pandas as pd

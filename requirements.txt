@@ -1,6 +1,0 @@
-# Python deps for the Vercel forecast function (api/forecast/index.py).
-# statsforecast pulls numpy/scipy/numba transitively; pandas is listed for the
-# long-format frame we build. Pinned to the 2.x line (current major).
-statsforecast~=2.0
-pandas~=2.2
-numpy~=2.1

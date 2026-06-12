@@ -2,10 +2,12 @@
 Local runner for the Vercel Python forecast function (Block 8).
 
 Vercel-only `/api` Python functions don't run under `next dev`, so local dev +
-live verification serve the SAME handler module here instead:
+live verification serve the SAME handler module here instead. Deps come from
+pyproject.toml + uv.lock (fugue/pyarrow excluded — see api/forecast/_shims/):
 
-    python3 -m venv .venv-forecast
-    .venv-forecast/bin/pip install -r requirements.txt
+    python3.13 -m venv .venv-forecast
+    .venv-forecast/bin/pip install uv
+    VIRTUAL_ENV=.venv-forecast .venv-forecast/bin/uv sync --active --frozen
     .venv-forecast/bin/python scripts/forecast_dev_server.py   # :8787
 
 Then set FORECAST_API_URL=http://127.0.0.1:8787 in .env.local. The handler is

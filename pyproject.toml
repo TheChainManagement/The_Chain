@@ -1,0 +1,28 @@
+# Python deps for the /api/forecast Vercel function (the Next app is Node; this
+# file exists for the Python builder, which resolves with uv).
+#
+# fugue/triad/adagio/pyarrow are EXCLUDED via override-dependencies (impossible
+# marker): fugue is statsforecast's distributed layer — never used by this
+# single-series function — and its pyarrow dependency alone pushed the bundle
+# past the 500 MB Lambda ephemeral cap (587 MB → every deploy since Wave 2a
+# failed). api/forecast/_shims/ satisfies the import surface; see its README.
+
+[project]
+name = "the-chain-forecast"
+version = "0.1.0"
+description = "Dependencies for the statsforecast Vercel Python function"
+requires-python = ">=3.12"
+dependencies = [
+  "statsforecast~=2.0",
+  "pandas~=2.2",
+  "numpy~=2.1",
+]
+
+[tool.uv]
+package = false
+override-dependencies = [
+  "fugue; sys_platform == 'never'",
+  "triad; sys_platform == 'never'",
+  "adagio; sys_platform == 'never'",
+  "pyarrow; sys_platform == 'never'",
+]
