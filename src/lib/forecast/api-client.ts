@@ -54,6 +54,8 @@ export type ForecastFetch = (url: string, init: RequestInit) => Promise<Response
 export interface ForecastApiConfig {
   baseUrl: string;
   secret: string | null;
+  /** Vercel Protection Bypass for Automation secret (deployment-protected URLs). */
+  protectionBypass?: string | null;
   fetchImpl?: ForecastFetch;
 }
 
@@ -64,6 +66,7 @@ export async function callForecastApi(
   const doFetch = config.fetchImpl ?? fetch;
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (config.secret) headers['x-forecast-secret'] = config.secret;
+  if (config.protectionBypass) headers['x-vercel-protection-bypass'] = config.protectionBypass;
 
   let response: Response;
   try {

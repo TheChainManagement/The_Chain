@@ -270,7 +270,11 @@ async function forecastChunk(input: {
       limit: input.limit,
       nowMs: input.nowMs,
     },
-    { baseUrl: env.FORECAST_API_URL, secret: env.FORECAST_API_SECRET },
+    {
+      baseUrl: env.FORECAST_API_URL,
+      secret: env.FORECAST_API_SECRET,
+      protectionBypass: env.FORECAST_PROTECTION_BYPASS,
+    },
   );
   console.log(
     `[forecast-shard] chunk shard=${input.shardIndex} offset=${input.offset} slice=${result.slice} processed=${result.processed} failed=${result.failed}`,

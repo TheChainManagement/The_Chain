@@ -159,10 +159,41 @@ fills cold SKUs from fresh `category_benchmarks`, and reports progress to a live
   6-row classification snapshot after three recomputes, console clean. Suite
   **400/400**, tsc/biome/build clean.
 
-## Pending infra (deploy-time, MG/manual)
+## Deploy saga (2026-06-12) — production was BROKEN since Wave 2a, now fixed
 
-- Vercel env: `FORECAST_API_SECRET` (Production + Preview) — the function refuses nothing until
-  it is set; flagged for the push checklist alongside the standing QBO_* prod vars.
-- First deploy: watch the Python function's cold start + bundle weight (statsforecast/numba),
-  flagged since 2a.
-- Hosted migration `block8_forecast_batch` via Supabase MCP at push time.
+- **🐛 Every production deploy since `daeb3ae` (Wave 2a) had FAILED** — discovered at this wave's
+  push. The Python function's dependency bundle hit **587 MB**, over the 500 MB Lambda
+  ephemeral cap: statsforecast hard-imports `fugue` (its distributed layer, unused by our
+  single-series calls), and fugue drags `triad` → `pyarrow` (~128 MB). Prod had silently frozen
+  at Block 7; the "2a flagged the bundle weight" worry was real.
+- **Fix (commit `1837b5a`):** `pyproject.toml` + `uv.lock` replace requirements.txt with uv
+  `override-dependencies` excluding fugue/triad/adagio/pyarrow (resolved set: 26 packages,
+  ~430 MB); `api/forecast/_shims/` satisfies statsforecast's fugue/triad import surface and
+  raises LOUDLY on any genuinely distributed call (see `_shims/README.md`). All four routed
+  models re-verified locally THROUGH the shims. **Deploy READY — production unblocked.**
+- **Deployment Protection discovery:** the project runs Vercel Authentication on all
+  *.vercel.app URLs (`ssoProtection: all_except_custom_domains`, no custom domain). That means
+  the batch's own call to `/api/forecast` is intercepted at the edge in production. Wired:
+  the API client sends `x-vercel-protection-bypass` from `VERCEL_AUTOMATION_BYPASS_SECRET`
+  when present (Vercel injects it once Protection Bypass for Automation is enabled). The
+  bypass cannot be created via REST — it is a dashboard toggle (MG step below).
+- `FORECAST_API_SECRET` set in Vercel (Production + Preview, one var) — the function's own
+  gate. Verified live that unauthenticated requests to the prod URL are refused (Vercel auth
+  layer; the function gate sits behind it). Vercel CLI upgraded 54.6.1 → 54.12.2 in passing
+  (the old CLI's non-interactive `env add preview` was broken).
+- Hosted migrations applied via Supabase MCP: `block8_forecast_batch`,
+  `block8_forecast_bundle_rpc`, `block7_classification_snapshot_rpc` — security advisors show
+  only the same 4 pre-existing accepted WARNs; the two SECURITY-INVOKER RPCs added zero.
+
+## Pending infra (MG/manual)
+
+- **Enable "Protection Bypass for Automation"** (Vercel dashboard → the-chain → Settings →
+  Deployment Protection). One click; Vercel then injects `VERCEL_AUTOMATION_BYPASS_SECRET`
+  on the next deploy and the prod forecast batch can reach its own function. Until then the
+  prod batch's modeled SKUs will dead-letter as retryable failures (cold benchmark fills and
+  everything else still work).
+- The same applies to the **Intuit webhook registration** (standing pending item): the
+  registered URL needs `?x-vercel-protection-bypass=<secret>` appended (the documented
+  query-param pattern for third-party webhooks) while deployment protection is on.
+- First real prod batch: watch the Python function cold start (statsforecast import + numba).
+- Standing QBO prod env vars + webhook registration (unchanged from 6.3).

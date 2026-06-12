@@ -152,7 +152,11 @@ export async function recomputeForecast(input: {
         nowMs: Date.now(),
         productIds: [input.productId],
       },
-      { baseUrl: env.FORECAST_API_URL, secret: env.FORECAST_API_SECRET },
+      {
+        baseUrl: env.FORECAST_API_URL,
+        secret: env.FORECAST_API_SECRET,
+        protectionBypass: env.FORECAST_PROTECTION_BYPASS,
+      },
     );
     await finalizeForecastBatch(admin, {
       tenantId,

@@ -57,6 +57,19 @@ describe('callForecastApi — contract + error taxonomy', () => {
     expect(seen).toBe('s3cr3t');
   });
 
+  it('sends the Vercel protection-bypass header when configured', async () => {
+    let seen: string | null = null;
+    const fetchImpl: ForecastFetch = async (_url, init) => {
+      seen = (init.headers as Record<string, string>)['x-vercel-protection-bypass'] ?? null;
+      return new Response(JSON.stringify(OK_BODY), { status: 200 });
+    };
+    await callForecastApi(
+      { baseUrl: 'http://forecast.test', secret: null, protectionBypass: 'bp-77', fetchImpl },
+      REQUEST,
+    );
+    expect(seen).toBe('bp-77');
+  });
+
   it('maps 429 to RetryableError honoring retry-after', async () => {
     const call = callForecastApi(
       {

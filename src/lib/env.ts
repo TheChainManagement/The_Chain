@@ -42,6 +42,12 @@ export function forecastEnv() {
   return {
     FORECAST_API_URL: base.replace(/\/$/, ''),
     FORECAST_API_SECRET: process.env.FORECAST_API_SECRET ?? null,
+    // Vercel Deployment Protection covers this project's *.vercel.app URLs
+    // (ssoProtection: all_except_custom_domains), including the batch's own
+    // call to /api/forecast. When Protection Bypass for Automation is enabled
+    // (project settings), Vercel injects this secret; the API client sends it
+    // as x-vercel-protection-bypass so the edge admits the request.
+    FORECAST_PROTECTION_BYPASS: process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? null,
   };
 }
 
