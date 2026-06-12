@@ -26,6 +26,13 @@ vi.mock('@/lib/forecast/batch-core', () => ({
   runForecastChunk: (...args: unknown[]) => chunkMock(...args),
   finalizeForecastBatch: vi.fn(async () => undefined),
 }));
+vi.mock('@/lib/policy/derive', () => ({
+  derivePoliciesForRun: vi.fn(async () => ({
+    policies: 1,
+    skippedNoLeadTime: 0,
+    skippedNoBands: 0,
+  })),
+}));
 
 function scriptedBuilder(queue: Array<{ data: unknown; error: unknown }>, onUpdate?: () => void) {
   const next = () => Promise.resolve(queue.shift() ?? { data: null, error: null });

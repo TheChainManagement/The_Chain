@@ -12,6 +12,7 @@ import {
   type ProductDetail,
   type ProductLocationPosition,
 } from '@/lib/inventory/queries';
+import { dosTone, loadProductPolicies, type ProductPolicy, riskTone } from '@/lib/policy/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
 import styles from './detail.module.css';
@@ -40,8 +41,12 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  // Active suppliers for the link picker (RLS-scoped to the tenant).
-  const supplierOptions = await listSupplierOptions(supabase);
+  // Active suppliers for the link picker + the SKU's replenishment policy
+  // (Block 9), both RLS-scoped to the tenant.
+  const [supplierOptions, policies] = await Promise.all([
+    listSupplierOptions(supabase),
+    loadProductPolicies(supabase, productId),
+  ]);
 
   return (
     <div className={pageStyles.stack}>
@@ -67,6 +72,7 @@ export default async function ProductDetailPage({
 
       <div className={styles.layout}>
         <PositionPanel product={product} />
+        <PolicyPanel policies={policies} productId={product.id} />
         <SupplierLinks
           productId={product.id}
           suppliers={product.suppliers}
@@ -146,6 +152,114 @@ function LifetimeChain({ product }: { product: ProductDetail }): ReactNode {
       </div>
     </section>
   );
+}
+
+/* ----- Replenishment policy: DOS + stockout risk (Block 9) ----- */
+
+function PolicyPanel({
+  policies,
+  productId,
+}: {
+  policies: ProductPolicy[];
+  productId: string;
+}): ReactNode {
+  if (policies.length === 0) {
+    return (
+      <Panel
+        prefix="Policy"
+        title="Replenishment policy"
+        empty
+        emptyMessage="No policy yet — it derives from a promoted forecast and the primary supplier's lead time."
+      />
+    );
+  }
+
+  return (
+    <Panel
+      prefix="Policy"
+      title="Replenishment policy"
+      actions={
+        <Link href={`/inventory/policy?product=${productId}`} className={styles.policyBenchLink}>
+          What-if bench →
+        </Link>
+      }
+    >
+      {policies.map((p) => (
+        <div key={p.locationId} className={styles.policyBlock}>
+          <div className={styles.policyWidgets}>
+            <div className={styles.policyWidget}>
+              <StatNumber
+                value={p.daysOfSupply != null ? p.daysOfSupply.toFixed(1) : null}
+                unit="days"
+                size="hero"
+                tone={dosTone(p.daysOfSupply, p.leadTimeDaysUsed)}
+                label="DAYS OF SUPPLY"
+                aria-label={p.daysOfSupply == null ? 'no on-hand data yet' : undefined}
+              />
+              <span className={styles.policyContext}>
+                {p.daysOfSupply == null
+                  ? 'No on-hand data yet'
+                  : p.holdsThrough
+                    ? `Forecast holds through ${fmtDate(p.holdsThrough)}`
+                    : `Lead time ${fmtQty(p.leadTimeDaysUsed)} days`}
+              </span>
+            </div>
+            <div className={styles.policyWidget}>
+              <StatNumber
+                value={p.stockoutRisk != null ? (p.stockoutRisk * 100).toFixed(1) : null}
+                unit="%"
+                size="hero"
+                tone={riskTone(p.stockoutRisk)}
+                label="STOCKOUT RISK"
+                aria-label={p.stockoutRisk == null ? 'no position to assess' : undefined}
+              />
+              <span className={styles.policyContext}>Next cycle ending below safety stock</span>
+            </div>
+          </div>
+
+          <div className={styles.policyNumbers}>
+            <span className={styles.policyNumber}>
+              <span className={styles.policyKey}>Reorder point</span>
+              <StatNumber value={fmtMaybe(p.reorderPoint)} />
+            </span>
+            <span className={styles.policyNumber}>
+              <span className={styles.policyKey}>Safety stock</span>
+              <StatNumber value={fmtMaybe(p.safetyStock)} />
+            </span>
+            <span className={styles.policyNumber}>
+              <span className={styles.policyKey}>Recommended qty</span>
+              <StatNumber value={fmtMaybe(p.recommendedOrderQty)} />
+            </span>
+            <span className={styles.policyNumber}>
+              <span className={styles.policyKey}>Lead time</span>
+              <StatNumber value={fmtQty(p.leadTimeDaysUsed)} unit="days" />
+              <span className={styles.policySource}>
+                {p.leadTimeSource === 'scorecard' ? 'empirical · scorecard' : 'supplier setting'}
+              </span>
+            </span>
+            <span className={styles.policyNumber}>
+              <span className={styles.policyKey}>Service level</span>
+              <StatNumber value={(p.serviceLevel * 100).toFixed(1)} unit="%" />
+            </span>
+          </div>
+
+          {policies.length > 1 ? (
+            <span className={styles.policyLocation}>{p.locationName}</span>
+          ) : null}
+        </div>
+      ))}
+    </Panel>
+  );
+}
+
+function fmtMaybe(v: number | null): string | null {
+  return v == null ? null : fmtQty(v);
+}
+
+function fmtDate(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 /* ----- Current position by location ----- */

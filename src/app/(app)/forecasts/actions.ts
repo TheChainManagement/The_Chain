@@ -9,6 +9,7 @@ import {
   finalizeForecastBatch,
   runForecastChunk,
 } from '@/lib/forecast/batch-core';
+import { derivePoliciesForRun } from '@/lib/policy/derive';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { forecastTenantBatchWorkflow } from '@/workflows/forecast-batch';
@@ -158,6 +159,12 @@ export async function recomputeForecast(input: {
         protectionBypass: env.FORECAST_PROTECTION_BYPASS,
       },
     );
+    // Block 9: a fresh promoted forecast refreshes the SKU's policy too.
+    await derivePoliciesForRun(admin, {
+      tenantId,
+      runId: run.id,
+      productIds: [input.productId],
+    });
     await finalizeForecastBatch(admin, {
       tenantId,
       syncRunId: run.id,
@@ -168,6 +175,7 @@ export async function recomputeForecast(input: {
       kind: 'forecast_single',
     });
     revalidatePath('/forecasts');
+    revalidatePath(`/inventory/${input.productId}`);
     return { ok: true, totals: result };
   } catch {
     await admin

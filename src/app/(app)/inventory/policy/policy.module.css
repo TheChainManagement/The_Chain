@@ -1,0 +1,257 @@
+/* Policy what-if bench (Block 9). Color/spacing via tokens; px font sizes per
+   house style. Cobalt intents on this surface: the slider accents (the
+   interactive levers) + the Save CTA. */
+
+.skuLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-mid);
+  text-decoration: none;
+}
+.skuLink:hover {
+  color: var(--color-deep);
+}
+
+.bench {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+/* ----- the three levers ----- */
+
+.levers {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--spacing-6);
+}
+.lever {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.leverKey {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.leverReset {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.leverValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.leverSource {
+  color: var(--color-dim);
+  font-size: 10px;
+}
+
+.slider {
+  accent-color: var(--color-signal);
+  width: 100%;
+  height: 18px;
+}
+.slider:disabled {
+  opacity: 0.4;
+}
+
+.supplierRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.supplierChip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-mid);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: 4px var(--spacing-3);
+  cursor: pointer;
+}
+.supplierChip[data-selected] {
+  color: var(--color-deep);
+  border-color: var(--color-deep);
+  background: var(--color-inset);
+}
+.supplierLead {
+  color: var(--color-dim);
+  font-size: 10px;
+}
+
+/* ----- the ribbon ----- */
+
+.ribbon {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.ribbonCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-right: 1px solid var(--color-hairline);
+}
+.ribbonCell:last-child {
+  border-right: none;
+}
+.ribbonKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.noLead {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+  margin: 0;
+}
+
+/* ----- footer ----- */
+
+.benchFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.benchNote {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+  max-width: 52ch;
+}
+.benchActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.saveNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-flow);
+}
+.saveError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+/* ----- the coverage ledger ----- */
+
+.ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ledger li + li {
+  border-top: 1px solid var(--color-hairline);
+}
+.ledgerRow {
+  display: grid;
+  grid-template-columns: 110px 1fr 110px 110px 110px;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2);
+  text-decoration: none;
+}
+.ledgerRow:hover {
+  background: var(--color-inset);
+}
+.ledgerRow[data-selected] {
+  background: var(--color-signal-dim);
+}
+.ledgerSku {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-deep);
+}
+.ledgerName {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ledgerStat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+}
+.ledgerKey {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--color-dim);
+}
+
+fieldset.lever {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+legend.leverKey {
+  padding: 0;
+  margin-bottom: var(--spacing-2);
+}
+
+.ledgerLocation {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-dim);
+}
+
+/* ----- responsive (house pattern, e.g. purchase-orders @720px) ----- */
+
+@media (max-width: 720px) {
+  .levers {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-4);
+  }
+  .ribbon {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ribbonCell {
+    border-right: none;
+    border-bottom: 1px solid var(--color-hairline);
+  }
+  .ribbonCell:last-child {
+    border-bottom: none;
+  }
+  .ledgerRow {
+    grid-template-columns: 90px 1fr;
+    grid-auto-flow: row;
+  }
+  .ledgerName {
+    white-space: normal;
+  }
+}

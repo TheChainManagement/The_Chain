@@ -44,6 +44,7 @@ import {
   nextLaunches,
   POLL_INTERVAL,
 } from '@/lib/forecast/shard';
+import { type DeriveSummary, derivePoliciesForRun } from '@/lib/policy/derive';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 
 export interface BatchParams {
@@ -282,6 +283,40 @@ async function forecastChunk(input: {
   return result;
 }
 
+/**
+ * Policy derivation for one shard's slice (Block 9: the policy step at the end
+ * of each forecast shard). Idempotent — upserts on the policy PK; the audit
+ * triggers log every change.
+ */
+async function deriveShardPolicies(input: {
+  tenantId: string;
+  runId: string;
+  shardIndex: number;
+  shardSize: number;
+}): Promise<DeriveSummary> {
+  'use step';
+  const admin = createSupabaseAdmin();
+  const start = input.shardIndex * input.shardSize;
+  const { data: slice } = await admin
+    .from('products')
+    .select('id')
+    .eq('tenant_id', input.tenantId)
+    .eq('status', 'active')
+    .order('id')
+    .range(start, start + input.shardSize - 1)
+    .returns<{ id: string }[]>();
+
+  const summary = await derivePoliciesForRun(admin, {
+    tenantId: input.tenantId,
+    runId: input.runId,
+    productIds: (slice ?? []).map((p) => p.id),
+  });
+  console.log(
+    `[forecast-shard] policies shard=${input.shardIndex} written=${summary.policies} noLeadTime=${summary.skippedNoLeadTime} noBands=${summary.skippedNoBands}`,
+  );
+  return summary;
+}
+
 // ---------------------------------------------------------------- workflows
 
 export async function forecastShardWorkflow(params: ShardParams): Promise<ChunkCounts> {
@@ -302,6 +337,15 @@ export async function forecastShardWorkflow(params: ShardParams): Promise<ChunkC
     // A short slice means the shard ran past the end of the catalog.
     if (result.slice < CHUNK_SIZE) break;
   }
+
+  // Block 9: every promoted forecast in this slice gets a current policy row.
+  await deriveShardPolicies({
+    tenantId: params.tenantId,
+    runId: params.runId,
+    shardIndex: params.shardIndex,
+    shardSize: params.shardSize,
+  });
+
   return totals;
 }
 

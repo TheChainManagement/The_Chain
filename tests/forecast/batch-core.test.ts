@@ -9,6 +9,9 @@ import {
 } from '@/lib/forecast/batch-core';
 import { listForecastedSkus, loadForecastDetail } from '@/lib/forecast/detail';
 import { getProductDetail } from '@/lib/inventory/queries';
+import { derivePoliciesForRun } from '@/lib/policy/derive';
+import { loadProductPolicies } from '@/lib/policy/queries';
+import { listPolicies, loadWhatIfInputs } from '@/lib/policy/whatif';
 
 /**
  * Forecast batch core (Block 8, Wave 2b) — the admin/service-role path the
@@ -239,6 +242,10 @@ afterAll(async () => {
     await admin.from('forecast_evaluations').delete().eq('tenant_id', tenantId);
     await admin.from('forecast_points').delete().eq('tenant_id', tenantId);
     await admin.from('forecasts').delete().eq('tenant_id', tenantId);
+    await admin.from('inventory_policy').delete().eq('tenant_id', tenantId);
+    await admin.from('inventory_levels').delete().eq('tenant_id', tenantId);
+    await admin.from('product_suppliers').delete().eq('tenant_id', tenantId);
+    await admin.from('suppliers').delete().eq('tenant_id', tenantId);
     await admin.from('category_benchmarks').delete().eq('tenant_id', tenantId);
     await admin.from('product_classifications').delete().eq('tenant_id', tenantId);
     await admin.from('classification_thresholds').delete().eq('tenant_id', tenantId);
@@ -576,6 +583,170 @@ describe('forecast batch core — plan → chunk → finalize against real Supab
     // A SKU whose forecast dead-lettered has no forecast to light the link.
     const failed = await getProductDetail(admin, productIds.failing);
     expect(failed?.latestForecast).toBeNull();
+  });
+
+  it('policy derivation (Block 9): promoted SKU → policy row from its own bands', async () => {
+    // Wire the replenishment inputs: a primary supplier with a configured lead
+    // time + MOQ, and an on-hand position at the seeded location.
+    const { data: sup } = await admin
+      .from('suppliers')
+      .insert({ tenant_id: tenantId, name: 'Vermilion Supply Co', contact: {} })
+      .select('id')
+      .single<{ id: string }>();
+    await admin.from('product_suppliers').insert({
+      tenant_id: tenantId,
+      product_id: productIds.warmSmooth,
+      supplier_id: sup?.id,
+      is_primary: true,
+      unit_cost: 3.4,
+      lead_time_days: 9,
+      moq: 24,
+    });
+    await admin.from('inventory_levels').insert({
+      tenant_id: tenantId,
+      product_id: productIds.warmSmooth,
+      location_id: locationId,
+      on_hand: 180,
+      allocated: 12,
+      in_transit: 30,
+    });
+
+    const summary = await derivePoliciesForRun(admin, { tenantId, runId: syncRunId });
+    // Only warmSmooth is promoted; warmIntermittent lost to the baseline.
+    expect(summary).toMatchObject({ policies: 1, skippedNoLeadTime: 0 });
+
+    const { data: row } = await admin
+      .from('inventory_policy')
+      .select('*')
+      .eq('product_id', productIds.warmSmooth)
+      .single<{
+        service_level: string | number;
+        lead_time_days_used: string | number;
+        demand_during_lead_time: string | number;
+        safety_stock: string | number;
+        reorder_point: string | number;
+        recommended_order_qty: string | number;
+        days_of_supply: string | number | null;
+        stockout_risk_score: string | number | null;
+        based_on_forecast_id: string | null;
+      }>();
+    expect(Number(row?.service_level)).toBeCloseTo(0.97, 3);
+    expect(Number(row?.lead_time_days_used)).toBe(9);
+    // The scripted forecaster says ~21.4–23.5/week → DDLT ≈ daily × 9.
+    expect(Number(row?.demand_during_lead_time)).toBeGreaterThan(20);
+    expect(Number(row?.safety_stock)).toBeGreaterThan(0);
+    expect(Number(row?.reorder_point)).toBeCloseTo(
+      Number(row?.demand_during_lead_time) + Number(row?.safety_stock),
+      1,
+    );
+    expect(Number(row?.recommended_order_qty)).toBeGreaterThanOrEqual(24);
+    // Position 180 + 30 − 12 = 198 → DOS = 198 / daily.
+    expect(Number(row?.days_of_supply)).toBeGreaterThan(30);
+    expect(Number(row?.stockout_risk_score)).toBeLessThan(0.05);
+    expect(row?.based_on_forecast_id).toBeTruthy();
+
+    // The Foundation audit trigger logged the system write.
+    const { count: audited } = await admin
+      .from('audit_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('entity_type', 'inventory_policy');
+    expect(audited ?? 0).toBeGreaterThan(0);
+  });
+
+  it('policy derivation: saved service level survives a recompute', async () => {
+    await admin
+      .from('inventory_policy')
+      .update({ service_level: 0.95 })
+      .eq('product_id', productIds.warmSmooth);
+    const before = await admin
+      .from('inventory_policy')
+      .select('safety_stock')
+      .eq('product_id', productIds.warmSmooth)
+      .single<{ safety_stock: string | number }>();
+
+    const summary = await derivePoliciesForRun(admin, {
+      tenantId,
+      runId: syncRunId,
+      productIds: [productIds.warmSmooth],
+    });
+    expect(summary.policies).toBe(1);
+
+    const { data: row } = await admin
+      .from('inventory_policy')
+      .select('service_level, safety_stock')
+      .eq('product_id', productIds.warmSmooth)
+      .single<{ service_level: string | number; safety_stock: string | number }>();
+    expect(Number(row?.service_level)).toBeCloseTo(0.95, 3);
+    // Lower service level → smaller z → smaller safety stock than the 0.97 row.
+    expect(Number(row?.safety_stock)).toBeLessThan(Number(before.data?.safety_stock));
+  });
+
+  it('policy derivation: a SKU with no lead time anywhere is skipped, never defaulted', async () => {
+    await admin
+      .from('product_suppliers')
+      .update({ lead_time_days: null })
+      .eq('product_id', productIds.warmSmooth);
+
+    const summary = await derivePoliciesForRun(admin, {
+      tenantId,
+      runId: syncRunId,
+      productIds: [productIds.warmSmooth],
+    });
+    expect(summary).toMatchObject({ policies: 0, skippedNoLeadTime: 1 });
+
+    // Restore for any later assertions.
+    await admin
+      .from('product_suppliers')
+      .update({ lead_time_days: 9 })
+      .eq('product_id', productIds.warmSmooth);
+  });
+
+  it('multi-location: one policy row per location, bench targets each explicitly', async () => {
+    // A second location with its own (thinner) position for the promoted SKU.
+    const { data: loc2 } = await admin
+      .from('locations')
+      .insert({ tenant_id: tenantId, name: 'Lafourche Yard', type: 'warehouse' })
+      .select('id')
+      .single<{ id: string }>();
+    await admin.from('inventory_levels').insert({
+      tenant_id: tenantId,
+      product_id: productIds.warmSmooth,
+      location_id: loc2?.id,
+      on_hand: 24,
+      allocated: 3,
+      in_transit: 0,
+    });
+
+    const summary = await derivePoliciesForRun(admin, {
+      tenantId,
+      runId: syncRunId,
+      productIds: [productIds.warmSmooth],
+    });
+    expect(summary.policies).toBe(2); // one per location now
+
+    // Read model: stored lead-time source rides on every row (no read-time drift).
+    const policies = await loadProductPolicies(admin, productIds.warmSmooth);
+    expect(policies).toHaveLength(2);
+    expect(policies.every((p) => p.leadTimeSource === 'supplier')).toBe(true);
+
+    // Ledger: one entry per (product, location) with distinct location names.
+    const ledger = await listPolicies(admin);
+    const mine = ledger.filter((r) => r.productId === productIds.warmSmooth);
+    expect(mine).toHaveLength(2);
+    expect(new Set(mine.map((r) => `${r.productId}:${r.locationId}`)).size).toBe(2);
+
+    // Bench targeting: each location loads ITS row (position differs).
+    const a = await loadWhatIfInputs(admin, productIds.warmSmooth, 56, locationId);
+    const b = await loadWhatIfInputs(admin, productIds.warmSmooth, 56, loc2?.id);
+    expect(a?.locationId).toBe(locationId);
+    expect(b?.locationId).toBe(loc2?.id);
+    expect(a?.position).toBe(180 + 30 - 12);
+    expect(b?.position).toBe(24 - 3);
+
+    // Untargeted pick is deterministic (lowest location_id), not arbitrary.
+    const untargeted = await loadWhatIfInputs(admin, productIds.warmSmooth, 56);
+    expect(untargeted?.locationId).toBe([locationId, loc2?.id ?? ''].sort()[0]);
   });
 
   it('finalize closes the run and stamps first_forecast_ready_at', async () => {

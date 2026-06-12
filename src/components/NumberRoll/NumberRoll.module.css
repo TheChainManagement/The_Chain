@@ -1,0 +1,32 @@
+/* NumberRoll — counter-roll tick. transform+opacity only; tokens for motion. */
+
+.roll {
+  display: inline-block;
+  overflow: hidden;
+}
+
+.face {
+  display: inline-block;
+}
+
+/* Keyed remount plays the roll-in: rises from below while fading in. */
+.roll[data-rolling] .face {
+  animation: number-roll-in var(--duration-quick) var(--ease-tick);
+}
+
+@keyframes number-roll-in {
+  from {
+    transform: translateY(35%);
+    opacity: 0.2;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roll[data-rolling] .face {
+    animation: none;
+  }
+}
