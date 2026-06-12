@@ -1,0 +1,74 @@
+/* ForecastChart — color/spacing via tokens; px stroke widths and 9px mono
+   micro-labels are SVG geometry per house style (raw-px→tokens is held for the
+   stack audit — standing disposition). Bands stay pewter (trust rule); cobalt
+   is the today-diamond alone. */
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--color-surface);
+}
+
+.grid {
+  stroke: var(--color-hairline);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.axis {
+  stroke: var(--color-hairline);
+  stroke-width: 1;
+}
+
+.region {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  fill: var(--color-dim);
+}
+
+.historyLine {
+  fill: none;
+  stroke: var(--color-deep);
+  stroke-width: 1;
+}
+.historyDot {
+  fill: var(--color-deep);
+}
+
+/* 95% band: the 1px gray range. 80%: the heavier inner tick. Never filled. */
+.band95 {
+  stroke: var(--color-divider);
+  stroke-width: 1;
+}
+.band80 {
+  stroke: var(--color-mid);
+  stroke-width: 3;
+  stroke-linecap: butt;
+}
+.meanDot {
+  fill: var(--color-surface);
+  stroke: var(--color-deep);
+  stroke-width: 1.2;
+}
+
+.todayRule {
+  stroke: var(--color-signal-line);
+  stroke-width: 1;
+}
+.todayDiamond {
+  fill: var(--color-signal);
+}
+.todayLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  fill: var(--color-signal);
+}
+
+.tick {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 9px;
+  fill: var(--color-dim);
+}

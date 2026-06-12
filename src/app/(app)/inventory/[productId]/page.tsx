@@ -86,6 +86,8 @@ function LifetimeChain({ product }: { product: ProductDetail }): ReactNode {
   // Each stage's state: the furthest reached stage is the live (ignited) link.
   // Pre-ingestion SKUs have reached only "Added"; that link is the live edge.
   const reachedStocked = Boolean(stocked);
+  const forecast = product.latestForecast;
+  const reachedForecast = Boolean(forecast);
 
   const stages: {
     step: string;
@@ -98,20 +100,25 @@ function LifetimeChain({ product }: { product: ProductDetail }): ReactNode {
       step: 'ADDED',
       label: 'On the bench',
       when: fmtWhen(product.createdAt),
-      state: reachedStocked ? 'done' : 'active',
+      state: reachedStocked || reachedForecast ? 'done' : 'active',
       connector: 'pewter',
     },
     {
       step: 'STOCKED',
       label: reachedStocked ? 'First receipt' : 'No receipts yet',
       when: stocked ? fmtWhen(stocked) : undefined,
-      state: reachedStocked ? 'active' : 'pending',
+      state: reachedStocked ? (reachedForecast ? 'done' : 'active') : 'pending',
       connector: 'pewter',
     },
     {
       step: 'FORECASTED',
-      label: 'Awaiting forecast',
-      state: 'pending',
+      label: reachedForecast
+        ? forecast?.promoted
+          ? 'Model promoted'
+          : 'Forecast live'
+        : 'Awaiting forecast',
+      when: forecast ? fmtWhen(forecast.computedAt) : undefined,
+      state: reachedForecast ? 'active' : 'pending',
       connector: 'pewter',
     },
     {

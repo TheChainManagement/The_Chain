@@ -241,3 +241,9 @@ recompute bug).
   multi-location dry run (FEATURES Block 1 criterion).
 - **Workflow-loop orchestration tests** — same accepted class as the cron routes;
   revisit if the loop grows branches.
+
+## Block 8 Wave 2c — notes (2026-06-12)
+Review `_reviews/2026-06-12_block8_wave2c_forecast_chart.md`; in-slice fixes recorded
+there (full-history paging, read-model tests, ledger labels, CSS claim corrections,
+plugin registry heading). No new tickets — Playwright harness, raw-px→tokens,
+per-location forecasting, and the 5k/50k bench all remain on their standing entries.

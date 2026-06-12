@@ -1,8 +1,10 @@
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { listForecastedSkus } from '@/lib/forecast/detail';
 import { loadForecastOverview } from '@/lib/forecast/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { ForecastBatchControls } from './ForecastBatchControls';
@@ -20,6 +22,10 @@ export default async function ForecastsPage(): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
   const overview = await loadForecastOverview(supabase);
   const { stats, latest } = overview;
+  const ledger =
+    latest && stats && stats.forecasts > 0
+      ? await listForecastedSkus(supabase, latest.syncRunId)
+      : [];
 
   return (
     <div className={pageStyles.stack}>
@@ -90,10 +96,37 @@ export default async function ForecastsPage(): Promise<ReactNode> {
             </div>
           </Panel>
 
-          <p className={styles.nextNote}>
-            Per-SKU forecast charts — history, confidence bands, and the baseline verdict — land
-            next on this page.
-          </p>
+          {ledger.length > 0 ? (
+            <Panel prefix="Catalog" title={`${ledger.length} forecasted SKUs`}>
+              <ul className={styles.ledger}>
+                {ledger.map((row) => (
+                  <li key={row.productId}>
+                    <Link href={`/forecasts/${row.productId}`} className={styles.ledgerRow}>
+                      <span className={styles.ledgerSku}>{row.sku}</span>
+                      <span className={styles.ledgerName}>{row.name}</span>
+                      <span className={styles.ledgerMethod}>{row.methodLabel}</span>
+                      <span
+                        className={styles.ledgerState}
+                        data-state={row.coldStartState}
+                        title={row.eligibilityLabel}
+                      >
+                        {row.coldStartState}
+                      </span>
+                      <span className={styles.ledgerRmsse}>
+                        {row.rmsse != null ? row.rmsse.toFixed(3) : '—'}
+                      </span>
+                      <span
+                        className={styles.ledgerPromoted}
+                        data-promoted={row.promoted || undefined}
+                      >
+                        {row.promoted ? 'PROMOTED' : ''}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          ) : null}
         </>
       )}
     </div>

@@ -86,3 +86,12 @@
 .spacer {
   height: var(--spacing-4);
 }
+
+.chartCaption {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-deep);
+  margin: var(--spacing-3) 0 0;
+}

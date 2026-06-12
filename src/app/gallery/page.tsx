@@ -6,12 +6,38 @@ import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { ChainLink } from '@/components/ChainLink/ChainLink';
 import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { ClaudeInsight } from '@/components/ClaudeInsight/ClaudeInsight';
+import { ForecastChart } from '@/components/ForecastChart/ForecastChart';
 import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { Quadrant } from '@/lib/classification/queries';
+import { liftCaption } from '@/lib/forecast/detail';
 import type { PendingConflict } from '@/lib/qbo/conflicts';
 import styles from './gallery.module.css';
+
+// Fixture demand series + forecast for the Block 8 chart showcase. Organic
+// values; the bands widen with the horizon as a real model's would.
+const GALLERY_FORECAST = {
+  history: [14, 12, 17, 11, 15, 13, 18, 12, 16, 14, 13, 15, 19, 12, 14, 16, 11, 17, 15, 13].map(
+    (y, i) => ({
+      ds: new Date(Date.UTC(2026, 0, 8 + i * 7)).toISOString().slice(0, 10),
+      y,
+    }),
+  ),
+  points: [
+    { lo95: 10.9, hi95: 17.5, lo80: 12.1, hi80: 16.3, mean: 14.2 },
+    { lo95: 9.8, hi95: 19.0, lo80: 11.4, hi80: 17.4, mean: 14.4 },
+    { lo95: 8.9, hi95: 20.1, lo80: 10.8, hi80: 18.2, mean: 14.5 },
+    { lo95: 8.1, hi95: 21.2, lo80: 10.2, hi80: 19.0, mean: 14.6 },
+    { lo95: 7.4, hi95: 22.1, lo80: 9.7, hi80: 19.6, mean: 14.7 },
+    { lo95: 6.8, hi95: 22.9, lo80: 9.2, hi80: 20.2, mean: 14.7 },
+    { lo95: 6.3, hi95: 23.6, lo80: 8.8, hi80: 20.7, mean: 14.8 },
+    { lo95: 5.8, hi95: 24.3, lo80: 8.4, hi80: 21.2, mean: 14.8 },
+  ].map((p, i) => ({
+    ds: new Date(Date.UTC(2026, 5, 18 + i * 7)).toISOString().slice(0, 10),
+    ...p,
+  })),
+};
 
 // Fixture ABC/XYZ quadrant for the Block 7 showcase. Real-feeling SKUs, organic
 // values (MASTER_PROMPT: never Acme / round demo numbers).
@@ -371,6 +397,27 @@ export default function GalleryPage() {
           CLASSIFICATION QUADRANT — value × variability, watch corner lit
         </span>
         <QuadrantGrid quadrant={GALLERY_QUADRANT} />
+      </section>
+
+      {/* The forecast chart — Block 8's centerpiece (Wave 2c). */}
+      <section className={styles.section}>
+        <span className={styles.label}>
+          FORECAST CHART — RBH-4471 · history, widening bands, today-diamond
+        </span>
+        <ForecastChart
+          history={GALLERY_FORECAST.history}
+          points={GALLERY_FORECAST.points}
+          label="RBH-4471 weekly demand history and 8-week forecast with 80% and 95% confidence bands"
+        />
+        <p className={styles.chartCaption}>
+          {liftCaption('auto_ets', {
+            rmsse: 0.857,
+            wape: 0.21,
+            baselineRmsse: 1.0,
+            beatsBaseline: true,
+            windows: 2,
+          })}
+        </p>
       </section>
     </main>
   );

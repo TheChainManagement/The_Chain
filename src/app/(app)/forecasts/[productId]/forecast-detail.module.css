@@ -1,0 +1,105 @@
+/* Per-SKU forecast view (Block 8 Wave 2c). Color/spacing via tokens; px font
+   sizes per house style (raw-px→tokens held for the stack audit). */
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  padding: var(--spacing-3) var(--spacing-4);
+}
+
+.backLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-mid);
+  text-decoration: none;
+}
+.backLink:hover {
+  color: var(--color-deep);
+}
+
+.metaTags {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+.metaTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  border: 1px solid var(--color-hairline);
+  padding: 2px var(--spacing-2);
+}
+.promotedTag {
+  color: var(--color-flow);
+  border-color: var(--color-flow);
+}
+
+.recompute {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.recomputeNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-flow);
+}
+.recomputeError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+.emptyCopy {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.caption {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-deep);
+  margin: var(--spacing-3) 0 0;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  justify-content: start;
+  gap: var(--spacing-6);
+  border-top: 1px solid var(--color-hairline);
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.statKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.statWhen {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+}

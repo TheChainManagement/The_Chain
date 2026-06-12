@@ -124,16 +124,32 @@ export async function getProductDetail(
     return null;
   }
 
-  // First receipt anchors the lifetime chain's STOCKED link. Earliest receipt
-  // movement, RLS-scoped; null until any stock lands (the chain stays pending).
-  const { data: firstReceipt } = await supabase
-    .from('stock_movements')
-    .select('occurred_at')
-    .eq('product_id', productId)
-    .eq('type', 'receipt')
-    .order('occurred_at', { ascending: true })
-    .limit(1)
-    .maybeSingle<{ occurred_at: string }>();
+  // First receipt anchors the lifetime chain's STOCKED link; the latest
+  // forecast lights FORECASTED (Block 8 Wave 2c). Both RLS-scoped; null keeps
+  // the chain link pending.
+  const [{ data: firstReceipt }, { data: latestForecast }] = await Promise.all([
+    supabase
+      .from('stock_movements')
+      .select('occurred_at')
+      .eq('product_id', productId)
+      .eq('type', 'receipt')
+      .order('occurred_at', { ascending: true })
+      .limit(1)
+      .maybeSingle<{ occurred_at: string }>(),
+    supabase
+      .from('forecasts')
+      .select('computed_at, promoted')
+      .eq('product_id', productId)
+      .order('computed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<{ computed_at: string; promoted: boolean }>(),
+  ]);
 
-  return { ...mapProductDetail(data), firstStockedAt: firstReceipt?.occurred_at ?? null };
+  return {
+    ...mapProductDetail(data),
+    firstStockedAt: firstReceipt?.occurred_at ?? null,
+    latestForecast: latestForecast
+      ? { computedAt: latestForecast.computed_at, promoted: latestForecast.promoted }
+      : null,
+  };
 }

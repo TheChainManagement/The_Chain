@@ -57,12 +57,67 @@
   color: var(--color-dim);
 }
 
-.nextNote {
+/* ----- forecasted-SKU ledger ----- */
+
+.ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ledger li + li {
+  border-top: 1px solid var(--color-hairline);
+}
+.ledgerRow {
+  display: grid;
+  grid-template-columns: 110px 1fr 130px 90px 70px 90px;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-2);
+  text-decoration: none;
+}
+.ledgerRow:hover {
+  background: var(--color-inset);
+}
+.ledgerSku {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-deep);
+}
+.ledgerName {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ledgerMethod {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
+  color: var(--color-mid);
+}
+.ledgerState {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--color-dim);
-  margin: 0;
+}
+.ledgerRmsse {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--color-deep);
+  text-align: right;
+}
+.ledgerPromoted {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-align: right;
+}
+.ledgerPromoted[data-promoted] {
+  color: var(--color-flow);
 }
 
 /* ----- controls strip ----- */

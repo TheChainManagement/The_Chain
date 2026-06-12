@@ -67,6 +67,8 @@ export interface ProductDetail {
   suppliers: ProductSupplierLink[];
   classification: ProductClassification | null;
   firstStockedAt: string | null;
+  /** Latest forecast snapshot, if any — lights the lifetime chain's FORECASTED link. */
+  latestForecast: { computedAt: string; promoted: boolean } | null;
 }
 
 /* ----- raw row shapes returned by the PostgREST selects ----- */
@@ -255,6 +257,7 @@ export function mapProductDetail(data: RawDetailProduct): ProductDetail {
     suppliers,
     classification,
     firstStockedAt: null,
+    latestForecast: null,
   };
 }
 

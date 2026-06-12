@@ -7,6 +7,8 @@ import {
   planForecastBatch,
   runForecastChunk,
 } from '@/lib/forecast/batch-core';
+import { listForecastedSkus, loadForecastDetail } from '@/lib/forecast/detail';
+import { getProductDetail } from '@/lib/inventory/queries';
 
 /**
  * Forecast batch core (Block 8, Wave 2b) — the admin/service-role path the
@@ -534,6 +536,46 @@ describe('forecast batch core — plan → chunk → finalize against real Supab
 
     // Clean up so the run-level counts in other tests stay exact.
     await admin.from('forecasts').delete().eq('run_id', runId);
+  });
+
+  it('detail read model: FULL training history, points, evaluation (Wave 2c)', async () => {
+    const detail = await loadForecastDetail(admin, productIds.warmSmooth, NOW);
+    expect(detail).not.toBeNull();
+    expect(detail?.product.sku).toBe('FRC-1102');
+    expect(detail?.forecast).toMatchObject({
+      method: 'auto_ets',
+      methodLabel: 'AutoETS',
+      coldStartState: 'warm',
+      promoted: true,
+    });
+    expect(detail?.points).toHaveLength(8);
+    expect(detail?.points[0]?.lo95).toBeCloseTo(14.8, 1);
+    expect(detail?.points[0]?.lo80).toBeCloseTo(17.2, 1);
+    expect(detail?.evaluation?.beatsBaseline).toBe(true);
+    // History is the SAME weekly series the batch trained on — 110 sale-days
+    // every 3 days spans ~47 weeks of the 52-week window (plus the ramp-in
+    // week the series prep keeps). No truncation.
+    expect(detail?.history.length).toBeGreaterThanOrEqual(46);
+    expect(detail?.history.reduce((a, p) => a + p.y, 0)).toBeGreaterThan(0);
+  });
+
+  it('cockpit ledger: every SKU of the run, promoted first, labeled (Wave 2c)', async () => {
+    const ledger = await listForecastedSkus(admin, syncRunId);
+    // 5 forecasts landed (the auto_arima SKU dead-lettered).
+    expect(ledger).toHaveLength(5);
+    expect(ledger[0]?.promoted).toBe(true);
+    expect(ledger[0]?.eligibilityLabel).toBe('forecasting on full history');
+    const cold = ledger.find((r) => r.sku === 'FRC-5505');
+    expect(cold).toMatchObject({ methodLabel: 'Category benchmark', coldStartState: 'cold' });
+  });
+
+  it('inventory detail carries latestForecast for the lifetime chain (Wave 2c)', async () => {
+    const product = await getProductDetail(admin, productIds.warmSmooth);
+    expect(product?.latestForecast).not.toBeNull();
+    expect(product?.latestForecast?.promoted).toBe(true);
+    // A SKU whose forecast dead-lettered has no forecast to light the link.
+    const failed = await getProductDetail(admin, productIds.failing);
+    expect(failed?.latestForecast).toBeNull();
   });
 
   it('finalize closes the run and stamps first_forecast_ready_at', async () => {
