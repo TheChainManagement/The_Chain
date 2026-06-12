@@ -61,3 +61,5 @@ api/forecast/*.pyc
 .claude/
 
 .venv-forecast/
+api/forecast/_shims/**/__pycache__
+api/forecast/_shims/__pycache__
