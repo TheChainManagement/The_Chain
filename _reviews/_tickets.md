@@ -221,3 +221,23 @@ Deferred (slice boundary — Wave 6.3 unless noted):
 - **Wave 2b — forecast bench:** `bench:forecast` harness, 5k SKUs p95 < 15 min + 50k no-OOM on a seeded Preview; sharding visible in `sync_runs.error_log`.
 - **`statsforecast` cold-start/bundle weight** — measure on the first real deploy (numba/scipy). If the Vercel function is too heavy/slow, revisit (lighter method set, warm pool, or precompiled).
 - **Python function runtime test** — no pytest harness in the repo; the function is syntax-checked + TS-tested only. Add a minimal pytest (or a deployed smoke test) when the Python toolchain is wired.
+
+## Block 8 Wave 2b — tickets (2026-06-12)
+Review `_reviews/2026-06-11_block8_wave2b_forecast_batch.md`; fixed-in-slice items
+recorded there (bundle RPC, retryable backpressure, recomputeForecast action,
+loading.tsx, terminal-failure marking, the live-caught Block 7 classification
+recompute bug).
+- **Forecast batch 5k p95 < 15min + 50k no-OOM stress** — seeded Vercel Preview
+  harness (pairs with the standing import 10k/50k bench ticket). Tuning knobs:
+  in-chunk API pool (4), CHUNK_SIZE (25), SHARD_SIZE (200), tenant concurrency.
+  Also: watch the Python function cold start / bundle weight on first deploy.
+- **`src/workflows/steps/` one-shot alignment** — MASTER_PROMPT names the folder;
+  all five shipped workflow files keep steps inline. Move them together at the
+  stack audit, not per-wave.
+- **moretech plugin: add `moretech-codex-review` to its own skill registry** so
+  the compliance audit stops flagging the gate that is running it.
+- **Per-location forecasting** — engine writes location_id null (tenant-wide);
+  `recomputeForecast` refuses locationId honestly. Activates with the Wave-2
+  multi-location dry run (FEATURES Block 1 criterion).
+- **Workflow-loop orchestration tests** — same accepted class as the cron routes;
+  revisit if the loop grows branches.

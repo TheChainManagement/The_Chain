@@ -27,6 +27,25 @@ export function serverEnv() {
 }
 
 /**
+ * Forecast function env (Block 8 Wave 2b). Server-only, lazy — only the batch
+ * steps read it. The Python function deploys as a separate Vercel function, so
+ * the batch reaches it over HTTP: explicit FORECAST_API_URL wins (local dev
+ * points at the venv runner); on Vercel we fall back to the deployment's own
+ * host. FORECAST_API_SECRET is shared-secret hardening — when set, the Python
+ * function refuses requests without the matching `x-forecast-secret` header.
+ */
+export function forecastEnv() {
+  const explicit = process.env.FORECAST_API_URL;
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL ?? null;
+  const base = explicit ?? (vercelHost ? `https://${vercelHost}` : null);
+  if (!base) throw new Error('Missing required env var: FORECAST_API_URL');
+  return {
+    FORECAST_API_URL: base.replace(/\/$/, ''),
+    FORECAST_API_SECRET: process.env.FORECAST_API_SECRET ?? null,
+  };
+}
+
+/**
  * QuickBooks Online OAuth env (Block 6 Wave 6.2). Server-only, lazy — only the
  * QBO connect paths read it, so the rest of the app runs without these set.
  */

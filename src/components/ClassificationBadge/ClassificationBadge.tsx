@@ -31,6 +31,8 @@ export function ClassificationBadge({
   return (
     <span
       className={`${styles.badge} ${styles[size]}`}
+      // A bare span doesn't support aria-label; img names the composite glyph.
+      role="img"
       aria-label={`Class ${a ?? '—'} ${x ?? '—'}`}
     >
       <span className={a ? styles[`abc${a}`] : styles.empty}>{a ?? '—'}</span>

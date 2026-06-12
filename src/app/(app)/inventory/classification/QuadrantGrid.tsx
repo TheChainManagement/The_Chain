@@ -1,3 +1,10 @@
+/**
+ * biome-ignore-all lint/a11y/useSemanticElements: the quadrant is a CSS-grid
+ * layout a real <table> cannot carry; ARIA table roles preserve the semantics
+ * (WAI-ARIA table pattern). Flagged by biome 2.4.x after Block 7 shipped.
+ * biome-ignore-all lint/a11y/useFocusableInteractive: row/column headers in the
+ * ARIA table pattern are not interactive controls; cell links carry the focus.
+ */
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';

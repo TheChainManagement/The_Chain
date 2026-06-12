@@ -23,7 +23,9 @@ Response JSON:
     "n_obs": N, "ok": true }
 """
 
+import hmac
 import json
+import os
 from http.server import BaseHTTPRequestHandler
 
 import numpy as np
@@ -162,8 +164,27 @@ def _f(v):
     return f if np.isfinite(f) else None
 
 
+def _authorized(headers) -> bool:
+    """Shared-secret gate. When FORECAST_API_SECRET is set (it is in deployed
+    envs), the batch must send the matching x-forecast-secret header — this is
+    an open compute endpoint otherwise. Unset = open (local dev runner)."""
+    secret = os.environ.get("FORECAST_API_SECRET", "")
+    if not secret:
+        return True
+    provided = headers.get("x-forecast-secret", "")
+    return hmac.compare_digest(secret, provided)
+
+
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        if not _authorized(self.headers):
+            out = json.dumps({"ok": False, "error": "unauthorized"}).encode("utf-8")
+            self.send_response(401)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(out)))
+            self.end_headers()
+            self.wfile.write(out)
+            return
         try:
             length = int(self.headers.get("content-length", 0))
             payload = json.loads(self.rfile.read(length) or b"{}")

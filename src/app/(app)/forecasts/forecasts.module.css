@@ -1,0 +1,156 @@
+/* Forecasts cockpit (Block 8 Wave 2b). Tokens only. */
+
+.emptyCopy,
+.ladderCopy {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 64ch;
+  margin: 0 0 var(--spacing-4);
+}
+
+/* ----- metric strip (border-divides, no cards) ----- */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-right: 1px solid var(--color-hairline);
+}
+.metric:last-child {
+  border-right: none;
+}
+.metricKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+/* ----- eligibility ladder ----- */
+
+.ladder {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-4);
+}
+.ladderStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  border-left: 2px solid var(--color-hairline);
+  padding-left: var(--spacing-3);
+}
+.ladderNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+.nextNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+  margin: 0;
+}
+
+/* ----- controls strip ----- */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  padding: var(--spacing-3) var(--spacing-4);
+}
+.controlsMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.metaLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.metaValue {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.controlsActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+.doneNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-flow);
+}
+.controlsError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+/* ----- the shard fleet ----- */
+
+.fleet {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  min-width: 0;
+  flex: 1;
+}
+.fleetTiles {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.fleetTile {
+  flex: 1;
+  height: 14px;
+  min-width: 4px;
+  border: 1px solid var(--color-hairline);
+  background: transparent;
+  transition: background-color var(--duration-base) var(--ease-tick);
+}
+.fleetTile[data-fill="full"] {
+  background: var(--color-deep);
+  border-color: var(--color-deep);
+}
+.fleetTile[data-fill="partial"] {
+  background: var(--color-mid);
+}
+.fleetCount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--color-mid);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fleetTile {
+    transition: none;
+  }
+}

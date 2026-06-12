@@ -183,9 +183,7 @@ export async function classifyTenant(
 
   const computedAt = new Date().toISOString();
   const rows = perProduct.map((p) => ({
-    tenant_id: tenantId,
     product_id: p.productId,
-    location_id: null,
     abc_class: abcByProduct.get(p.productId) ?? null,
     xyz_class: (p.xyz.xyzClass as XyzClass | null) ?? null,
     adi: p.xyz.adi,
@@ -199,17 +197,16 @@ export async function classifyTenant(
     computed_at: computedAt,
   }));
 
-  // Crash-safe full recompute WITHOUT a transaction: insert the new snapshot FIRST,
-  // then delete the prior one (everything not stamped with this run's computed_at).
-  // If the insert fails, the old snapshot is untouched; if the delete fails, reads
-  // dedupe to the newest computed_at per SKU (loadQuadrant). Never leaves zero rows.
-  const { error: insErr } = await admin.from('product_classifications').insert(rows);
-  if (insErr) throw new Error(`could not write classifications: ${insErr.message}`);
-  await admin
-    .from('product_classifications')
-    .delete()
-    .eq('tenant_id', tenantId)
-    .neq('computed_at', computedAt);
+  // Atomic snapshot replace via RPC. The original insert-new-then-delete-old
+  // violated `product_classifications_uniq_tenant_wide` on every recompute
+  // after the first (caught live by the Block 8 batch's classify step); a
+  // PostgREST upsert can't target that partial unique index, so the
+  // delete+insert runs as ONE transaction in `replace_classification_snapshot`.
+  const { error } = await admin.rpc('replace_classification_snapshot', {
+    p_tenant: tenantId,
+    p_rows: rows,
+  });
+  if (error) throw new Error(`could not write classifications: ${error.message}`);
 
   return { classified: rows.length, thresholdVersion: thresholds.version };
 }
