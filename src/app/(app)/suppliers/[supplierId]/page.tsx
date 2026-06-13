@@ -143,10 +143,24 @@ function TermsPanel({ supplier }: { supplier: SupplierDetail }): ReactNode {
             size="panel"
             aria-label={supplier.otifPct == null ? 'no OTIF yet' : undefined}
           />
+          <span className={styles.termSubs}>
+            <span className={styles.termSub}>
+              on-time {supplier.onTimePct == null ? '—' : `${otifPercent(supplier.onTimePct)}%`}
+            </span>
+            <span className={styles.termSub}>
+              in-full {supplier.inFullPct == null ? '—' : `${otifPercent(supplier.inFullPct)}%`}
+            </span>
+          </span>
         </div>
         <div className={styles.termCell}>
-          <span className={styles.termKey}>Sample</span>
-          <StatNumber value={supplier.scorecardSampleSize || null} unit="POs" size="panel" />
+          <span className={styles.termKey}>Lead time (actual)</span>
+          <StatNumber value={supplier.leadTimeAvgDays} unit="days" size="panel" />
+          <span className={styles.termSubs}>
+            <span className={styles.termSub}>
+              ±{supplier.leadTimeStddevDays == null ? '—' : supplier.leadTimeStddevDays} σ ·{' '}
+              {supplier.scorecardSampleSize || 0} POs
+            </span>
+          </span>
         </div>
       </div>
     </Panel>

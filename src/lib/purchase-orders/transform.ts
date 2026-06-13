@@ -65,6 +65,68 @@ export interface PurchaseOrderListRow {
   updatedAt: string;
 }
 
+/* ----- PO detail (Block 10 receive surface) ----- */
+
+export interface RawPurchaseOrderLine {
+  line_no: number;
+  product_id: string;
+  ordered_qty: number | string;
+  received_qty: number | string;
+  unit_cost: number | string | null;
+  products: { sku: string | null; name: string | null } | null;
+}
+
+export interface RawPurchaseOrderDetail extends Omit<RawPurchaseOrderRow, 'purchase_order_lines'> {
+  created_at: string;
+  purchase_order_lines: RawPurchaseOrderLine[] | null;
+}
+
+export interface PurchaseOrderLine {
+  lineNo: number;
+  productId: string;
+  sku: string;
+  name: string;
+  orderedQty: number;
+  receivedQty: number;
+  unitCost: number | null;
+}
+
+export interface PurchaseOrderDetail extends PurchaseOrderListRow {
+  createdAt: string;
+  lines: PurchaseOrderLine[];
+}
+
+export function mapPurchaseOrderDetail(raw: RawPurchaseOrderDetail): PurchaseOrderDetail {
+  const lines = (raw.purchase_order_lines ?? [])
+    .map((l) => ({
+      lineNo: l.line_no,
+      productId: l.product_id,
+      sku: l.products?.sku ?? '—',
+      name: l.products?.name ?? '—',
+      orderedQty: Number(l.ordered_qty),
+      receivedQty: Number(l.received_qty),
+      unitCost: l.unit_cost == null ? null : Number(l.unit_cost),
+    }))
+    .sort((a, b) => a.lineNo - b.lineNo);
+
+  return {
+    id: raw.id,
+    externalPoId: raw.external_po_id,
+    reference: poReference(raw.external_reference, raw.external_po_id, raw.id),
+    supplierId: raw.supplier_id,
+    supplierName: raw.suppliers?.name ?? 'Unknown supplier',
+    status: raw.status,
+    recommendedBy: raw.recommended_by,
+    lineCount: lines.length,
+    total: raw.total,
+    expectedDeliveryAt: raw.expected_delivery_at,
+    actualDeliveryAt: raw.actual_delivery_at,
+    updatedAt: raw.updated_at,
+    createdAt: raw.created_at,
+    lines,
+  };
+}
+
 export function mapPurchaseOrderRow(raw: RawPurchaseOrderRow): PurchaseOrderListRow {
   return {
     id: raw.id,

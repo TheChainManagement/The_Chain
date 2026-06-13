@@ -307,3 +307,15 @@
 .poStatusDone {
   color: var(--color-flow);
 }
+
+.termSubs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-1);
+}
+.termSub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-dim);
+}

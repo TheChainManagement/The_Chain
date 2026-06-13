@@ -36,7 +36,7 @@ export async function listSuppliers(
     .select(
       `id, name, status, default_lead_time_days, min_order_value,
        product_suppliers ( count ),
-       supplier_scorecards ( window_kind, otif_pct, lead_time_avg_days, sample_size )`,
+       supplier_scorecards ( window_kind, otif_pct, on_time_pct, in_full_pct, lead_time_avg_days, lead_time_stddev_days, sample_size )`,
     )
     .order('name', { ascending: true });
 
@@ -77,7 +77,7 @@ export async function getSupplierDetail(
        product_suppliers ( product_id, unit_cost, lead_time_days, moq, is_primary,
          products ( sku, name ) ),
        supplier_performance ( on_time, in_full, on_time_in_full, actual_delivery_at, recorded_at, po_id ),
-       supplier_scorecards ( window_kind, otif_pct, lead_time_avg_days, sample_size )`,
+       supplier_scorecards ( window_kind, otif_pct, on_time_pct, in_full_pct, lead_time_avg_days, lead_time_stddev_days, sample_size )`,
     )
     .eq('id', supplierId)
     .order('recorded_at', { referencedTable: 'supplier_performance', ascending: false })

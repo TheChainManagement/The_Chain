@@ -116,7 +116,7 @@ function FeaturedOrder({ po }: { po: PurchaseOrderListRow }): ReactNode {
 function OrderRow({ row }: { row: PurchaseOrderListRow }): ReactNode {
   return (
     <Link
-      href={`/suppliers/${row.supplierId}`}
+      href={`/purchase-orders/${row.id}`}
       className={styles.row}
       aria-label={`${row.reference} from ${row.supplierName}`}
     >

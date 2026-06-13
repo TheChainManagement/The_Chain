@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/forecast",
       "schedule": "15 7 * * *"
+    },
+    {
+      "path": "/api/cron/scorecards",
+      "schedule": "30 7 * * *"
     }
   ]
 }

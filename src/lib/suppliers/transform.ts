@@ -58,7 +58,10 @@ export interface SupplierDetail {
   products: LinkedProduct[];
   reliability: ReliabilityTile[];
   otifPct: number | null;
+  onTimePct: number | null;
+  inFullPct: number | null;
   leadTimeAvgDays: number | null;
+  leadTimeStddevDays: number | null;
   scorecardSampleSize: number;
 }
 
@@ -143,7 +146,10 @@ export function buildReliabilityRibbon(
 interface RawScorecard {
   window_kind: string;
   otif_pct: number | string | null;
+  on_time_pct: number | string | null;
+  in_full_pct: number | string | null;
   lead_time_avg_days: number | string | null;
+  lead_time_stddev_days: number | string | null;
   sample_size: number | null;
 }
 
@@ -227,7 +233,10 @@ export function mapSupplierDetail(s: RawSupplierDetail): SupplierDetail {
     products,
     reliability: buildReliabilityRibbon(s.supplier_performance),
     otifPct: card ? numOrNull(card.otif_pct) : null,
+    onTimePct: card ? numOrNull(card.on_time_pct) : null,
+    inFullPct: card ? numOrNull(card.in_full_pct) : null,
     leadTimeAvgDays: card ? numOrNull(card.lead_time_avg_days) : null,
+    leadTimeStddevDays: card ? numOrNull(card.lead_time_stddev_days) : null,
     scorecardSampleSize: card?.sample_size ?? 0,
   };
 }

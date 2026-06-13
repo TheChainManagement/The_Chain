@@ -1,8 +1,11 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  mapPurchaseOrderDetail,
   mapPurchaseOrderRow,
+  type PurchaseOrderDetail,
   type PurchaseOrderListRow,
+  type RawPurchaseOrderDetail,
   type RawPurchaseOrderRow,
 } from './transform';
 
@@ -13,7 +16,7 @@ import {
  * count comes back as `purchase_order_lines ( count )`.
  */
 
-export type { PurchaseOrderListRow } from './transform';
+export type { PurchaseOrderDetail, PurchaseOrderListRow } from './transform';
 
 const SELECT = `id, external_po_id, external_reference, supplier_id, status, recommended_by,
   total, expected_delivery_at, actual_delivery_at, updated_at,
@@ -32,6 +35,28 @@ export async function listPurchaseOrders(
     throw new Error(`listPurchaseOrders failed: ${error.message}`);
   }
   return (data ?? []).map(mapPurchaseOrderRow);
+}
+
+/** One PO with its lines — the detail/receive surface (Block 10). RLS-scoped. */
+export async function getPurchaseOrder(
+  supabase: SupabaseClient,
+  poId: string,
+): Promise<PurchaseOrderDetail | null> {
+  const { data, error } = await supabase
+    .from('purchase_orders')
+    .select(
+      `id, external_po_id, external_reference, supplier_id, status, recommended_by,
+       total, expected_delivery_at, actual_delivery_at, created_at, updated_at,
+       suppliers ( name ),
+       purchase_order_lines ( line_no, product_id, ordered_qty, received_qty, unit_cost,
+         products ( sku, name ) )`,
+    )
+    .eq('id', poId)
+    .maybeSingle<RawPurchaseOrderDetail>();
+  if (error) {
+    throw new Error(`getPurchaseOrder failed: ${error.message}`);
+  }
+  return data ? mapPurchaseOrderDetail(data) : null;
 }
 
 /** A single supplier's POs, for the supplier-detail panel. */

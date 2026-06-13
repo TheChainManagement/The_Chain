@@ -1,0 +1,221 @@
+/* PO detail + receive surface (Block 10). Color/spacing via tokens; px font
+   sizes per house style. */
+
+.back {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--color-mid);
+  text-decoration: none;
+}
+.back:hover {
+  color: var(--color-deep);
+}
+
+.statusTag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  border: 1px solid var(--color-hairline);
+  padding: 2px var(--spacing-3);
+}
+
+.hero {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: var(--spacing-5);
+}
+
+.supplierLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-mid);
+  text-decoration: none;
+}
+.supplierLink:hover {
+  color: var(--color-deep);
+}
+
+/* ----- lines table ----- */
+
+.lines {
+  display: flex;
+  flex-direction: column;
+}
+.linesHead,
+.line {
+  display: grid;
+  grid-template-columns: 1fr 110px 110px 110px;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+}
+.linesHead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.line {
+  border-bottom: 1px solid var(--color-hairline);
+}
+.numHead {
+  text-align: right;
+}
+.lineSku {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.lineLink {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-deep);
+  text-decoration: none;
+}
+.lineLink:hover {
+  color: var(--color-signal);
+}
+.lineName {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-mid);
+}
+.lineNum {
+  text-align: right;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-6);
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-3);
+}
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.summaryKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.summaryVal {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+
+/* ----- receive control ----- */
+
+.receiveBar {
+  margin-top: var(--spacing-5);
+}
+.receive {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-5);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--spacing-4);
+}
+.receiveDate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.receiveKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.dateInput,
+.qtyInput {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: 4px var(--spacing-2);
+}
+.qtyInput {
+  width: 90px;
+  text-align: right;
+}
+.dateInput:focus-visible,
+.qtyInput:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 1px;
+}
+
+.receiveLines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.receiveLine {
+  display: grid;
+  grid-template-columns: 1fr auto 90px;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.receiveSku {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-deep);
+}
+.receiveOutstanding {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-mid);
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-1);
+}
+
+.receiveFoot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+.receiveNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-flow);
+  margin-right: auto;
+}
+.receiveError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+  margin-right: auto;
+}
+
+@media (max-width: 720px) {
+  .linesHead,
+  .line {
+    grid-template-columns: 1fr 70px 70px;
+  }
+  .linesHead span:nth-child(4),
+  .line span:nth-child(4) {
+    display: none;
+  }
+  .receiveLine {
+    grid-template-columns: 1fr 90px;
+  }
+  .receiveOutstanding {
+    display: none;
+  }
+}
