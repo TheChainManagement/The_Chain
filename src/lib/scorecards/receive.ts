@@ -62,7 +62,8 @@ export async function receivePurchaseOrder(
 
   if (error) {
     const code = (error.message.match(/\b(po_not_found|po_terminal|nothing_received)\b/) ?? [])[1];
-    return { ok: false, error: code ? RPC_ERRORS[code]! : 'Could not record the receipt.' };
+    const mapped = code ? RPC_ERRORS[code] : undefined;
+    return { ok: false, error: mapped ?? 'Could not record the receipt.' };
   }
   const row = (
     data as { out_status: 'partial_received' | 'received'; out_supplier_id: string }[]

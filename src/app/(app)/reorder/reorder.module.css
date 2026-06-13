@@ -1,0 +1,229 @@
+/* Reorder queue (Block 11). Color/spacing via tokens; px font sizes per house
+   style. Cobalt intent: the "Create purchase order" CTA only. */
+
+.controls {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  flex: 1;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-right: 1px solid var(--color-hairline);
+}
+.metric:last-child {
+  border-right: none;
+}
+.metricKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.recompute {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.recomputeNote {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-flow);
+}
+.recomputeError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+.empty {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 64ch;
+  margin: 0;
+}
+
+/* ----- the queue ----- */
+
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+}
+.groupSupplier {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-3);
+}
+.groupName {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-deep);
+}
+.groupOtif {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-mid);
+}
+.selectAll {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-signal);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.noSupplier {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-warn);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.row {
+  display: grid;
+  grid-template-columns: 32px 1fr 130px 2fr 90px;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-hairline);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row[data-checked] {
+  background: var(--color-signal-dim);
+}
+.rowSelect {
+  display: flex;
+  align-items: center;
+}
+.rowSelect input {
+  accent-color: var(--color-signal);
+  width: 15px;
+  height: 15px;
+}
+.rowSku {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.rowSkuCode {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.rowName {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-mid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowUrgency {
+  font-size: 10px;
+}
+.rowReason {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--color-mid);
+}
+.rowQty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.rowQtyKey {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--color-dim);
+}
+
+/* ----- action bar ----- */
+
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+}
+.barCount {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-mid);
+}
+.barError {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+  margin-right: auto;
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 28px 1fr 70px;
+    row-gap: var(--spacing-1);
+  }
+  .rowReason {
+    grid-column: 2 / 4;
+  }
+  .rowQty {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+.groupLocation {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}

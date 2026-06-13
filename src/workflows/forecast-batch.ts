@@ -45,6 +45,7 @@ import {
   POLL_INTERVAL,
 } from '@/lib/forecast/shard';
 import { type DeriveSummary, derivePoliciesForRun } from '@/lib/policy/derive';
+import { generateReorderRecommendations } from '@/lib/reorder/generate';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 
 export interface BatchParams {
@@ -306,13 +307,21 @@ async function deriveShardPolicies(input: {
     .range(start, start + input.shardSize - 1)
     .returns<{ id: string }[]>();
 
+  const sliceIds = (slice ?? []).map((p) => p.id);
   const summary = await derivePoliciesForRun(admin, {
     tenantId: input.tenantId,
     runId: input.runId,
-    productIds: (slice ?? []).map((p) => p.id),
+    productIds: sliceIds,
+  });
+
+  // Block 11: a fresh policy means fresh breach detection — generate reorder
+  // recommendations for the same slice right after the policy lands.
+  const rec = await generateReorderRecommendations(admin, {
+    tenantId: input.tenantId,
+    productIds: sliceIds,
   });
   console.log(
-    `[forecast-shard] policies shard=${input.shardIndex} written=${summary.policies} noLeadTime=${summary.skippedNoLeadTime} noBands=${summary.skippedNoBands}`,
+    `[forecast-shard] policies shard=${input.shardIndex} written=${summary.policies} noLeadTime=${summary.skippedNoLeadTime} noBands=${summary.skippedNoBands} reorders=${rec.open} (new ${rec.created}, expired ${rec.expired})`,
   );
   return summary;
 }
