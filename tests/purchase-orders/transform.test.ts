@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildOrderChain,
   committedValue,
+  isApprovablePo,
   isOpenPo,
+  isReceivablePo,
   mapPurchaseOrderRow,
   openPoCount,
   ORDER_STEPS,
@@ -145,6 +147,18 @@ describe('open / committed aggregates', () => {
     expect(isOpenPo('received')).toBe(false);
     expect(isOpenPo('closed')).toBe(false);
     expect(isOpenPo('canceled')).toBe(false);
+  });
+
+  it('approvable vs receivable partition the in-flight statuses (Block 11b)', () => {
+    // A draft awaits approval; once placed it awaits receipt; the two never overlap.
+    expect(isApprovablePo('draft')).toBe(true);
+    expect(isApprovablePo('recommended')).toBe(true);
+    expect(isApprovablePo('sent')).toBe(false);
+    expect(isReceivablePo('sent')).toBe(true);
+    expect(isReceivablePo('exported')).toBe(true);
+    expect(isReceivablePo('partial_received')).toBe(true);
+    expect(isReceivablePo('draft')).toBe(false);
+    expect(isReceivablePo('received')).toBe(false);
   });
 
   it('counts only open POs and sums their totals', () => {

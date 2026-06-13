@@ -33,6 +33,10 @@ export function ReceiveControls({
   );
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  // One stable key per submission attempt: a double-click reuses it (the RPC
+  // dedupes and won't double-count stock), while a deliberate second receipt
+  // (partial → the rest) rotates to a fresh key after the first one applies.
+  const [submitKey, setSubmitKey] = useState(() => crypto.randomUUID());
 
   function receive() {
     setError(null);
@@ -42,11 +46,13 @@ export function ReceiveControls({
         poId,
         actualDeliveryAt: new Date(date).toISOString(),
         lines: lines.map((l) => ({ lineNo: l.lineNo, receivedQty: Number(qty[l.lineNo] ?? 0) })),
+        idempotencyKey: submitKey,
       });
       if (!res.ok) {
         setError(res.error);
         return;
       }
+      setSubmitKey(crypto.randomUUID());
       setNote(
         res.status === 'received'
           ? `Received in full${res.sampleSize >= 5 ? ' · scorecard now drives lead time' : ''}`

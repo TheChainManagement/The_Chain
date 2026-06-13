@@ -16,6 +16,16 @@ vi.mock('next/cache', () => ({ revalidatePath: (p: string) => revalidated.push(p
 vi.mock('@/lib/scorecards/receive', () => ({
   receivePurchaseOrder: (...args: unknown[]) => receiveMock(...args),
 }));
+// The action also reaches the durable runtime + approve core; stub those here —
+// they each have dedicated coverage.
+vi.mock('workflow/api', () => ({
+  resumeHook: vi.fn(async () => {}),
+  start: vi.fn(async () => ({ runId: 'run_test' })),
+}));
+vi.mock('@/lib/purchase-orders/approve-core', () => ({
+  approveAndPushPurchaseOrder: vi.fn(async () => ({ ok: false, error: 'unused here' })),
+}));
+vi.mock('@/workflows/po-lifecycle', () => ({ purchaseOrderLifecycleWorkflow: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createSupabaseAdmin: () => ({}) }));
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServer: async () => ({
@@ -36,13 +46,14 @@ const INPUT = {
   poId: 'PO1',
   actualDeliveryAt: '2026-06-12T00:00:00Z',
   lines: [{ lineNo: 1, receivedQty: 10 }],
+  idempotencyKey: 'key-1',
 };
 
 beforeEach(() => {
   rlsQueue = [];
   revalidated = [];
   claims = { tenant_id: 'T1', tenant_role: 'owner', sub: 'U1' };
-  receiveMock = vi.fn(async () => ({ ok: true, status: 'received', sampleSize: 6 }));
+  receiveMock = vi.fn(async () => ({ ok: true, status: 'received', sampleSize: 6, replayed: false }));
 });
 afterEach(() => vi.clearAllMocks());
 

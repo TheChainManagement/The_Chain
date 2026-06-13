@@ -32,10 +32,17 @@ export interface ReceiveParams {
   /** When the goods actually arrived. */
   actualDeliveryAt: string;
   lines: ReceiveLineInput[];
+  /**
+   * Caller-stable key for THIS receipt submission. A re-click or a retried
+   * request carrying the same key is a no-op (Block 11b): the receipt is not
+   * naturally idempotent — it writes stock + a performance row — so the RPC
+   * dedupes on `(tenant, key)` and returns `replayed: true` without re-applying.
+   */
+  idempotencyKey: string;
 }
 
 export type ReceiveResult =
-  | { ok: true; status: 'partial_received' | 'received'; sampleSize: number }
+  | { ok: true; status: 'partial_received' | 'received'; sampleSize: number; replayed: boolean }
   | { ok: false; error: string };
 
 const RPC_ERRORS: Record<string, string> = {
@@ -58,6 +65,7 @@ export async function receivePurchaseOrder(
     p_po: params.poId,
     p_delivered_at: params.actualDeliveryAt,
     p_lines: lineMap,
+    p_idempotency_key: params.idempotencyKey,
   });
 
   if (error) {
@@ -66,10 +74,20 @@ export async function receivePurchaseOrder(
     return { ok: false, error: mapped ?? 'Could not record the receipt.' };
   }
   const row = (
-    data as { out_status: 'partial_received' | 'received'; out_supplier_id: string }[]
+    data as {
+      out_status: 'partial_received' | 'received';
+      out_supplier_id: string;
+      out_applied: boolean;
+    }[]
   )?.[0];
   if (!row) return { ok: false, error: 'Could not record the receipt.' };
 
+  // A replayed key changed nothing; skip the (idempotent but wasteful) rollup
+  // and report the current state so the UI settles without a second write.
+  if (!row.out_applied) {
+    return { ok: true, status: row.out_status, sampleSize: 0, replayed: true };
+  }
+
   const sampleSize = await rollupSupplierScorecards(admin, params.tenantId, row.out_supplier_id);
-  return { ok: true, status: row.out_status, sampleSize };
+  return { ok: true, status: row.out_status, sampleSize, replayed: false };
 }

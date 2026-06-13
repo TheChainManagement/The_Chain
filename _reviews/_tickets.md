@@ -247,3 +247,34 @@ Review `_reviews/2026-06-12_block8_wave2c_forecast_chart.md`; in-slice fixes rec
 there (full-history paging, read-model tests, ledger labels, CSS claim corrections,
 plugin registry heading). No new tickets — Playwright harness, raw-px→tokens,
 per-location forecasting, and the 5k/50k bench all remain on their standing entries.
+
+## Block 11b — deferred (2026-06-13)
+From `_reviews/2026-06-13_block11b_approve_receive_stock.md` (Codex review). In-slice fixes
+(approve-copy honesty, past_due gate, StatNumber total, on-contract memorable artifact) landed;
+these are the accepted-deferred items:
+
+- **6-month wait + `process.exit(0)` crash/resume tests** (FEATURES.md:461,467). The integration
+  test proves token park + resume + per-PO isolation. The indefinite hook-park IS the long-gap
+  mechanism (no timer to skip), and crash-resume is a DevKit runtime guarantee that's awkward to
+  unit-test in-process. Revisit if we adopt a workflow max-age policy or see a real stuck run.
+- **QBO `sent`-path unit test for approve-core.** Current coverage exercises the manual `exported`
+  path against real Postgres; the connected write-back path needs a mocked QBO connection fixture.
+  Add alongside the next QBO adapter test pass.
+- **Supplier scorecard panel on the PO detail hero** (FEATURES.md:451). The page links to the
+  supplier record (full ReliabilityRibbon lives there); surfacing the rolling-30d OTIF *on* the PO
+  page would put reliability where the approve/receive decision happens. Cheap follow-up with the
+  existing `ReliabilityRibbon` + the queue's scorecard read.
+- **`audit_log` lifecycle assertion test** (FEATURES.md:468). Audit triggers fire on every
+  `purchase_orders` transition (trigger present, audit suite green); add a focused test asserting
+  approve/partial/full-receipt/export rows for belt-and-suspenders on the money path.
+- **5-state chain vs 4 visual nodes** (FEATURES.md:458). The chain collapses draft/recommended/
+  approved and exported/sent into shared frontiers by design (Block 10 abstraction). If MG wants a
+  literal 5-transition readout, that's a chain redesign — decide at the stack audit.
+
+### Contract reconciliation (intentional forks, recorded in FEATURES.md)
+- PO detail/receive live at `/purchase-orders/[poId]` (reuses the Block 10 / Wave 6.3-A cockpit),
+  NOT `/app/reorder/po/[poId]` + a separate `/receive` route as the original block sketch said.
+- Approval runs **synchronously** in the Server Action (immediate sent/exported feedback); the
+  durable workflow owns only the long receipt wait + finalize — not the approve→push→wait chain.
+- `approvePurchaseOrder({ poId })` — no explicit `idempotency_key` param; idempotency is enforced
+  by the DB (PO status guard + DocNumber-keyed QBO push), so a re-click can't double-commit.

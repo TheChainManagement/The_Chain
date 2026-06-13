@@ -12,6 +12,11 @@
   color: var(--color-deep);
 }
 
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
 .statusTag {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -20,6 +25,20 @@
   color: var(--color-mid);
   border: 1px solid var(--color-hairline);
   padding: 2px var(--spacing-3);
+}
+.exportLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-hairline);
+  padding-bottom: 1px;
+  transition: color var(--duration-base) var(--ease-spring-soft);
+}
+.exportLink:hover {
+  color: var(--color-deep);
 }
 
 .hero {
@@ -118,6 +137,29 @@
 
 .receiveBar {
   margin-top: var(--spacing-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+.approveCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 36ch;
+}
+.approveLead {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-deep);
+}
+.approveSub {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-mid);
+  line-height: 1.4;
 }
 .receive {
   display: flex;

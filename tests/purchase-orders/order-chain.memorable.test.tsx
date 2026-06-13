@@ -50,6 +50,24 @@ describe('OrderChain (hero)', () => {
     );
     expect(states.every((s) => s === 'done')).toBe(true);
   });
+
+  it('cobalt FLOWS INTO the RECEIVED link when the order lands (Block 11b)', () => {
+    // The hero moment: a fully-received order fills its terminal link cobalt
+    // with the ignite sweep, not the quiet done dot.
+    const received = render(
+      <OrderChain po={po({ status: 'received', actualDeliveryAt: '2026-05-27T00:00:00.000Z' })} />,
+    );
+    const links = Array.from(received.container.querySelectorAll('[data-state]'));
+    const last = links.at(-1)!;
+    expect(last.getAttribute('data-complete')).toBe('true');
+    // The ignite sweep span is present on the completed link (the cobalt fill).
+    expect(last.querySelector('span[aria-hidden="true"]')).not.toBeNull();
+
+    // While the order is still open, RECEIVED is pending — no celebration yet.
+    const open = render(<OrderChain po={po({ status: 'sent' })} />);
+    const openLinks = Array.from(open.container.querySelectorAll('[data-state]'));
+    expect(openLinks.at(-1)!.getAttribute('data-complete')).toBe('false');
+  });
 });
 
 describe('OrderTrack (compact)', () => {

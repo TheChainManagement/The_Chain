@@ -119,14 +119,27 @@ afterAll(async () => {
 describe('receivePurchaseOrder + scorecard rollup', () => {
   it('a full on-time receipt advances the PO and lands an OTIF row', async () => {
     const poId = await newPo(10, 8, 50); // ordered 10d ago, promised 2d ago... actually 8d out
+    const key = crypto.randomUUID();
     const result = await receivePurchaseOrder(admin, {
       tenantId,
       poId,
       // delivered before the promise → on time
       actualDeliveryAt: new Date(Date.now() - 3 * DAY).toISOString(),
       lines: [{ lineNo: 1, receivedQty: 50 }],
+      idempotencyKey: key,
     });
-    expect(result).toMatchObject({ ok: true, status: 'received' });
+    expect(result).toMatchObject({ ok: true, status: 'received', replayed: false });
+
+    // Block 11b: the receipt moved real stock — a receipt movement keyed to this
+    // event, the on_hand bump, and the per-event qty captured on the ledger.
+    const { data: mv } = await admin
+      .from('stock_movements')
+      .select('quantity, type, source')
+      .eq('tenant_id', tenantId)
+      .eq('source_ref', `receipt:po=${poId}:line=1:key=${key}`)
+      .single<{ quantity: number | string; type: string; source: string }>();
+    expect(mv).toMatchObject({ type: 'receipt', source: 'workflow' });
+    expect(Number(mv?.quantity)).toBe(50);
 
     const { data: po } = await admin
       .from('purchase_orders')
@@ -163,6 +176,7 @@ describe('receivePurchaseOrder + scorecard rollup', () => {
       poId,
       actualDeliveryAt: new Date(Date.now() - 6 * DAY).toISOString(),
       lines: [{ lineNo: 1, receivedQty: 60 }],
+      idempotencyKey: crypto.randomUUID(),
     });
     expect(r1).toMatchObject({ ok: true, status: 'partial_received' });
     const r2 = await receivePurchaseOrder(admin, {
@@ -170,6 +184,7 @@ describe('receivePurchaseOrder + scorecard rollup', () => {
       poId,
       actualDeliveryAt: new Date(Date.now() - 5 * DAY).toISOString(),
       lines: [{ lineNo: 1, receivedQty: 40 }],
+      idempotencyKey: crypto.randomUUID(),
     });
     expect(r2).toMatchObject({ ok: true, status: 'received' });
 
@@ -201,14 +216,48 @@ describe('receivePurchaseOrder + scorecard rollup', () => {
       poId,
       actualDeliveryAt: new Date().toISOString(),
       lines: [{ lineNo: 1, receivedQty: 10 }],
+      idempotencyKey: crypto.randomUUID(),
     });
+    // A fresh key on a terminal PO is a real attempt → rejected (not a replay).
     const again = await receivePurchaseOrder(admin, {
       tenantId,
       poId,
       actualDeliveryAt: new Date().toISOString(),
       lines: [{ lineNo: 1, receivedQty: 10 }],
+      idempotencyKey: crypto.randomUUID(),
     });
     expect(again).toMatchObject({ ok: false });
+  });
+
+  it('a replayed idempotency key does NOT double-count stock', async () => {
+    const poId = await newPo(11, 7, 30);
+    const key = crypto.randomUUID();
+    const input = {
+      tenantId,
+      poId,
+      actualDeliveryAt: new Date(Date.now() - 4 * DAY).toISOString(),
+      lines: [{ lineNo: 1, receivedQty: 30 }],
+      idempotencyKey: key,
+    };
+    const first = await receivePurchaseOrder(admin, input);
+    expect(first).toMatchObject({ ok: true, status: 'received', replayed: false });
+
+    // Same key again (a double-submit / retry): no-op, reports the prior state.
+    const replay = await receivePurchaseOrder(admin, input);
+    expect(replay).toMatchObject({ ok: true, replayed: true });
+
+    // Exactly ONE receipt movement + ONE performance row for the event.
+    const { count: mvCount } = await admin
+      .from('stock_movements')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('source_ref', `receipt:po=${poId}:line=1:key=${key}`);
+    expect(mvCount).toBe(1);
+    const { count: perfCount } = await admin
+      .from('supplier_performance')
+      .select('id', { count: 'exact', head: true })
+      .eq('po_id', poId);
+    expect(perfCount).toBe(1);
   });
 
   it('once sample_size ≥ 5, chooseLeadTime switches to the empirical scorecard', async () => {
@@ -220,6 +269,7 @@ describe('receivePurchaseOrder + scorecard rollup', () => {
         poId,
         actualDeliveryAt: new Date(Date.now() - (10 + i) * DAY).toISOString(),
         lines: [{ lineNo: 1, receivedQty: 25 }],
+        idempotencyKey: crypto.randomUUID(),
       });
     }
     const sample = await rollupSupplierScorecards(admin, tenantId, supplierId);

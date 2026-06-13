@@ -63,3 +63,7 @@ api/forecast/*.pyc
 .venv-forecast/
 api/forecast/_shims/**/__pycache__
 api/forecast/_shims/__pycache__
+
+# Workflow DevKit runtime artifacts (local runs + @workflow/vitest scratch)
+.workflow-data/
+.workflow-vitest/

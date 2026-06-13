@@ -182,6 +182,16 @@ export function isOpenPo(status: PoStatus): boolean {
   return status !== 'received' && status !== 'closed' && status !== 'canceled';
 }
 
+/** Approvable = a draft awaiting placement (Block 11b approve action). */
+export function isApprovablePo(status: PoStatus): boolean {
+  return status === 'draft' || status === 'recommended';
+}
+
+/** Receivable = placed and not yet fully in (the receive surface applies). */
+export function isReceivablePo(status: PoStatus): boolean {
+  return status === 'sent' || status === 'exported' || status === 'partial_received';
+}
+
 export function openPoCount(rows: PurchaseOrderListRow[]): number {
   return rows.filter((r) => isOpenPo(r.status)).length;
 }

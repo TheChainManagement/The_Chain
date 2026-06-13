@@ -35,6 +35,9 @@ export default defineConfig({
       // (MASTER_PROMPT) but must still run in CI.
       '_reviews/**/*_memorable.test.tsx',
     ],
+    // Workflow integration tests need the `@workflow/vitest` runtime plugin and
+    // run from vitest.integration.config.ts, not here.
+    exclude: ['**/node_modules/**', '**/*.integration.test.ts'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // DB tests share one Postgres; run files serially to avoid interference.

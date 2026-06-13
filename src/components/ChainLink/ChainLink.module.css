@@ -120,6 +120,20 @@
   color: var(--color-on-signal-dim);
 }
 
+/* Complete — the terminal RECEIVED link of a received order. Reads as the
+   cobalt payoff (full fill, on-signal text) rather than the quiet done dot; the
+   .ignite sweep below plays it in. Logical state stays `done`. */
+.complete {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: var(--color-on-signal);
+  box-shadow: var(--shadow-cobalt-inner);
+}
+.complete .step,
+.complete .when {
+  color: var(--color-on-signal-dim);
+}
+
 /* IGNITE — cobalt sweeps in from the left on mount. The memorable moment. */
 .ignite {
   position: absolute;

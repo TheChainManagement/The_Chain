@@ -22,19 +22,26 @@ export function OrderChain({ po }: { po: PurchaseOrderListRow }): ReactNode {
     actualDeliveryAt: po.actualDeliveryAt,
   });
 
+  // A fully-received order lights its terminal RECEIVED link cobalt (the payoff).
+  const complete = po.status === 'received' || po.status === 'closed';
+
   return (
     <ul className={styles.heroChain} aria-label={`Order ${po.reference} progress`}>
-      {steps.map((step, i) => (
-        <li key={step.step} className={styles.heroCell}>
-          <ChainLink
-            step={step.step}
-            label={step.label}
-            when={step.when}
-            state={step.state}
-            connector={orderConnector(step.state, i === steps.length - 1)}
-          />
-        </li>
-      ))}
+      {steps.map((step, i) => {
+        const isLast = i === steps.length - 1;
+        return (
+          <li key={step.step} className={styles.heroCell}>
+            <ChainLink
+              step={step.step}
+              label={step.label}
+              when={step.when}
+              state={step.state}
+              connector={orderConnector(step.state, isLast)}
+              celebrate={complete && isLast}
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }

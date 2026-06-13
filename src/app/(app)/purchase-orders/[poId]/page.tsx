@@ -6,9 +6,16 @@ import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { getPurchaseOrder } from '@/lib/purchase-orders/queries';
-import { fmtDate, fmtMoney, isOpenPo, poStatusLabel } from '@/lib/purchase-orders/transform';
+import {
+  fmtDate,
+  fmtMoney,
+  isApprovablePo,
+  isReceivablePo,
+  poStatusLabel,
+} from '@/lib/purchase-orders/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { OrderChain } from '../OrderChain';
+import { ApproveControls } from './ApproveControls';
 import styles from './po-detail.module.css';
 import { ReceiveControls } from './ReceiveControls';
 
@@ -30,7 +37,8 @@ export default async function PurchaseOrderDetailPage({
   const po = await getPurchaseOrder(supabase, poId);
   if (!po) notFound();
 
-  const open = isOpenPo(po.status);
+  const approvable = isApprovablePo(po.status);
+  const receivable = isReceivablePo(po.status);
 
   return (
     <div className={pageStyles.stack}>
@@ -41,7 +49,14 @@ export default async function PurchaseOrderDetailPage({
       <PageHeader
         eyebrow={`Order · ${po.supplierName}`}
         title={po.reference}
-        actions={<span className={styles.statusTag}>{poStatusLabel(po.status)}</span>}
+        actions={
+          <span className={styles.headerActions}>
+            <a className={styles.exportLink} href={`/api/exports/po/${po.id}.csv`}>
+              Export CSV
+            </a>
+            <span className={styles.statusTag}>{poStatusLabel(po.status)}</span>
+          </span>
+        }
       />
 
       <section className={styles.hero} aria-label={`Order ${po.reference} progress`}>
@@ -112,12 +127,15 @@ export default async function PurchaseOrderDetailPage({
           {po.total != null ? (
             <span className={styles.summaryItem}>
               <span className={styles.summaryKey}>Total</span>
-              <span className={styles.summaryVal}>${fmtMoney(po.total)}</span>
+              <span className={styles.summaryVal}>
+                <StatNumber value={fmtMoney(po.total)} unit="$" unitPosition="prefix" />
+              </span>
             </span>
           ) : null}
         </div>
 
-        {open ? <ReceiveControls poId={po.id} lines={po.lines} /> : null}
+        {approvable ? <ApproveControls poId={po.id} /> : null}
+        {receivable ? <ReceiveControls poId={po.id} lines={po.lines} /> : null}
       </Panel>
     </div>
   );

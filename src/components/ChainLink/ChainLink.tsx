@@ -25,6 +25,13 @@ export interface ChainLinkProps {
   state?: ChainState;
   /** Connector hairline to the next link. Omit on the last link. */
   connector?: 'cobalt' | 'pewter' | 'none';
+  /**
+   * The terminal payoff: a `done` link that represents a just-completed order
+   * (the RECEIVED link of a received PO) fills cobalt with the ignite sweep —
+   * the "goods landed" moment — instead of the quiet corner dot. Visual only;
+   * the link's logical state stays `done`.
+   */
+  celebrate?: boolean;
 }
 
 export function ChainLink({
@@ -33,13 +40,26 @@ export function ChainLink({
   when,
   state = 'pending',
   connector = 'none',
+  celebrate = false,
 }: ChainLinkProps): ReactNode {
-  const className = [styles.link, styles[state]].join(' ');
+  const complete = celebrate && state === 'done';
+  const className = [styles.link, styles[state], complete ? styles.complete : '']
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <div className={className} data-state={state} data-connector={connector}>
-      {state === 'active' ? <span className={styles.ignite} aria-hidden="true" /> : null}
-      {state === 'done' ? <span className={styles.cornerDot} aria-hidden="true" /> : null}
+    <div
+      className={className}
+      data-state={state}
+      data-connector={connector}
+      data-complete={complete}
+    >
+      {state === 'active' || complete ? (
+        <span className={styles.ignite} aria-hidden="true" />
+      ) : null}
+      {state === 'done' && !complete ? (
+        <span className={styles.cornerDot} aria-hidden="true" />
+      ) : null}
 
       <span className={styles.step}>{step}</span>
       <span className={styles.label}>{label}</span>
