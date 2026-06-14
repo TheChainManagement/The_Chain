@@ -85,8 +85,9 @@ export function buildReorderPrompt(f: ReorderFacts): PromptParts {
 }
 
 export function buildForecastPrompt(f: ForecastFacts): PromptParts {
+  const sku = safeLabel(f.sku);
   const prompt = [
-    `Explain in two sentences what the demand forecast for ${f.sku} says and how much to trust it.`,
+    `Explain in two sentences what the demand forecast for ${sku} says and how much to trust it.`,
     `Facts: mean forecast ${n(f.meanForecast)} units over ${n(f.horizonDays)} days;`,
     `80% band ${n(f.low)} to ${n(f.high)} units; RMSSE ${n(f.rmsse)} (below 1.0 beats the seasonal-naive baseline).`,
     'Say what the demand looks like and whether the band is tight or wide; do not restate every number.',

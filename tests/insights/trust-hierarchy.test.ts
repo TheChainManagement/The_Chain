@@ -37,6 +37,8 @@ describe('trust hierarchy', () => {
       }
     }
 
-    expect(offenders, `ClaudeInsight must not wrap StatNumber: ${offenders.join(', ')}`).toEqual([]);
+    expect(offenders, `ClaudeInsight must not wrap StatNumber: ${offenders.join(', ')}`).toEqual(
+      [],
+    );
   });
 });

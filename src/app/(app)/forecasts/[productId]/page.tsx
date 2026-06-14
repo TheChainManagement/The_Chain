@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { ForecastChart } from '@/components/ForecastChart/ForecastChart';
+import { ForecastInsightPanel } from '@/components/InsightPanel/ForecastInsightPanel';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { liftCaption, loadForecastDetail } from '@/lib/forecast/detail';
@@ -64,54 +65,57 @@ export default async function ForecastDetailPage({
           </p>
         </Panel>
       ) : (
-        <Panel
-          prefix="Forecast"
-          title={`${product.sku} · trained history + ${horizonWeeks} weeks forward`}
-        >
-          {history.length === 0 && points.length === 0 ? (
-            <p className={styles.emptyCopy}>
-              No sales history in the trailing year and no benchmark fill yet — the chart draws once
-              demand lands.
-            </p>
-          ) : (
-            <ForecastChart
-              history={history}
-              points={points}
-              label={`${product.sku} weekly demand history and ${horizonWeeks}-week forecast with 80% and 95% confidence bands`}
-            />
-          )}
-
-          <p className={styles.caption} data-testid="lift-caption">
-            {liftCaption(forecast.method, evaluation)}
-          </p>
-
-          <div className={styles.stats}>
-            <div className={styles.stat}>
-              <span className={styles.statKey}>RMSSE</span>
-              <StatNumber value={evaluation?.rmsse?.toFixed(3) ?? null} size="body" />
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statKey}>Baseline RMSSE</span>
-              <StatNumber value={evaluation?.baselineRmsse?.toFixed(3) ?? null} size="body" />
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statKey}>WAPE</span>
-              <StatNumber
-                value={evaluation?.wape != null ? (evaluation.wape * 100).toFixed(1) : null}
-                unit="%"
-                size="body"
+        <>
+          <Panel
+            prefix="Forecast"
+            title={`${product.sku} · trained history + ${horizonWeeks} weeks forward`}
+          >
+            {history.length === 0 && points.length === 0 ? (
+              <p className={styles.emptyCopy}>
+                No sales history in the trailing year and no benchmark fill yet — the chart draws
+                once demand lands.
+              </p>
+            ) : (
+              <ForecastChart
+                history={history}
+                points={points}
+                label={`${product.sku} weekly demand history and ${horizonWeeks}-week forecast with 80% and 95% confidence bands`}
               />
+            )}
+
+            <p className={styles.caption} data-testid="lift-caption">
+              {liftCaption(forecast.method, evaluation)}
+            </p>
+
+            <div className={styles.stats}>
+              <div className={styles.stat}>
+                <span className={styles.statKey}>RMSSE</span>
+                <StatNumber value={evaluation?.rmsse?.toFixed(3) ?? null} size="body" />
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statKey}>Baseline RMSSE</span>
+                <StatNumber value={evaluation?.baselineRmsse?.toFixed(3) ?? null} size="body" />
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statKey}>WAPE</span>
+                <StatNumber
+                  value={evaluation?.wape != null ? (evaluation.wape * 100).toFixed(1) : null}
+                  unit="%"
+                  size="body"
+                />
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statKey}>Backtest windows</span>
+                <StatNumber value={evaluation?.windows ?? null} size="body" />
+              </div>
+              <div className={styles.stat}>
+                <span className={styles.statKey}>Computed</span>
+                <span className={styles.statWhen}>{fmtWhen(forecast.computedAt)}</span>
+              </div>
             </div>
-            <div className={styles.stat}>
-              <span className={styles.statKey}>Backtest windows</span>
-              <StatNumber value={evaluation?.windows ?? null} size="body" />
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statKey}>Computed</span>
-              <span className={styles.statWhen}>{fmtWhen(forecast.computedAt)}</span>
-            </div>
-          </div>
-        </Panel>
+          </Panel>
+          <ForecastInsightPanel productId={product.id} />
+        </>
       )}
     </div>
   );

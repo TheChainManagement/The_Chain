@@ -17,7 +17,14 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { APICallError, gateway, generateText } from 'ai';
-import { buildReorderPrompt, type InsightKind, PROMPT_VERSION, type ReorderFacts } from './prompts';
+import {
+  buildForecastPrompt,
+  buildReorderPrompt,
+  type ForecastFacts,
+  type InsightKind,
+  PROMPT_VERSION,
+  type ReorderFacts,
+} from './prompts';
 
 const PRIMARY_MODEL = 'anthropic/claude-sonnet-4.6';
 const FALLBACK_MODELS = ['anthropic/claude-haiku-4.5', 'openai/gpt-5.4'];
@@ -66,6 +73,40 @@ export async function getReorderInsight(
     cached: false,
   };
   await cacheInsight(admin, tenantId, 'reorder', poId, insight);
+  return { ok: true, insight };
+}
+
+/**
+ * The "Why this forecast" insight for a SKU. Keyed on the LATEST forecast's id,
+ * not the product id, so a recompute (new forecast row) busts the cache and the
+ * prose never describes a superseded model. Caches on first view.
+ */
+export async function getForecastInsight(
+  admin: SupabaseClient,
+  tenantId: string,
+  productId: string,
+): Promise<InsightResult> {
+  const head = await loadForecastHead(admin, tenantId, productId);
+  if (!head) return { ok: false, error: 'No forecast for this SKU yet.' };
+
+  const cached = await readCachedInsight(admin, tenantId, 'forecast', head.forecastId);
+  if (cached) return { ok: true, insight: cached };
+
+  const facts = await assembleForecastFacts(admin, tenantId, head);
+  const confidence = forecastConfidence(facts);
+  const { system, prompt } = buildForecastPrompt(facts);
+
+  const generated = await callModel({ system, prompt, kind: 'forecast', tenantId });
+  if (!generated.ok) return generated;
+
+  const insight: InsightView = {
+    content: generated.text,
+    confidence,
+    model: generated.model,
+    promptVersion: PROMPT_VERSION,
+    cached: false,
+  };
+  await cacheInsight(admin, tenantId, 'forecast', head.forecastId, insight);
   return { ok: true, insight };
 }
 
@@ -126,6 +167,19 @@ export function reorderConfidence(f: ReorderFacts): number {
   if (f.daysOfSupply == null) c -= 0.25; // no forecast-backed cover estimate
   if (f.stockoutRiskPct == null) c -= 0.2;
   if (f.position == null || f.reorderPoint == null) c -= 0.15;
+  return Math.max(0.3, Math.round(c * 100) / 100);
+}
+
+/**
+ * Forecast confidence is data-driven too: a backtested model that beats the
+ * baseline reads high; a benchmark fill with no RMSSE to judge reads low and
+ * trips the sparse-data warning. The model never reports its own confidence.
+ */
+export function forecastConfidence(f: ForecastFacts): number {
+  let c = 0.9;
+  if (f.rmsse == null) c -= 0.3; // benchmark fill / no backtest — nothing to judge skill by
+  if (f.meanForecast == null) c -= 0.3;
+  if (f.low == null || f.high == null) c -= 0.2;
   return Math.max(0.3, Math.round(c * 100) / 100);
 }
 
@@ -211,6 +265,109 @@ async function assembleReorderFacts(
   };
 }
 
+// ----- forecast facts assembly -----
+
+interface ForecastHead {
+  forecastId: string;
+  sku: string;
+  horizonDays: number;
+  method: string;
+}
+
+/** Resolve the SKU's latest forecast (the one the chart shows) + its SKU label. */
+async function loadForecastHead(
+  admin: SupabaseClient,
+  tenantId: string,
+  productId: string,
+): Promise<ForecastHead | null> {
+  const { data: product } = await admin
+    .from('products')
+    .select('sku')
+    .eq('tenant_id', tenantId)
+    .eq('id', productId)
+    .maybeSingle<{ sku: string | null }>();
+  if (!product) return null;
+
+  const { data: forecast } = await admin
+    .from('forecasts')
+    .select('id, horizon_days, method')
+    .eq('tenant_id', tenantId)
+    .eq('product_id', productId)
+    .order('computed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; horizon_days: number; method: string }>();
+  if (!forecast) return null;
+
+  return {
+    forecastId: forecast.id,
+    sku: product.sku ?? 'this SKU',
+    horizonDays: forecast.horizon_days,
+    method: forecast.method,
+  };
+}
+
+/**
+ * Summarize the forecast the operator is looking at: mean demand per period, the
+ * representative 80% band (averaged across the horizon — it widens, so a single
+ * pair conveys tight-vs-wide), and the backtest skill vs seasonal-naive. The
+ * model gets these typed numbers only; it never recomputes them.
+ */
+async function assembleForecastFacts(
+  admin: SupabaseClient,
+  tenantId: string,
+  head: ForecastHead,
+): Promise<ForecastFacts> {
+  const [{ data: points }, { data: evaluation }] = await Promise.all([
+    admin
+      .from('forecast_points')
+      .select('mean, lower_bound_80, upper_bound_80')
+      .eq('tenant_id', tenantId)
+      .eq('forecast_id', head.forecastId)
+      .returns<
+        {
+          mean: number | string | null;
+          lower_bound_80: number | string | null;
+          upper_bound_80: number | string | null;
+        }[]
+      >(),
+    admin
+      .from('forecast_evaluations')
+      .select('rmsse')
+      .eq('tenant_id', tenantId)
+      .eq('forecast_id', head.forecastId)
+      .maybeSingle<{ rmsse: number | string | null }>(),
+  ]);
+
+  const rows = points ?? [];
+  const meanForecast = avg(rows.map((p) => p.mean));
+  const low = avg(rows.map((p) => p.lower_bound_80));
+  const high = avg(rows.map((p) => p.upper_bound_80));
+  // A benchmark fill has no backtest, so RMSSE stays null and confidence drops.
+  const rmsse = head.method === 'benchmark' ? null : numOrNull(evaluation?.rmsse);
+
+  return {
+    sku: head.sku,
+    meanForecast: meanForecast == null ? null : round1(meanForecast),
+    horizonDays: head.horizonDays,
+    low: low == null ? null : round1(low),
+    high: high == null ? null : round1(high),
+    rmsse: rmsse == null ? null : round2(rmsse),
+  };
+}
+
+/** Mean of the present (non-null) numeric values, or null if none. */
+function avg(vals: (number | string | null)[]): number | null {
+  const nums = vals.map(numOrNull).filter((v): v is number => v != null);
+  if (nums.length === 0) return null;
+  return nums.reduce((a, b) => a + b, 0) / nums.length;
+}
+
+function numOrNull(v: number | string | null | undefined): number | null {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 // ----- cache -----
 
 async function readCachedInsight(
@@ -268,4 +425,8 @@ async function cacheInsight(
 
 function round1(v: number): number {
   return Math.round(v * 10) / 10;
+}
+
+function round2(v: number): number {
+  return Math.round(v * 100) / 100;
 }
