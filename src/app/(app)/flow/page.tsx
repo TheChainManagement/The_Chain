@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
+import { WeeklyChangeInsightPanel } from '@/components/InsightPanel/WeeklyChangeInsightPanel';
 import { Panel } from '@/components/Panel/Panel';
 import { listOpenAlerts, openAlertCounts } from '@/lib/alerts/queue';
 import { listPendingConflicts } from '@/lib/qbo/conflicts';
@@ -33,6 +34,7 @@ export default async function FlowPage(): Promise<ReactNode> {
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Operations" title="Flow" />
+      <WeeklyChangeInsightPanel />
       <Panel prefix="Surfaces" title="What needs attention">
         <ul className={styles.cards}>
           <li>

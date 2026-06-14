@@ -2,7 +2,13 @@
 
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
-import { getForecastInsight, getReorderInsight, type InsightResult } from './generate';
+import {
+  getForecastInsight,
+  getReorderInsight,
+  getWeeklyChangeInsight,
+  type InsightResult,
+  weeklyPeriodId,
+} from './generate';
 
 /**
  * Lazy insight loader (Block 12). Called by the client panel on first view. RLS
@@ -45,4 +51,25 @@ export async function loadForecastInsight(productId: string): Promise<InsightRes
   if (!product) return { ok: false, error: 'That SKU was not found.' };
 
   return getForecastInsight(createSupabaseAdmin(), tenantId, productId);
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Lazy "What changed this week" digest loader (Block 12 Wave B2). Tenant-level —
+ * no entity to existence-check, the tenant claim IS the scope. The window is the
+ * trailing 7 days; the cache key is today's date so the note regenerates daily
+ * as the window rolls forward (one cheap call per day, served from cache after).
+ */
+export async function loadWeeklyChangeInsight(): Promise<InsightResult> {
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.auth.getClaims();
+  const tenantId = data?.claims?.tenant_id as string | undefined;
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+
+  const now = Date.now();
+  const since = new Date(now - WEEK_MS).toISOString();
+  const periodKey = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD
+
+  return getWeeklyChangeInsight(createSupabaseAdmin(), tenantId, weeklyPeriodId(periodKey), since);
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { forecastConfidence, reorderConfidence } from '@/lib/insights/generate';
-import { buildForecastPrompt, buildReorderPrompt, PROMPT_VERSION } from '@/lib/insights/prompts';
+import { forecastConfidence, reorderConfidence, weeklyPeriodId } from '@/lib/insights/generate';
+import {
+  buildForecastPrompt,
+  buildReorderPrompt,
+  buildWeeklyChangePrompt,
+  PROMPT_VERSION,
+} from '@/lib/insights/prompts';
 
 /**
  * Insight prompts (Block 12) — pure. The LLM is the interpreter: prompts carry
@@ -105,6 +110,33 @@ describe('buildForecastPrompt', () => {
   });
 });
 
+describe('buildWeeklyChangePrompt', () => {
+  it('interpolates the week’s counts and asks for plain framing', () => {
+    const { prompt } = buildWeeklyChangePrompt({
+      alertsRaised: 3,
+      reordersFlagged: 5,
+      receiptsLogged: 2,
+      conflictsPending: 1,
+    });
+    expect(prompt).toContain('3 new alerts raised');
+    expect(prompt).toContain('5 new reorder flags');
+    expect(prompt).toContain('2 purchase-order receipts logged');
+    expect(prompt).toContain('1 sync conflicts awaiting review');
+    expect(prompt).toMatch(/quiet, say so plainly/i);
+  });
+
+  it('states a quiet week with all-zero counts (no free text → no injection surface)', () => {
+    const { prompt } = buildWeeklyChangePrompt({
+      alertsRaised: 0,
+      reordersFlagged: 0,
+      receiptsLogged: 0,
+      conflictsPending: 0,
+    });
+    expect(prompt).toContain('0 new alerts raised');
+    expect(prompt).not.toMatch(/[<>{}`]/);
+  });
+});
+
 describe('forecastConfidence (data-driven)', () => {
   it('is high with a backtested model and drops on a benchmark fill', () => {
     const backtested = forecastConfidence({
@@ -152,6 +184,17 @@ describe('reorderConfidence (data-driven)', () => {
     expect(full).toBeGreaterThan(0.85);
     expect(sparse).toBeLessThan(0.6); // surfaces the low-confidence warning
     expect(sparse).toBeGreaterThanOrEqual(0.3); // floored
+  });
+});
+
+describe('weeklyPeriodId', () => {
+  it('maps a period stamp to a stable, valid v5-shaped uuid', () => {
+    const a = weeklyPeriodId('2026-06-14');
+    const b = weeklyPeriodId('2026-06-14');
+    const c = weeklyPeriodId('2026-06-07');
+    expect(a).toBe(b); // deterministic
+    expect(a).not.toBe(c); // distinct per period
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   });
 });
 

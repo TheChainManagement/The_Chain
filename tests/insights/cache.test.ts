@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getForecastInsight, getReorderInsight } from '@/lib/insights/generate';
+import {
+  getForecastInsight,
+  getReorderInsight,
+  getWeeklyChangeInsight,
+  weeklyPeriodId,
+} from '@/lib/insights/generate';
 import { PROMPT_VERSION } from '@/lib/insights/prompts';
 
 /**
@@ -132,5 +137,32 @@ describe('getForecastInsight — cache path', () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.error).toMatch(/no forecast/i);
+  });
+});
+
+describe('getWeeklyChangeInsight — cache path', () => {
+  const ENTITY_ID = weeklyPeriodId('2026-06-14'); // period stamp → stable uuid
+
+  it('serves a pre-cached weekly digest keyed on the period without a model call', async () => {
+    await admin.from('insights').insert({
+      tenant_id: tenantId,
+      entity_type: 'weekly_change',
+      entity_id: ENTITY_ID,
+      model: 'anthropic/claude-sonnet-4.6',
+      prompt_version: PROMPT_VERSION,
+      content: {
+        text: 'Quiet week — three alerts cleared and one shipment landed, nothing pressing.',
+      },
+      confidence: 0.9,
+    });
+
+    const since = new Date('2026-06-07T00:00:00Z').toISOString();
+    const res = await getWeeklyChangeInsight(admin, tenantId, ENTITY_ID, since);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.insight.cached).toBe(true);
+    expect(res.insight.content).toMatch(/Quiet week/);
+    expect(res.insight.confidence).toBeCloseTo(0.9, 5);
+    expect(res.insight.promptVersion).toBe(PROMPT_VERSION);
   });
 });

@@ -13,7 +13,7 @@
 
 export const PROMPT_VERSION = 'v1';
 
-export type InsightKind = 'reorder' | 'forecast';
+export type InsightKind = 'reorder' | 'forecast' | 'weekly_change';
 
 export interface ReorderFacts {
   sku: string;
@@ -36,6 +36,17 @@ export interface ForecastFacts {
   high: number | null;
   /** Skill vs the seasonal-naive baseline: < 1 beats it. */
   rmsse: number | null;
+}
+
+export interface WeeklyChangeFacts {
+  /** New alerts raised in the trailing week. */
+  alertsRaised: number;
+  /** New reorder recommendations flagged in the trailing week. */
+  reordersFlagged: number;
+  /** Purchase-order receipts logged in the trailing week. */
+  receiptsLogged: number;
+  /** Sync conflicts currently awaiting review. */
+  conflictsPending: number;
 }
 
 export interface PromptParts {
@@ -80,6 +91,21 @@ export function buildReorderPrompt(f: ReorderFacts): PromptParts {
     `Facts: on hand ${n(f.position)} units; reorder point ${n(f.reorderPoint)} units;`,
     `days of supply ${n(f.daysOfSupply)}; stockout risk ${n(f.stockoutRiskPct, '%')}.`,
     'Frame it as the operator memo: what the position is, why it triggers a reorder, what the order restores.',
+  ].join(' ');
+  return { system: SYSTEM, prompt };
+}
+
+/**
+ * The "What changed this week" digest. Every fact is a typed count (no free text),
+ * so there is no injection surface at all — the model only orders and narrates
+ * numbers it was given. A quiet week is stated plainly, not padded.
+ */
+export function buildWeeklyChangePrompt(f: WeeklyChangeFacts): PromptParts {
+  const prompt = [
+    'Summarize in two sentences what changed in this inventory operation over the past week.',
+    `Facts: ${f.alertsRaised} new alerts raised; ${f.reordersFlagged} new reorder flags;`,
+    `${f.receiptsLogged} purchase-order receipts logged; ${f.conflictsPending} sync conflicts awaiting review.`,
+    'Lead with what needs the operator’s attention; if the week was quiet, say so plainly rather than inflating it.',
   ].join(' ');
   return { system: SYSTEM, prompt };
 }

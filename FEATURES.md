@@ -496,7 +496,9 @@
 
 > **Shipped (Wave A, 2026-06-14):** the engine + "Why this reorder" on the PO detail page. Lazy + cached via the `insights` table (idempotent on `(tenant, entity_type, entity_id, prompt_version)`), `generateText` through AI Gateway (`anthropic/claude-sonnet-4.6` + fallback chain), DATA-driven confidence. Confidence is data-driven (fact completeness), not model self-report.
 >
-> **Shipped (Wave B1, 2026-06-14):** "Why this forecast" on `/forecasts/[productId]` (`forecast` insight kind). Keyed on the SKU's LATEST forecast id so a recompute busts the cache; facts = mean demand/period + representative 80% band + RMSSE (benchmark fills carry `rmsse=null` → confidence drops, warning shows). Closed the latent `buildForecastPrompt` raw-SKU injection hole. Live-verified (real prose, `· cached` on reload, 90% confidence). "What changed" (B2) and the what-if slider interpretation (B3) remain ticketed.
+> **Shipped (Wave B1, 2026-06-14):** "Why this forecast" on `/forecasts/[productId]` (`forecast` insight kind). Keyed on the SKU's LATEST forecast id so a recompute busts the cache; facts = mean demand/period + representative 80% band + RMSSE (benchmark fills carry `rmsse=null` → confidence drops, warning shows). Closed the latent `buildForecastPrompt` raw-SKU injection hole. Live-verified (real prose, `· cached` on reload, 90% confidence).
+>
+> **Shipped (Wave B2, 2026-06-14):** "What changed this week" tenant digest on `/flow` (`weekly_change` insight kind). Facts = four trailing-week counts (alerts raised, reorder flags, PO receipts, pending sync conflicts) — all typed numbers, zero injection surface. Cache keyed on a deterministic period→uuid (`weeklyPeriodId`) so it regenerates as the window rolls (no schema change; `insights.entity_id` is uuid). Live-verified: digest read the real 3/0/0/0 counts, led with the alerts, called the rest quiet, `· cached` on reload. The what-if slider interpretation (B3) remains ticketed.
 
 **Acceptance criteria:**
 - [x] Every insight panel renders with the cited `model` + `prompt_version` in a small mono caption. *(verified live: `anthropic/claude-sonnet-4.6 · prompt v1`)*

@@ -15,15 +15,18 @@
  */
 
 import 'server-only';
+import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { APICallError, gateway, generateText } from 'ai';
 import {
   buildForecastPrompt,
   buildReorderPrompt,
+  buildWeeklyChangePrompt,
   type ForecastFacts,
   type InsightKind,
   PROMPT_VERSION,
   type ReorderFacts,
+  type WeeklyChangeFacts,
 } from './prompts';
 
 const PRIMARY_MODEL = 'anthropic/claude-sonnet-4.6';
@@ -43,6 +46,7 @@ export type InsightResult = { ok: true; insight: InsightView } | { ok: false; er
 const ENTITY_TYPE: Record<InsightKind, string> = {
   reorder: 'purchase_order',
   forecast: 'forecast',
+  weekly_change: 'weekly_change',
 };
 
 /**
@@ -107,6 +111,54 @@ export async function getForecastInsight(
     cached: false,
   };
   await cacheInsight(admin, tenantId, 'forecast', head.forecastId, insight);
+  return { ok: true, insight };
+}
+
+/**
+ * Map a period stamp (e.g. `2026-06-14`) to a stable UUID. `insights.entity_id`
+ * is a uuid column, but the weekly digest has no natural entity — the period IS
+ * the identity. A deterministic v5-style hash gives one cache row per period that
+ * regenerates as the window rolls forward, without a schema change.
+ */
+export function weeklyPeriodId(periodKey: string): string {
+  const hex = createHash('sha1').update(`weekly_change:${periodKey}`).digest('hex'); // 40 chars
+  const variant = ((Number.parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16); // RFC 4122
+  // 8-4-(version 5)4-(variant)4-12
+  return (
+    `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-` +
+    `${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+  );
+}
+
+/**
+ * The "What changed this week" tenant digest. `entityId` is the period's stable
+ * UUID (see `weeklyPeriodId`) so the note regenerates as the window rolls forward
+ * instead of serving last week's summary forever. `since` is the start of the
+ * trailing window the counts cover.
+ */
+export async function getWeeklyChangeInsight(
+  admin: SupabaseClient,
+  tenantId: string,
+  entityId: string,
+  since: string,
+): Promise<InsightResult> {
+  const cached = await readCachedInsight(admin, tenantId, 'weekly_change', entityId);
+  if (cached) return { ok: true, insight: cached };
+
+  const facts = await assembleWeeklyChangeFacts(admin, tenantId, since);
+  const { system, prompt } = buildWeeklyChangePrompt(facts);
+
+  const generated = await callModel({ system, prompt, kind: 'weekly_change', tenantId });
+  if (!generated.ok) return generated;
+
+  const insight: InsightView = {
+    content: generated.text,
+    confidence: 0.9, // digest facts are exact counts — always complete, so confidence stays high
+    model: generated.model,
+    promptVersion: PROMPT_VERSION,
+    cached: false,
+  };
+  await cacheInsight(admin, tenantId, 'weekly_change', entityId, insight);
   return { ok: true, insight };
 }
 
@@ -366,6 +418,52 @@ function numOrNull(v: number | string | null | undefined): number | null {
   if (v == null) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+// ----- weekly-change facts assembly -----
+
+/**
+ * Count the week's operational movement: alerts raised + reorder flags + PO
+ * receipts inside the trailing window, plus the currently-pending sync conflicts.
+ * Exact-count head queries (no rows pulled). A failed count degrades to 0 so the
+ * digest never throws — a quiet read is the honest fallback.
+ */
+async function assembleWeeklyChangeFacts(
+  admin: SupabaseClient,
+  tenantId: string,
+  since: string,
+): Promise<WeeklyChangeFacts> {
+  const [alertsRaised, reordersFlagged, receiptsLogged, conflictsPending] = await Promise.all([
+    countSince(admin, 'alerts', tenantId, 'created_at', since),
+    countSince(admin, 'reorder_recommendations', tenantId, 'created_at', since),
+    countSince(admin, 'po_receipt_events', tenantId, 'applied_at', since),
+    countPendingConflicts(admin, tenantId),
+  ]);
+  return { alertsRaised, reordersFlagged, receiptsLogged, conflictsPending };
+}
+
+async function countSince(
+  admin: SupabaseClient,
+  table: string,
+  tenantId: string,
+  column: string,
+  since: string,
+): Promise<number> {
+  const { count } = await admin
+    .from(table)
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .gte(column, since);
+  return count ?? 0;
+}
+
+async function countPendingConflicts(admin: SupabaseClient, tenantId: string): Promise<number> {
+  const { count } = await admin
+    .from('sync_conflicts')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .is('resolved_at', null);
+  return count ?? 0;
 }
 
 // ----- cache -----
