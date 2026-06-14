@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
+import { ReorderInsightPanel } from '@/components/InsightPanel/ReorderInsightPanel';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { getPurchaseOrder } from '@/lib/purchase-orders/queries';
@@ -137,6 +138,8 @@ export default async function PurchaseOrderDetailPage({
         {approvable ? <ApproveControls poId={po.id} /> : null}
         {receivable ? <ReceiveControls poId={po.id} lines={po.lines} /> : null}
       </Panel>
+
+      <ReorderInsightPanel poId={po.id} />
     </div>
   );
 }

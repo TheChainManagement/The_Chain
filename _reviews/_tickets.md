@@ -293,3 +293,22 @@ these are the accepted-deferred items:
   idempotency the Codex checklist calls for once email exists.
 - **"After each sync" generation hook** — generation currently runs after the forecast batch + on
   demand (`recomputeAlerts`). Wiring it into the incremental-sync tail is a small follow-up.
+
+## Block 12 (AI insights) Wave A — deferred (2026-06-14)
+From `_reviews/2026-06-14_block12_ai_insights_evidence.md`. Engine + "Why this reorder" on the PO
+detail page shipped + live-verified. Wave B / follow-ups:
+
+- **"Why this forecast" surface** — prompt builder + ForecastFacts already stubbed in `prompts.ts`;
+  wire facts assembly (forecast row + bands + RMSSE) + a panel on `/forecasts/[productId]`.
+- **"What changed since last week" insight kind** — third FEATURES kind; needs a prior-period diff.
+- **What-if slider entry point** — adjust service level / lead time → recomputed `<StatNumber>` +
+  a Claude "if you do this, here's what changes" continuation (FEATURES step 5; the memorable's
+  hairline-divided continuation).
+- **Right-rail placement** — insights render inline on the PO page; the FEATURES "right rail in app"
+  needs a layout slot mechanism (page → layout entity hand-off).
+- **Per-tenant insight cost counter in admin** — per-call token usage is logged today; surface the
+  aggregate (FEATURES Codex checklist; the Wave-1 counter seam).
+- **Durable step-wrapped generation** — on-view generation is a cached Server Action; batch/
+  background insight generation should move into a `"use step"` for retry/durability.
+- **Model-fallback live drill** — verify the gateway fallback chain actually fails over when the
+  primary model errors (config is in place; needs a forced-failure test).

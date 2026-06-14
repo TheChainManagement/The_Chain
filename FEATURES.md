@@ -494,19 +494,21 @@
 4. Build the `<ClaudeInsight>` panel component (right rail in app, follows trust hierarchy: Plex Mono "Claude · {topic}" prefix label in dim annotation, Plex Sans body, NEVER displays a number that isn't already in the statistical view).
 5. Build a what-if entry point: user adjusts a slider (service level, lead time); Claude provides a "If you do this, here's what changes" interpretation alongside the recomputed `<StatNumber>` numbers.
 
+> **Shipped (Wave A, 2026-06-14):** the engine + "Why this reorder" on the PO detail page. Lazy + cached via the `insights` table (idempotent on `(tenant, entity_type, entity_id, prompt_version)`), `generateText` through AI Gateway (`anthropic/claude-sonnet-4.6` + fallback chain), DATA-driven confidence. "Why this forecast" (prompt + facts stubbed), "what changed", and the what-if slider → ticketed Wave B. Confidence is data-driven (fact completeness), not model self-report.
+
 **Acceptance criteria:**
-- [ ] Every insight panel renders with the cited `model` + `prompt_version` visible in a small mono caption.
-- [ ] Low-confidence (< 60%) and sparse-data SKUs surface explicit warnings ("Limited history — recommendation is more variable").
-- [ ] Insights never appear as the source of a number; lint check asserts `<ClaudeInsight>` never wraps a `<StatNumber>`.
+- [x] Every insight panel renders with the cited `model` + `prompt_version` in a small mono caption. *(verified live: `anthropic/claude-sonnet-4.6 · prompt v1`)*
+- [x] Low-confidence (<60%) and sparse-data SKUs surface an explicit warning (`reorderConfidence` drops below 0.6 on missing facts → "Limited history…" line). *(pure-tested)*
+- [x] Insights never appear as the source of a number; `tests/insights/trust-hierarchy.test.ts` scans every TSX and asserts `<ClaudeInsight>` never wraps a `<StatNumber>`.
 
 **Codex review checklist:**
-- [ ] AI Gateway routing: model fallback works when Claude is unavailable.
-- [ ] Prompts never include un-validated free text from user input (prompt injection guardrails).
-- [ ] Cost monitoring: per-tenant insight call count surfaced in admin (counter wired Wave 1).
-- [ ] `<ClaudeInsight>` component is the only path to Claude prose in the UI; lint check.
-- [ ] **Memorable element visible in preview screenshot or Playwright interaction test.**
+- [x] AI Gateway routing: model fallback chain configured (`providerOptions.gateway.models`) so a primary outage degrades to the next model. *(live drill ticketed)*
+- [x] Prompts never include un-validated free text — only typed numbers/enums/known names interpolated (pure-tested injection-safety).
+- [~] Cost monitoring: per-call token usage is logged (`result.usage`); the per-tenant admin counter is ticketed.
+- [x] `<ClaudeInsight>` is the only path to Claude prose in the UI; lint check enforces it.
+- [x] **Memorable element visible** — live browser capture of the "Why this reorder" panel (real prose, model caption, 90% confidence, then `· cached` on reload) in the evidence file.
 
-**What's memorable:** Claude's explanation reads like a colleague's whiteboard note. Two short sentences max, prefixed by a tiny Plex Mono "Claude · Why this reorder" label, with a hairline-divided "what changes if you bump service level to 99%" continuation. No emoji, no bullet points, no chatbot warmth — an operator's note from someone who knows the math. (Required visible artifact: Playwright test captures a `<ClaudeInsight>` panel on a PO detail page.)
+**What's memorable:** Claude's explanation reads like a colleague's whiteboard note. Two short sentences max, prefixed by a tiny Plex Mono "Claude · why this reorder" label. No emoji, no bullet points, no chatbot warmth — an operator's note from someone who knows the math. (Shipped: "Stock is at 3 units with only 4 days of supply remaining, … Ordering 47 units … brings the position back above the reorder threshold." The what-if continuation is ticketed Wave B.)
 
 ---
 

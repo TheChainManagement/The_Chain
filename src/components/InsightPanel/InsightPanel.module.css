@@ -1,0 +1,26 @@
+/* Insight panel wrapper (Block 12). The ClaudeInsight aside carries the prose;
+   this adds the model/prompt-version caption + the low-confidence warning. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+/* A distinct, non-cobalt warning line inside the prose (cobalt is brand intent,
+   not a data signal). Reads as a quiet caution, not an alert. */
+.warning {
+  display: block;
+  margin-top: var(--spacing-2);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-mid);
+}
+
+.caption {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--color-dim);
+}
