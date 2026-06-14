@@ -278,3 +278,18 @@ these are the accepted-deferred items:
   durable workflow owns only the long receipt wait + finalize — not the approve→push→wait chain.
 - `approvePurchaseOrder({ poId })` — no explicit `idempotency_key` param; idempotency is enforced
   by the DB (PO status guard + DocNumber-keyed QBO push), so a re-click can't double-commit.
+
+## In-app alerts engine — deferred (2026-06-13)
+From `_reviews/2026-06-13_alerts_engine_evidence.md`. Core engine + 6 conditions + queue UI shipped;
+these are the accepted-deferred items:
+
+- **forecast_low_confidence + forecast_baseline_fail conditions.** The other two FEATURES alert
+  kinds. Need a forecast-confidence read (forecast_evaluations / forecasts bands) wired into the
+  generation inputs. Add when the forecast-confidence surface is needed.
+- **Alert tray (slide-in right rail)** — FEATURES step 4. The `/flow/alerts` queue is the memorable
+  Wave-1 surface; the in-context tray is additive.
+- **Email channel** — FEATURES step 6: `notification_preferences.channel='email'` + Resend, disabled
+  by default. In-app (the alert row) is the Wave-1 notification. Includes the `(alert_id, channel)`
+  idempotency the Codex checklist calls for once email exists.
+- **"After each sync" generation hook** — generation currently runs after the forecast batch + on
+  demand (`recomputeAlerts`). Wiring it into the incremental-sync tail is a small follow-up.

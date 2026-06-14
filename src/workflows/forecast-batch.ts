@@ -22,6 +22,7 @@
 
 import { sleep } from 'workflow';
 import { getRun, start } from 'workflow/api';
+import { runAlertGeneration } from '@/lib/alerts/generate';
 import { classifyTenant } from '@/lib/classification/classify';
 import { forecastEnv } from '@/lib/env';
 import {
@@ -459,6 +460,10 @@ async function orchestrateBatch(params: BatchParams): Promise<BatchSummary> {
     timedOut,
   });
 
+  // Fresh policies + recommendations just landed — walk the risk surfaces and
+  // emit/auto-close alerts (the "runs after the forecast batch" hook).
+  await generateAlertsForBatch({ tenantId: params.tenantId, nowMs: plan.nowMs });
+
   return {
     ...totals,
     total: plan.total,
@@ -466,4 +471,13 @@ async function orchestrateBatch(params: BatchParams): Promise<BatchSummary> {
     failedShards,
     timedOut,
   };
+}
+
+/** Alert generation as the batch's closing step (the post-forecast hook). */
+async function generateAlertsForBatch(params: { tenantId: string; nowMs: number }): Promise<void> {
+  'use step';
+  const r = await runAlertGeneration(createSupabaseAdmin(), params.tenantId, params.nowMs);
+  console.log(
+    `[forecast-batch] alerts tenant=${params.tenantId} fired=${r.fired} created=${r.created} escalated=${r.escalated} closed=${r.closed}`,
+  );
 }

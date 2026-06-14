@@ -1,0 +1,172 @@
+/* Alerts queue (in-app alerts engine). Cobalt is reserved for the single CTA
+   slot per row (the action link); severity reads in stop/amber, never cobalt. */
+
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+.toolbarHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-stop);
+}
+
+.empty {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) 0;
+  border-top: 1px solid var(--color-hairline);
+}
+.row:last-child {
+  border-bottom: 1px solid var(--color-hairline);
+}
+/* A hairline severity rail on the left edge — the only color before the memo. */
+.row[data-severity="critical"] {
+  box-shadow: inset 3px 0 0 var(--color-stop);
+  padding-left: var(--spacing-4);
+}
+.row[data-severity="warn"] {
+  box-shadow: inset 3px 0 0 var(--color-warn);
+  padding-left: var(--spacing-4);
+}
+.row[data-severity="info"] {
+  box-shadow: inset 3px 0 0 var(--color-hairline);
+  padding-left: var(--spacing-4);
+}
+
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sev {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+}
+.sev[data-severity="critical"] {
+  color: var(--color-stop);
+}
+.sev[data-severity="warn"] {
+  color: var(--color-warn);
+}
+.sev[data-severity="info"] {
+  color: var(--color-dim);
+}
+
+.memo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  line-height: 1.45;
+}
+.meta {
+  display: flex;
+  gap: var(--spacing-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+.age {
+  font-variant-numeric: tabular-nums;
+}
+.reopen {
+  color: var(--color-mid);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  white-space: nowrap;
+}
+/* The single cobalt slot: the CTA to the fix. */
+.cta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-signal);
+  text-decoration: none;
+}
+.cta:hover {
+  text-decoration: underline;
+}
+.ghost {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  background: none;
+  border: 1px solid var(--color-hairline);
+  padding: 3px var(--spacing-2);
+  cursor: pointer;
+  transition:
+    color var(--duration-base) var(--ease-spring-soft),
+    border-color var(--duration-base) var(--ease-spring-soft);
+}
+.ghost:hover:not(:disabled) {
+  color: var(--color-deep);
+  border-color: var(--color-mid);
+}
+.ghost:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-2);
+  }
+  .actions {
+    justify-content: flex-start;
+  }
+}
