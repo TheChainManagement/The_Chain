@@ -14,6 +14,8 @@ import {
   chooseLeadTime,
   type DemandStats,
   demandStatsFromPoints,
+  derivePolicy,
+  type PolicyOutputs,
   SCORECARD_MIN_SAMPLE,
 } from '@/lib/policy/compute';
 
@@ -26,6 +28,48 @@ export interface WhatIfSupplierOption {
   leadSigmaDays: number;
   leadTimeSource: 'supplier' | 'scorecard';
   moq: number | null;
+}
+
+/** One lever position on the bench. */
+export interface WhatIfSelection {
+  serviceLevel: number;
+  supplierId: string | null;
+  /** Explicit lead-time override (exploration); null = use the supplier's lead. */
+  leadOverride: number | null;
+}
+
+export interface WhatIfScenario {
+  supplier: WhatIfSupplierOption | null;
+  /** The lead time the math actually used (override, else the supplier's). */
+  effectiveLead: number | null;
+  policy: PolicyOutputs | null;
+}
+
+/**
+ * Derive a single what-if scenario from a lever selection. The ONE place the
+ * supplier/lead resolution + `derivePolicy` call lives, so the bench's instant
+ * client-side ripple and the server-side insight facts can never drift. Pure.
+ */
+export function deriveScenario(inputs: WhatIfInputs, sel: WhatIfSelection): WhatIfScenario {
+  const supplier =
+    inputs.suppliers.find((s) => s.supplierId === sel.supplierId) ?? inputs.suppliers[0] ?? null;
+  const baseLead = supplier?.leadTimeDays ?? null;
+  const effectiveLead = sel.leadOverride ?? baseLead;
+  const policy =
+    effectiveLead == null
+      ? null
+      : derivePolicy({
+          dailyMean: inputs.demand.dailyMean,
+          dailySigma: inputs.demand.dailySigma,
+          leadTimeDays: effectiveLead,
+          // An explicit override has no measured lead-time variance.
+          leadSigmaDays: sel.leadOverride != null ? 0 : (supplier?.leadSigmaDays ?? 0),
+          serviceLevel: sel.serviceLevel,
+          moq: supplier?.moq ?? null,
+          coverageDays: inputs.coverageDays,
+          position: inputs.position,
+        });
+  return { supplier, effectiveLead, policy };
 }
 
 export interface WhatIfInputs {

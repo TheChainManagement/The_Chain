@@ -2,10 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   getForecastInsight,
+  getPolicyWhatIfInsight,
   getReorderInsight,
   getWeeklyChangeInsight,
   weeklyPeriodId,
+  whatIfScenarioId,
 } from '@/lib/insights/generate';
+import type { PolicyWhatIfFacts } from '@/lib/insights/prompts';
 import { PROMPT_VERSION } from '@/lib/insights/prompts';
 
 /**
@@ -163,6 +166,42 @@ describe('getWeeklyChangeInsight — cache path', () => {
     expect(res.insight.cached).toBe(true);
     expect(res.insight.content).toMatch(/Quiet week/);
     expect(res.insight.confidence).toBeCloseTo(0.9, 5);
+    expect(res.insight.promptVersion).toBe(PROMPT_VERSION);
+  });
+});
+
+describe('getPolicyWhatIfInsight — cache path', () => {
+  const FACTS: PolicyWhatIfFacts = {
+    sku: 'BLT-200',
+    supplierName: 'Atchafalaya',
+    supplierChanged: false,
+    baseServiceLevelPct: 95,
+    scenarioServiceLevelPct: 99,
+    baseLeadTimeDays: 7,
+    scenarioLeadTimeDays: 7,
+    baseSafetyStock: 12,
+    scenarioSafetyStock: 19,
+    baseReorderPoint: 40,
+    scenarioReorderPoint: 47,
+  };
+
+  it('serves a pre-cached scenario interpretation without a model call', async () => {
+    const entityId = whatIfScenarioId('prod-1', 'loc-1', FACTS);
+    await admin.from('insights').insert({
+      tenant_id: tenantId,
+      entity_type: 'policy_whatif',
+      entity_id: entityId,
+      model: 'anthropic/claude-sonnet-4.6',
+      prompt_version: PROMPT_VERSION,
+      content: { text: 'Going to 99% tightens stockout risk but adds 7 units of safety stock.' },
+      confidence: 0.9,
+    });
+
+    const res = await getPolicyWhatIfInsight(admin, tenantId, 'prod-1', 'loc-1', FACTS);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.insight.cached).toBe(true);
+    expect(res.insight.content).toMatch(/99%/);
     expect(res.insight.promptVersion).toBe(PROMPT_VERSION);
   });
 });

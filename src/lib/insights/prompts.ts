@@ -13,7 +13,7 @@
 
 export const PROMPT_VERSION = 'v1';
 
-export type InsightKind = 'reorder' | 'forecast' | 'weekly_change';
+export type InsightKind = 'reorder' | 'forecast' | 'weekly_change' | 'policy_whatif';
 
 export interface ReorderFacts {
   sku: string;
@@ -47,6 +47,20 @@ export interface WeeklyChangeFacts {
   receiptsLogged: number;
   /** Sync conflicts currently awaiting review. */
   conflictsPending: number;
+}
+
+export interface PolicyWhatIfFacts {
+  sku: string;
+  supplierName: string;
+  supplierChanged: boolean;
+  baseServiceLevelPct: number;
+  scenarioServiceLevelPct: number;
+  baseLeadTimeDays: number | null;
+  scenarioLeadTimeDays: number | null;
+  baseSafetyStock: number;
+  scenarioSafetyStock: number;
+  baseReorderPoint: number;
+  scenarioReorderPoint: number;
 }
 
 export interface PromptParts {
@@ -106,6 +120,25 @@ export function buildWeeklyChangePrompt(f: WeeklyChangeFacts): PromptParts {
     `Facts: ${f.alertsRaised} new alerts raised; ${f.reordersFlagged} new reorder flags;`,
     `${f.receiptsLogged} purchase-order receipts logged; ${f.conflictsPending} sync conflicts awaiting review.`,
     'Lead with what needs the operator’s attention; if the week was quiet, say so plainly rather than inflating it.',
+  ].join(' ');
+  return { system: SYSTEM, prompt };
+}
+
+/**
+ * The what-if interpretation: "if you do this, here's what changes." The model
+ * narrates the trade-off between the saved policy and the scrubbed scenario from
+ * typed before/after numbers only — it never recomputes a figure. SKU + supplier
+ * are data-derived labels, so they pass through `safeLabel`.
+ */
+export function buildPolicyWhatIfPrompt(f: PolicyWhatIfFacts): PromptParts {
+  const sku = safeLabel(f.sku);
+  const supplierMove = f.supplierChanged ? ` and sourcing from ${safeLabel(f.supplierName)}` : '';
+  const prompt = [
+    `Explain in two sentences what changes if the operator moves ${sku} from a ${f.baseServiceLevelPct}% service level`,
+    `with a ${n(f.baseLeadTimeDays, '-day')} lead to ${f.scenarioServiceLevelPct}% at ${n(f.scenarioLeadTimeDays, ' days')}${supplierMove}.`,
+    `Facts: safety stock ${n(f.baseSafetyStock)} → ${n(f.scenarioSafetyStock)} units;`,
+    `reorder point ${n(f.baseReorderPoint)} → ${n(f.scenarioReorderPoint)} units.`,
+    'Frame it as the trade-off: more buffer means more protection against variability but more carried stock, and the reverse. State the direction directly; do not second-guess yourself.',
   ].join(' ');
   return { system: SYSTEM, prompt };
 }

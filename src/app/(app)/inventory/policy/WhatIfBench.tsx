@@ -1,19 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import { ClaudeInsight } from '@/components/ClaudeInsight/ClaudeInsight';
 import { NumberRoll } from '@/components/NumberRoll/NumberRoll';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
-import {
-  clampServiceLevel,
-  derivePolicy,
-  SERVICE_LEVEL_MAX,
-  SERVICE_LEVEL_MIN,
-} from '@/lib/policy/compute';
+import type { InsightView } from '@/lib/insights/generate';
+import { clampServiceLevel, SERVICE_LEVEL_MAX, SERVICE_LEVEL_MIN } from '@/lib/policy/compute';
 import { dosTone, riskTone } from '@/lib/policy/queries';
-import type { WhatIfInputs } from '@/lib/policy/whatif';
-import { savePolicyDefault } from './actions';
+import { deriveScenario, type WhatIfInputs } from '@/lib/policy/whatif';
+import { explainWhatIf, savePolicyDefault } from './actions';
 import styles from './policy.module.css';
 
 /**
@@ -35,26 +32,61 @@ export function WhatIfBench({ inputs }: { inputs: WhatIfInputs }): ReactNode {
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const supplier =
-    inputs.suppliers.find((s) => s.supplierId === supplierId) ?? inputs.suppliers[0] ?? null;
+  const { supplier, effectiveLead, policy } = useMemo(
+    () => deriveScenario(inputs, { serviceLevel, supplierId, leadOverride }),
+    [inputs, serviceLevel, supplierId, leadOverride],
+  );
   const baseLead = supplier?.leadTimeDays ?? null;
-  const effectiveLead = leadOverride ?? baseLead;
 
-  const policy = useMemo(() => {
-    if (effectiveLead == null) return null;
-    return derivePolicy({
-      dailyMean: inputs.demand.dailyMean,
-      dailySigma: inputs.demand.dailySigma,
-      leadTimeDays: effectiveLead,
-      leadSigmaDays: leadOverride != null ? 0 : (supplier?.leadSigmaDays ?? 0),
-      serviceLevel,
-      moq: supplier?.moq ?? null,
-      coverageDays: inputs.coverageDays,
-      position: inputs.position,
-    });
-  }, [inputs, serviceLevel, effectiveLead, leadOverride, supplier]);
+  // The saved policy, re-derived by the SAME engine — so the baseline numbers
+  // the insight cites as "from" are visible on the bench, never unverifiable.
+  const baseline = useMemo(
+    () =>
+      deriveScenario(inputs, {
+        serviceLevel: inputs.serviceLevel,
+        supplierId: inputs.primarySupplierId,
+        leadOverride: null,
+      }),
+    [inputs],
+  );
 
   const dirty = clampServiceLevel(serviceLevel) !== inputs.serviceLevel;
+
+  // The scenario differs from the saved policy on any lever — that's when an
+  // explanation has something to say.
+  const scenarioChanged = dirty || leadOverride != null || supplierId !== inputs.primarySupplierId;
+
+  // Claude's read of the current scenario (loaded on demand, not per scrub).
+  const [insight, setInsight] = useState<InsightView | null>(null);
+  const [insightPhase, setInsightPhase] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [explaining, startExplain] = useTransition();
+
+  // A loaded note describes the scenario it was asked about; clear it the moment
+  // any lever moves so a stale read never sits under fresh numbers.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on any lever change, not on insight identity
+  useEffect(() => {
+    setInsight(null);
+    setInsightPhase('idle');
+  }, [serviceLevel, supplierId, leadOverride]);
+
+  function explain() {
+    setInsightPhase('loading');
+    startExplain(async () => {
+      const res = await explainWhatIf({
+        productId: inputs.productId,
+        locationId: inputs.locationId,
+        serviceLevel,
+        supplierId,
+        leadOverride,
+      });
+      if (res.ok) {
+        setInsight(res.insight);
+        setInsightPhase('idle');
+      } else {
+        setInsightPhase('error');
+      }
+    });
+  }
 
   function save() {
     setNote(null);
@@ -206,6 +238,43 @@ export function WhatIfBench({ inputs }: { inputs: WhatIfInputs }): ReactNode {
           </div>
         </div>
       )}
+
+      {/* Claude's read of the trade-off — on demand, never per scrub. */}
+      {policy != null && scenarioChanged ? (
+        <div className={styles.whatifExplain}>
+          {baseline.policy != null ? (
+            <span className={styles.baselineRef}>
+              Saved · {(inputs.serviceLevel * 100).toFixed(1)}% · safety stock{' '}
+              {baseline.policy.safetyStock.toFixed(1)} · reorder point{' '}
+              {baseline.policy.reorderPoint.toFixed(1)}
+            </span>
+          ) : null}
+          {insight ? (
+            <>
+              <ClaudeInsight topic="if you do this" confidence={insight.confidence}>
+                {insight.content}
+              </ClaudeInsight>
+              <span className={styles.whatifCaption}>
+                {insight.model} · prompt {insight.promptVersion}
+                {insight.cached ? ' · cached' : ''}
+              </span>
+            </>
+          ) : insightPhase === 'loading' ? (
+            <ClaudeInsight topic="if you do this" loading />
+          ) : insightPhase === 'error' ? (
+            <ClaudeInsight topic="if you do this" error />
+          ) : (
+            <button
+              type="button"
+              className={styles.explainBtn}
+              onClick={explain}
+              disabled={explaining}
+            >
+              Explain this what-if
+            </button>
+          )}
+        </div>
+      ) : null}
 
       <div className={styles.benchFoot}>
         <span className={styles.benchNote}>

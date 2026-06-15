@@ -20,10 +20,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { APICallError, gateway, generateText } from 'ai';
 import {
   buildForecastPrompt,
+  buildPolicyWhatIfPrompt,
   buildReorderPrompt,
   buildWeeklyChangePrompt,
   type ForecastFacts,
   type InsightKind,
+  type PolicyWhatIfFacts,
   PROMPT_VERSION,
   type ReorderFacts,
   type WeeklyChangeFacts,
@@ -47,6 +49,7 @@ const ENTITY_TYPE: Record<InsightKind, string> = {
   reorder: 'purchase_order',
   forecast: 'forecast',
   weekly_change: 'weekly_change',
+  policy_whatif: 'policy_whatif',
 };
 
 /**
@@ -115,19 +118,79 @@ export async function getForecastInsight(
 }
 
 /**
- * Map a period stamp (e.g. `2026-06-14`) to a stable UUID. `insights.entity_id`
- * is a uuid column, but the weekly digest has no natural entity — the period IS
- * the identity. A deterministic v5-style hash gives one cache row per period that
- * regenerates as the window rolls forward, without a schema change.
+ * Map an arbitrary seed string to a stable, valid v5-shaped UUID. Some insight
+ * kinds have no natural row to key on — a weekly digest IS its period, a what-if
+ * IS its scenario — so a deterministic hash gives one cache row per identity
+ * (regenerating only when the identity changes), without a schema change.
  */
-export function weeklyPeriodId(periodKey: string): string {
-  const hex = createHash('sha1').update(`weekly_change:${periodKey}`).digest('hex'); // 40 chars
+export function stableUuid(seed: string): string {
+  const hex = createHash('sha1').update(seed).digest('hex'); // 40 chars
   const variant = ((Number.parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16); // RFC 4122
   // 8-4-(version 5)4-(variant)4-12
   return (
     `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-` +
     `${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
   );
+}
+
+/** The weekly digest's cache identity is its period stamp (e.g. `2026-06-14`). */
+export function weeklyPeriodId(periodKey: string): string {
+  return stableUuid(`weekly_change:${periodKey}`);
+}
+
+/**
+ * A what-if scenario's cache identity: the SKU + location + the rounded lever
+ * positions and resulting numbers. Identical scenarios reuse the cached note
+ * (no repeat model spend); any meaningful change generates a fresh one.
+ */
+export function whatIfScenarioId(
+  productId: string,
+  locationId: string,
+  f: PolicyWhatIfFacts,
+): string {
+  const shape = [
+    productId,
+    locationId,
+    f.scenarioServiceLevelPct,
+    f.scenarioLeadTimeDays,
+    f.supplierChanged ? 'sup' : '-',
+    f.scenarioSafetyStock,
+    f.scenarioReorderPoint,
+  ].join(':');
+  return stableUuid(`policy_whatif:${shape}`);
+}
+
+/**
+ * The "If you do this, here's what changes" what-if interpretation. Facts are
+ * derived SERVER-side by the caller (the action re-runs the same pure policy
+ * math the bench scrubs), so the model narrates trusted numbers, never
+ * client-asserted ones. Cached per scenario.
+ */
+export async function getPolicyWhatIfInsight(
+  admin: SupabaseClient,
+  tenantId: string,
+  productId: string,
+  locationId: string,
+  facts: PolicyWhatIfFacts,
+): Promise<InsightResult> {
+  const entityId = whatIfScenarioId(productId, locationId, facts);
+
+  const cached = await readCachedInsight(admin, tenantId, 'policy_whatif', entityId);
+  if (cached) return { ok: true, insight: cached };
+
+  const { system, prompt } = buildPolicyWhatIfPrompt(facts);
+  const generated = await callModel({ system, prompt, kind: 'policy_whatif', tenantId });
+  if (!generated.ok) return generated;
+
+  const insight: InsightView = {
+    content: generated.text,
+    confidence: 0.9, // every fact is an engine-computed number — always complete
+    model: generated.model,
+    promptVersion: PROMPT_VERSION,
+    cached: false,
+  };
+  await cacheInsight(admin, tenantId, 'policy_whatif', entityId, insight);
+  return { ok: true, insight };
 }
 
 /**

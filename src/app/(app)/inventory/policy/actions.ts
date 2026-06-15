@@ -1,8 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { getPolicyWhatIfInsight, type InsightResult } from '@/lib/insights/generate';
+import type { PolicyWhatIfFacts } from '@/lib/insights/prompts';
 import { clampServiceLevel } from '@/lib/policy/compute';
-import { derivePoliciesForRun } from '@/lib/policy/derive';
+import { COVERAGE_DAYS, derivePoliciesForRun } from '@/lib/policy/derive';
+import { deriveScenario, loadWhatIfInputs } from '@/lib/policy/whatif';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -77,4 +80,67 @@ export async function savePolicyDefault(input: {
   revalidatePath('/inventory/policy');
   revalidatePath(`/inventory/${input.productId}`);
   return { ok: true };
+}
+
+/**
+ * "Explain this what-if" (Block 12 Wave B3). Re-derives BOTH the saved baseline
+ * and the scrubbed scenario server-side via the same pure `deriveScenario` the
+ * bench runs, then hands Claude the before/after numbers to narrate the
+ * trade-off. The model never sees a client-asserted figure — only engine output.
+ * Read-only (no role gate): exploring trade-offs writes nothing.
+ */
+export async function explainWhatIf(input: {
+  productId: string;
+  locationId: string;
+  serviceLevel: number;
+  supplierId: string | null;
+  leadOverride: number | null;
+}): Promise<InsightResult> {
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.auth.getClaims();
+  const tenantId = data?.claims?.tenant_id as string | undefined;
+  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+
+  const inputs = await loadWhatIfInputs(supabase, input.productId, COVERAGE_DAYS, input.locationId);
+  if (!inputs) return { ok: false, error: 'No policy to explore for that SKU yet.' };
+
+  const baseline = deriveScenario(inputs, {
+    serviceLevel: inputs.serviceLevel,
+    supplierId: inputs.primarySupplierId,
+    leadOverride: null,
+  });
+  const scenario = deriveScenario(inputs, {
+    serviceLevel: input.serviceLevel,
+    supplierId: input.supplierId,
+    leadOverride: input.leadOverride,
+  });
+  if (!baseline.policy || !scenario.policy) {
+    return { ok: false, error: 'This scenario has no lead time to compute against.' };
+  }
+
+  const facts: PolicyWhatIfFacts = {
+    sku: inputs.sku,
+    supplierName: scenario.supplier?.name ?? 'the supplier',
+    supplierChanged: input.supplierId !== inputs.primarySupplierId,
+    baseServiceLevelPct: Math.round(inputs.serviceLevel * 1000) / 10,
+    scenarioServiceLevelPct: Math.round(clampServiceLevel(input.serviceLevel) * 1000) / 10,
+    baseLeadTimeDays: baseline.effectiveLead,
+    scenarioLeadTimeDays: scenario.effectiveLead,
+    baseSafetyStock: round1(baseline.policy.safetyStock),
+    scenarioSafetyStock: round1(scenario.policy.safetyStock),
+    baseReorderPoint: round1(baseline.policy.reorderPoint),
+    scenarioReorderPoint: round1(scenario.policy.reorderPoint),
+  };
+
+  return getPolicyWhatIfInsight(
+    createSupabaseAdmin(),
+    tenantId,
+    input.productId,
+    input.locationId,
+    facts,
+  );
+}
+
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
 }

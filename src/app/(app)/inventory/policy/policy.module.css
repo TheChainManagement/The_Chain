@@ -164,6 +164,49 @@
   color: var(--color-stop);
 }
 
+/* ----- what-if explanation (Block 12 Wave B3) ----- */
+
+.whatifExplain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.baselineRef {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-dim);
+}
+.explainBtn {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: 2px;
+  padding: var(--spacing-2) var(--spacing-3);
+  cursor: pointer;
+}
+.explainBtn:hover {
+  color: var(--color-deep);
+  border-color: var(--color-deep);
+  background: var(--color-inset);
+}
+.explainBtn:disabled {
+  color: var(--color-dim);
+  cursor: default;
+}
+.whatifCaption {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+}
+
 /* ----- the coverage ledger ----- */
 
 .ledger {
