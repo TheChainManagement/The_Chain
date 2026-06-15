@@ -9,6 +9,7 @@ import {
   type InsightResult,
   weeklyPeriodId,
 } from './generate';
+import { weeklyPeriodKey, weeklyWindowStart } from './weekly-change';
 
 /**
  * Lazy insight loader (Block 12). Called by the client panel on first view. RLS
@@ -53,8 +54,6 @@ export async function loadForecastInsight(productId: string): Promise<InsightRes
   return getForecastInsight(createSupabaseAdmin(), tenantId, productId);
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
 /**
  * Lazy "What changed this week" digest loader (Block 12 Wave B2). Tenant-level —
  * no entity to existence-check, the tenant claim IS the scope. The window is the
@@ -68,8 +67,10 @@ export async function loadWeeklyChangeInsight(): Promise<InsightResult> {
   if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
 
   const now = Date.now();
-  const since = new Date(now - WEEK_MS).toISOString();
-  const periodKey = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD
-
-  return getWeeklyChangeInsight(createSupabaseAdmin(), tenantId, weeklyPeriodId(periodKey), since);
+  return getWeeklyChangeInsight(
+    createSupabaseAdmin(),
+    tenantId,
+    weeklyPeriodId(weeklyPeriodKey(now)),
+    weeklyWindowStart(now),
+  );
 }

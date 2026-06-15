@@ -3,8 +3,10 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { WeeklyChangeInsightPanel } from '@/components/InsightPanel/WeeklyChangeInsightPanel';
+import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
 import { listOpenAlerts, openAlertCounts } from '@/lib/alerts/queue';
+import { assembleWeeklyChangeFacts, weeklyWindowStart } from '@/lib/insights/weekly-change';
 import { listPendingConflicts } from '@/lib/qbo/conflicts';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from './flow.module.css';
@@ -18,9 +20,14 @@ export const metadata = { title: 'Flow · The Chain' };
  */
 export default async function FlowPage(): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const [alerts, conflicts] = await Promise.all([
+  const { data: claims } = await supabase.auth.getClaims();
+  const tenantId = (claims?.claims?.tenant_id as string | undefined) ?? '';
+  const [alerts, conflicts, week] = await Promise.all([
     listOpenAlerts(supabase),
     listPendingConflicts(supabase),
+    // The same four counts the weekly digest narrates — rendered here so every
+    // number Claude states is verifiable on-screen (trust hierarchy).
+    assembleWeeklyChangeFacts(supabase, tenantId, weeklyWindowStart(Date.now())),
   ]);
   const counts = openAlertCounts(alerts);
 
@@ -34,6 +41,15 @@ export default async function FlowPage(): Promise<ReactNode> {
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Operations" title="Flow" />
+
+      {/* This week — the counts the digest narrates, on-screen and verifiable. */}
+      <div className={pageStyles.strip}>
+        <MetricCell label="ALERTS RAISED" value={week.alertsRaised} />
+        <MetricCell label="REORDER FLAGS" value={week.reordersFlagged} />
+        <MetricCell label="RECEIPTS" value={week.receiptsLogged} />
+        <MetricCell label="CONFLICTS PENDING" value={week.conflictsPending} />
+      </div>
+
       <WeeklyChangeInsightPanel />
       <Panel prefix="Surfaces" title="What needs attention">
         <ul className={styles.cards}>

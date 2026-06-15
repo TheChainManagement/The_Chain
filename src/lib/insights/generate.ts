@@ -28,8 +28,8 @@ import {
   type PolicyWhatIfFacts,
   PROMPT_VERSION,
   type ReorderFacts,
-  type WeeklyChangeFacts,
 } from './prompts';
+import { assembleWeeklyChangeFacts } from './weekly-change';
 
 const PRIMARY_MODEL = 'anthropic/claude-sonnet-4.6';
 const FALLBACK_MODELS = ['anthropic/claude-haiku-4.5', 'openai/gpt-5.4'];
@@ -153,7 +153,9 @@ export function whatIfScenarioId(
     locationId,
     f.scenarioServiceLevelPct,
     f.scenarioLeadTimeDays,
-    f.supplierChanged ? 'sup' : '-',
+    // The supplier is part of the identity: the prose names it on a swap, so two
+    // suppliers with identical derived numbers must NOT share a cache row.
+    f.supplierChanged ? `sup:${f.supplierName}` : '-',
     f.scenarioSafetyStock,
     f.scenarioReorderPoint,
   ].join(':');
@@ -481,52 +483,6 @@ function numOrNull(v: number | string | null | undefined): number | null {
   if (v == null) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
-}
-
-// ----- weekly-change facts assembly -----
-
-/**
- * Count the week's operational movement: alerts raised + reorder flags + PO
- * receipts inside the trailing window, plus the currently-pending sync conflicts.
- * Exact-count head queries (no rows pulled). A failed count degrades to 0 so the
- * digest never throws — a quiet read is the honest fallback.
- */
-async function assembleWeeklyChangeFacts(
-  admin: SupabaseClient,
-  tenantId: string,
-  since: string,
-): Promise<WeeklyChangeFacts> {
-  const [alertsRaised, reordersFlagged, receiptsLogged, conflictsPending] = await Promise.all([
-    countSince(admin, 'alerts', tenantId, 'created_at', since),
-    countSince(admin, 'reorder_recommendations', tenantId, 'created_at', since),
-    countSince(admin, 'po_receipt_events', tenantId, 'applied_at', since),
-    countPendingConflicts(admin, tenantId),
-  ]);
-  return { alertsRaised, reordersFlagged, receiptsLogged, conflictsPending };
-}
-
-async function countSince(
-  admin: SupabaseClient,
-  table: string,
-  tenantId: string,
-  column: string,
-  since: string,
-): Promise<number> {
-  const { count } = await admin
-    .from(table)
-    .select('*', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId)
-    .gte(column, since);
-  return count ?? 0;
-}
-
-async function countPendingConflicts(admin: SupabaseClient, tenantId: string): Promise<number> {
-  const { count } = await admin
-    .from('sync_conflicts')
-    .select('*', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId)
-    .is('resolved_at', null);
-  return count ?? 0;
 }
 
 // ----- cache -----

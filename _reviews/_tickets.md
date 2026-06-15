@@ -294,21 +294,29 @@ these are the accepted-deferred items:
 - **"After each sync" generation hook** — generation currently runs after the forecast batch + on
   demand (`recomputeAlerts`). Wiring it into the incremental-sync tail is a small follow-up.
 
-## Block 12 (AI insights) Wave A — deferred (2026-06-14)
-From `_reviews/2026-06-14_block12_ai_insights_evidence.md`. Engine + "Why this reorder" on the PO
-detail page shipped + live-verified. Wave B / follow-ups:
+## Block 12 (AI insights) — Wave B SHIPPED (2026-06-14); follow-ups remain
+Wave A (engine + "Why this reorder") AND Wave B all shipped + live-verified:
+- ✅ **"Why this forecast"** (B1) — `/forecasts/[productId]`.
+- ✅ **"What changed this week"** (B2) — `/flow`, with a "This week" count strip grounding the digest.
+- ✅ **What-if interpretation** (B3) — `/inventory/policy`, server-derived facts + "Saved ·" baseline ref.
+Block 12 is feature-complete (4 insight kinds). Remaining open follow-ups (Codex round, 2026-06-14):
 
-- **"Why this forecast" surface** — prompt builder + ForecastFacts already stubbed in `prompts.ts`;
-  wire facts assembly (forecast row + bands + RMSSE) + a panel on `/forecasts/[productId]`.
-- **"What changed since last week" insight kind** — third FEATURES kind; needs a prior-period diff.
-- **What-if slider entry point** — adjust service level / lead time → recomputed `<StatNumber>` +
-  a Claude "if you do this, here's what changes" continuation (FEATURES step 5; the memorable's
-  hairline-divided continuation).
-- **Right-rail placement** — insights render inline on the PO page; the FEATURES "right rail in app"
-  needs a layout slot mechanism (page → layout entity hand-off).
-- **Per-tenant insight cost counter in admin** — per-call token usage is logged today; surface the
+- **Right-rail placement** — insights render inline (PO/forecast/flow/bench); FEATURES specifies the
+  app right rail. The bench layout HAS a `CONTEXT` right rail with placeholder copy; moving insights
+  there needs a page → layout slot hand-off. (Deviation flagged; inline is the shipped choice.)
+- **Per-tenant insight cost counter in admin** — per-call token usage is logged to stdout; surface the
   aggregate (FEATURES Codex checklist; the Wave-1 counter seam).
-- **Durable step-wrapped generation** — on-view generation is a cached Server Action; batch/
-  background insight generation should move into a `"use step"` for retry/durability.
-- **Model-fallback live drill** — verify the gateway fallback chain actually fails over when the
-  primary model errors (config is in place; needs a forced-failure test).
+- **Durable step-wrapped generation** — on-view generation is a cached Server Action (request-path,
+  not a durable job); FEATURES/MASTER_PROMPT name a `"use step"` wrapper. Revisit if/when insight
+  generation moves to a batch/background path.
+- **Model-fallback live drill** — verify the gateway fallback chain fails over when the primary model
+  errors (config in place; needs a forced-failure test).
+- **Reorder insight trust surface** — the PO detail page shows ordered qty/dates/total but not the
+  on-hand / DOS / ROP / stockout numbers the reorder insight cites; add a policy-context stat row so
+  every cited number is on-screen (same fix shipped for B2 digest + B3 what-if).
+- **Reorder narrates first PO line only** — weak for grouped multi-line supplier buys; summarize the
+  order, not the lead line.
+- **Weekly digest same-day staleness** — cache keyed by date, so same-day new alerts/receipts don't
+  refresh the prose until the date rolls. Key on a count fingerprint if freshness matters more than cost.
+- **Insight error granularity** — all failures collapse to one generic `ClaudeInsight` error; the
+  underlying reason is discarded by the panel loaders.
