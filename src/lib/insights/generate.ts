@@ -29,6 +29,7 @@ import {
   PROMPT_VERSION,
   type ReorderFacts,
 } from './prompts';
+import { loadPolicyNumbers } from './reorder-context';
 import { assembleWeeklyChangeFacts } from './weekly-change';
 
 const PRIMARY_MODEL = 'anthropic/claude-sonnet-4.6';
@@ -309,6 +310,7 @@ interface RawPoForFacts {
   purchase_order_lines:
     | {
         product_id: string;
+        line_no: number;
         ordered_qty: number | string;
         products: { sku: string | null } | null;
       }[]
@@ -323,62 +325,32 @@ async function assembleReorderFacts(
   const { data: po } = await admin
     .from('purchase_orders')
     .select(
-      'id, location_id, suppliers ( name ), purchase_order_lines ( product_id, ordered_qty, products ( sku ) )',
+      'id, location_id, suppliers ( name ), purchase_order_lines ( product_id, line_no, ordered_qty, products ( sku ) )',
     )
     .eq('tenant_id', tenantId)
     .eq('id', poId)
     .maybeSingle<RawPoForFacts>();
   if (!po) return null;
 
-  // The order's primary (first) line drives the narrative; the policy gives the
-  // position / reorder point / cover the model explains.
-  const line = (po.purchase_order_lines ?? [])[0];
+  // The order's primary (lowest line_no) line drives the narrative; the policy
+  // gives the position / reorder point / cover the model explains. The same line
+  // + numbers the PO page renders (loadReorderContext), so they never disagree.
+  const line = [...(po.purchase_order_lines ?? [])].sort((a, b) => a.line_no - b.line_no)[0];
   const sku = line?.products?.sku ?? 'this SKU';
   const orderedQty = line ? Number(line.ordered_qty) : 0;
 
-  let position: number | null = null;
-  let reorderPoint: number | null = null;
-  let daysOfSupply: number | null = null;
-  let stockoutRiskPct: number | null = null;
-
-  if (line?.product_id) {
-    const { data: policy } = await admin
-      .from('inventory_policy')
-      .select('reorder_point, days_of_supply, stockout_risk_score')
-      .eq('tenant_id', tenantId)
-      .eq('product_id', line.product_id)
-      .eq('location_id', po.location_id) // the PO's warehouse, not just any
-      .maybeSingle<{
-        reorder_point: number | string | null;
-        days_of_supply: number | string | null;
-        stockout_risk_score: number | string | null;
-      }>();
-    if (policy) {
-      reorderPoint = policy.reorder_point == null ? null : Number(policy.reorder_point);
-      daysOfSupply = policy.days_of_supply == null ? null : round1(Number(policy.days_of_supply));
-      stockoutRiskPct =
-        policy.stockout_risk_score == null
-          ? null
-          : Math.round(Number(policy.stockout_risk_score) * 100);
-    }
-    const { data: level } = await admin
-      .from('inventory_levels')
-      .select('on_hand')
-      .eq('tenant_id', tenantId)
-      .eq('product_id', line.product_id)
-      .eq('location_id', po.location_id)
-      .maybeSingle<{ on_hand: number | string }>();
-    if (level) position = round1(Number(level.on_hand));
-  }
+  const ctx = line?.product_id
+    ? await loadPolicyNumbers(admin, tenantId, line.product_id, po.location_id)
+    : null;
 
   return {
     sku,
     supplierName: po.suppliers?.name ?? 'the supplier',
     orderedQty,
-    position,
-    reorderPoint,
-    daysOfSupply,
-    stockoutRiskPct,
+    position: ctx?.onHand ?? null,
+    reorderPoint: ctx?.reorderPoint ?? null,
+    daysOfSupply: ctx?.daysOfSupply ?? null,
+    stockoutRiskPct: ctx?.stockoutRiskPct ?? null,
   };
 }
 

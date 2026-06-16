@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { ReorderInsightPanel } from '@/components/InsightPanel/ReorderInsightPanel';
+import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { loadReorderContext } from '@/lib/insights/reorder-context';
 import { getPurchaseOrder } from '@/lib/purchase-orders/queries';
 import {
   fmtDate,
@@ -35,11 +37,23 @@ export default async function PurchaseOrderDetailPage({
 }): Promise<ReactNode> {
   const { poId } = await params;
   const supabase = await createSupabaseServer();
+  const { data: claims } = await supabase.auth.getClaims();
+  const tenantId = (claims?.claims?.tenant_id as string | undefined) ?? '';
   const po = await getPurchaseOrder(supabase, poId);
   if (!po) notFound();
 
   const approvable = isApprovablePo(po.status);
   const receivable = isReceivablePo(po.status);
+
+  // The policy numbers the reorder insight narrates — rendered on-screen so every
+  // figure Claude cites is verifiable (trust hierarchy). Null when no policy yet.
+  const ctx = await loadReorderContext(supabase, tenantId, po.id);
+  const hasContext =
+    ctx != null &&
+    (ctx.onHand != null ||
+      ctx.daysOfSupply != null ||
+      ctx.reorderPoint != null ||
+      ctx.stockoutRiskPct != null);
 
   return (
     <div className={pageStyles.stack}>
@@ -138,6 +152,17 @@ export default async function PurchaseOrderDetailPage({
         {approvable ? <ApproveControls poId={po.id} /> : null}
         {receivable ? <ReceiveControls poId={po.id} lines={po.lines} /> : null}
       </Panel>
+
+      {hasContext && ctx ? (
+        <Panel prefix="Reorder context" title="Why this order fired">
+          <div className={pageStyles.strip}>
+            <MetricCell label="ON HAND" value={ctx.onHand} />
+            <MetricCell label="DAYS OF SUPPLY" value={ctx.daysOfSupply} unit="days" />
+            <MetricCell label="REORDER POINT" value={ctx.reorderPoint} />
+            <MetricCell label="STOCKOUT RISK" value={ctx.stockoutRiskPct} unit="%" />
+          </div>
+        </Panel>
+      ) : null}
 
       <ReorderInsightPanel poId={po.id} />
     </div>
