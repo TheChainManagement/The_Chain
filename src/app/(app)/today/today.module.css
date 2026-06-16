@@ -1,0 +1,234 @@
+/* Today dashboard (Block 15). Tokens for spacing/color/motion; raw px for
+   font-size + small structural dims per house style (px→token = stack-audit). */
+
+/* Metric strip cells are clickable — each wraps a MetricCell in a routing link
+   that keeps the border-divide rhythm and adds a quiet hover. */
+.metricLink {
+  flex: 1 1 160px;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--duration-quick) var(--ease-tick);
+}
+.metricLink:hover {
+  background: var(--color-inset);
+}
+.metricLink:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+
+/* Fresh-state CTA pairing: primary source connect + secondary import path. */
+.ctaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+/* Two-column body: the work surface + a contextual rail (asymmetric by design).
+   Collapses to one column on narrow viewports. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--spacing-6);
+  align-items: start;
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  min-width: 0;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Centerpiece: the in-flight PO chain + the acknowledge interaction. */
+.centerpiece {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+.centerpieceFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.settledNote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.settledMark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-flow);
+}
+.pressingMemo {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+.ackError {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+/* Throughput ruler: a hairline with seven day chips and a today marker. */
+.ruler {
+  position: relative;
+  padding: var(--spacing-2) 0 0;
+}
+.rulerLine {
+  position: absolute;
+  left: var(--spacing-2);
+  right: var(--spacing-2);
+  top: 20px;
+  height: 1px;
+  background: var(--color-hairline);
+  z-index: 0;
+}
+.rulerDays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+}
+.rulerDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+.rulerTick {
+  display: none;
+}
+.rulerCount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  line-height: 1.4;
+  min-width: 1.6em;
+  text-align: center;
+  padding: 0 var(--spacing-2);
+  color: var(--color-dim);
+  background: var(--color-surface);
+}
+.rulerDay[data-has="true"] .rulerCount {
+  color: var(--color-deep);
+}
+.rulerDay[data-today="true"] .rulerCount {
+  color: var(--color-surface);
+  background: var(--color-deep);
+}
+.rulerLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.rulerDay[data-today="true"] .rulerLabel {
+  color: var(--color-deep);
+  font-weight: 600;
+}
+
+/* Right-column alerts triage. */
+.alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.alert {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) 0;
+}
+.alert + .alert {
+  border-top: 1px solid var(--color-hairline);
+}
+.alertRail {
+  width: 2px;
+  flex-shrink: 0;
+  background: var(--color-dim);
+}
+.alert[data-severity="critical"] .alertRail {
+  background: var(--color-stop);
+}
+.alert[data-severity="warn"] .alertRail {
+  background: var(--color-warn);
+}
+.alert[data-severity="info"] .alertRail {
+  background: var(--color-dim);
+}
+.alertBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+.alertKind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.alertMemo {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-deep);
+}
+.alertFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-1);
+}
+.alertCta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-signal);
+  text-decoration: none;
+}
+.alertCta:hover {
+  text-decoration: underline;
+}
+.alertAge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-dim);
+  flex-shrink: 0;
+}
+.railEmpty {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-dim);
+}

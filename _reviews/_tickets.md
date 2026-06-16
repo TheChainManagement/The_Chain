@@ -320,3 +320,23 @@ Block 12 is feature-complete (4 insight kinds). Remaining open follow-ups (Codex
   refresh the prose until the date rolls. Key on a count fingerprint if freshness matters more than cost.
 - **Insight error granularity** — all failures collapse to one generic `ClaudeInsight` error; the
   underlying reason is discarded by the panel loaders.
+
+## Block 15 (`/today` dashboard) — BUILT + Codex-gated 2026-06-16; follow-ups
+Shipped: centerpiece chain + heartbeat→acknowledge memorable interaction, clickable
+metric strip (most-used supplier OTIF by PO volume), Claude top-recommendation +
+recent alerts, throughput ruler, all 3 population states (fresh/onboarding/populated).
+Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
+`_reviews/2026-06-16_block15_today_dashboard.md`. Deferred:
+- **`bench:dashboard` 5k SLO (p50<800ms/p95<1.5s)** on a seeded Vercel Preview — the
+  acceptance bench. Shares the standing seeded-Preview harness ticket (Local World
+  timing isn't the SLO). The `bench:dashboard` script itself isn't written yet.
+- **Insight + alerts into the layout `RightRail` slot** — today's right column lives
+  in the page; the standing `<RightRail>` is still placeholder copy. Needs a
+  parallel-route / layout-slot hand-off. Shared with the Block 12 right-rail ticket.
+- **Per-section Suspense streaming + precise `'use cache'`/`cacheTag` tags** —
+  CROSS-CUTTING, not Block-15-specific: the whole app uses dynamic RLS reads + PPR +
+  `revalidatePath`; no block uses `'use cache'`. `/today` streams behind the segment
+  `loading.tsx` boundary today. Adopt `'use cache'` tagging as one architecture pass.
+- **Playwright capture of the pulse-on / pulse-off states** (FEATURES Block 15) —
+  infra-blocked (Playwright not wired); the driveable RTL interaction test +
+  live browser verification stand in, per the standing substitution.

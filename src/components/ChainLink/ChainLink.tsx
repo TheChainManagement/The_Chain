@@ -32,6 +32,18 @@ export interface ChainLinkProps {
    * the link's logical state stays `done`.
    */
   celebrate?: boolean;
+  /**
+   * The dashboard heartbeat (Block 15). An `active` link pulses — a subtle 2s
+   * cobalt opacity wave — to signal an unacknowledged recommendation needs the
+   * operator's eye. Ignored on non-active links and once `settled`. Suppressed
+   * under reduced-motion (the CSS guards it).
+   */
+  pulse?: boolean;
+  /**
+   * The acknowledged state of a pulsing active link: the heartbeat stops and a
+   * small flow-green dot marks the link as seen. Visual only.
+   */
+  settled?: boolean;
 }
 
 export function ChainLink({
@@ -41,9 +53,17 @@ export function ChainLink({
   state = 'pending',
   connector = 'none',
   celebrate = false,
+  pulse = false,
+  settled = false,
 }: ChainLinkProps): ReactNode {
   const complete = celebrate && state === 'done';
-  const className = [styles.link, styles[state], complete ? styles.complete : '']
+  const pulsing = pulse && state === 'active' && !settled;
+  const className = [
+    styles.link,
+    styles[state],
+    complete ? styles.complete : '',
+    pulsing ? styles.pulse : '',
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -53,9 +73,15 @@ export function ChainLink({
       data-state={state}
       data-connector={connector}
       data-complete={complete}
+      data-pulse={pulsing}
+      data-settled={settled && state === 'active'}
     >
       {state === 'active' || complete ? (
         <span className={styles.ignite} aria-hidden="true" />
+      ) : null}
+      {pulsing ? <span className={styles.heartbeat} aria-hidden="true" /> : null}
+      {settled && state === 'active' ? (
+        <span className={styles.settledDot} aria-hidden="true" />
       ) : null}
       {state === 'done' && !complete ? (
         <span className={styles.cornerDot} aria-hidden="true" />

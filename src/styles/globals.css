@@ -56,6 +56,7 @@
   --duration-base: 320ms;
   --duration-reveal: 600ms;
   --duration-tick: 600ms;
+  --duration-pulse: 2000ms; /* the dashboard chain heartbeat (Block 15) */
   --duration-scan: 60000ms;
 
   /* --- Type families --- */

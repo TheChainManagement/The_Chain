@@ -153,3 +153,47 @@
     transform: scaleX(1);
   }
 }
+
+/* HEARTBEAT — the dashboard's active link pulses a soft cobalt wave until the
+   operator acknowledges today's recommendation (Block 15 memorable interaction).
+   A brighter cobalt overlay breathes in/out over the already-ignited fill;
+   opacity only, so it composes over the ignite without layout cost. */
+.heartbeat {
+  position: absolute;
+  inset: 0;
+  background: var(--color-signal-bright);
+  opacity: 0;
+  animation: chain-heartbeat var(--duration-pulse) var(--ease-tick) 1s infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes chain-heartbeat {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* SETTLED — acknowledged: the heartbeat stops and a small flow-green dot marks
+   the active link as seen (mirrors the done corner-dot, in flow-green). */
+.settledDot {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-flow);
+  z-index: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heartbeat {
+    animation: none;
+    opacity: 0.28; /* a steady cobalt tint stands in for the wave */
+  }
+}
