@@ -340,3 +340,27 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
 - **Playwright capture of the pulse-on / pulse-off states** (FEATURES Block 15) —
   infra-blocked (Playwright not wired); the driveable RTL interaction test +
   live browser verification stand in, per the standing substitution.
+
+## Block 2 — Onboarding (Wave 2a, 2026-06-17)
+- **`onboardingWorkflow` formal orchestrator** — MG-approved deviation: onboarding
+  runs as a state-machine over `onboarding_state` + reuse of the existing
+  `qboInitialSyncWorkflow` / `forecastTenantBatchWorkflow`, not a new `"use workflow"`
+  orchestrator that would only park on user clicks. Revisit only if a future step
+  needs genuine durable orchestration.
+- **QBO / CSV in-chain live sync progress (Wave 2b)** — the path-picker sets the path
+  and hands off to the existing `/integrations/quickbooks` and `/import` surfaces;
+  the chain tracks their catalog/supplier minimums from live counts. Streaming the
+  sync run inside the onboarding chain (consume the workflow `getReadable()`) is 2b.
+- **Populate `onboarding_state.minimum_fields_met` jsonb** — currently unused. MG call
+  (2026-06-17): keep functional minimums (SKU+name / supplier name); the engine needs
+  no unit cost (Block 9 = no cost params) and lead time is honestly optional (policy
+  skips no-lead-time SKUs). Write the jsonb per step for the record in a follow-up.
+- **Action-layer integration tests for the onboarding actions** — incl. the
+  skip-before-path regression (seedOnlyOptIn upsert) and the atomic-RPC rollback
+  paths. The pure step-machine is unit-tested; the live happy-path + bypass + guards
+  were browser-verified this session. Consistent with prior blocks deferring
+  action-layer tests.
+- **Playwright 3-state onboarding-chain capture** (FEATURES Block 2 required artifact)
+  — infra-blocked (Playwright not wired); the RTL `_feature_onboarding_chain_memorable`
+  test (empty → 2/5 → 5/5) + live browser verification stand in, per the standing
+  substitution.

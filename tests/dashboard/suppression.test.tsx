@@ -85,6 +85,10 @@ vi.mock('@/lib/dashboard/queries', () => ({
   loadSupplierOtif: async () => new Map([['s1', 0.86]]),
   countActiveProducts: async () => 3,
 }));
+// Legacy tenant (no onboarding_state row, has a catalog) → past the Block 2 guard.
+vi.mock('@/lib/onboarding/queries', () => ({
+  loadOnboardingState: async () => null,
+}));
 // Stub the lazy AI panels (they pull server-only insight deps) and the action.
 vi.mock('@/components/InsightPanel/ReorderInsightPanel', () => ({
   ReorderInsightPanel: () => null,

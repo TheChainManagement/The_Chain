@@ -1,0 +1,232 @@
+/* Onboarding surface (Block 2). Tokens only; px on type per house style. */
+
+/* The chain sits on an inset frame so the forming links read as the centerpiece. */
+.chainFrame {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: var(--spacing-6) var(--spacing-5);
+}
+
+/* ---------------------------------------------------------------- path picker */
+.pathGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.pathOptions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-4);
+}
+.pathCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  text-align: left;
+  padding: var(--spacing-5);
+  background: var(--color-bg);
+  border: 1px solid var(--color-hairline);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-quick) var(--ease-spring-soft),
+    box-shadow var(--duration-base) var(--ease-spring-soft),
+    transform var(--duration-quick) var(--ease-spring-soft);
+}
+.pathCard:hover:not(:disabled) {
+  border-color: var(--color-signal);
+  box-shadow: var(--shadow-cobalt-diffusion);
+  transform: translateY(-1px);
+}
+.pathCard:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+.pathCard:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.pathTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--color-deep);
+}
+.pathBlurb {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+.pathGo {
+  margin-top: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+}
+
+@media (max-width: 720px) {
+  .pathOptions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------- step forms */
+.stepLead {
+  margin: 0 0 var(--spacing-4);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-mid);
+  max-width: 56ch;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  max-width: 44ch;
+}
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.input {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  padding: 10px 12px;
+  transition: border-color var(--duration-quick) var(--ease-tick);
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--color-signal);
+  box-shadow: 0 0 0 1px var(--color-signal);
+}
+.submit {
+  margin-top: var(--spacing-1);
+}
+.error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+@media (max-width: 560px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------- completion */
+.completeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.preparing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.preparingLead {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--color-deep);
+}
+.shimmer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.shimmer span {
+  height: 14px;
+  background: linear-gradient(
+    90deg,
+    var(--color-inset) 0%,
+    var(--color-hairline) 50%,
+    var(--color-inset) 100%
+  );
+  background-size: 200% 100%;
+  animation: onboardingShimmer var(--duration-reveal) var(--ease-tick) infinite;
+}
+.shimmer span:nth-child(1) {
+  width: 80%;
+}
+.shimmer span:nth-child(2) {
+  width: 60%;
+}
+.shimmer span:nth-child(3) {
+  width: 70%;
+}
+@keyframes onboardingShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer span {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- skip */
+.skip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding-top: var(--spacing-2);
+}
+.skipLink,
+.skipYes,
+.skipNo {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.skipLink:hover,
+.skipNo:hover {
+  color: var(--color-deep);
+}
+.skipConfirm {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.skipYes {
+  color: var(--color-signal);
+}
+.skipYes:hover {
+  color: var(--color-signal-bright);
+}
+.skipYes:disabled,
+.skipNo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

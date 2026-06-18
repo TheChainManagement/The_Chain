@@ -14,8 +14,9 @@ import styles from './auth.module.css';
  *
  * On sign-up success the action returns { ok: true } instead of redirecting, so
  * the signup screen morphs into the bench (rails slide in, the onboarding chain
- * ignites link by link) before navigating to /today. The signup screen becomes
- * the workshop — the memorable element for this feature.
+ * ignites link by link) before navigating to /onboarding, where that same chain
+ * persists and goes live (Block 2). The signup screen becomes the workshop — the
+ * memorable element for this feature.
  */
 
 // Onboarding chain shown forming during the post-signup transition. First link
@@ -63,9 +64,10 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
 
   useEffect(() => {
     if (!igniting) return;
-    // Navigate as the chain finishes forming. Whole transition stays under 800ms;
-    // /today carries the same rails, so the bench appears continuous.
-    const timer = setTimeout(() => router.push('/today'), 780);
+    // Navigate as the chain finishes forming. Whole transition stays under 800ms.
+    // /onboarding carries the same five forming links, so the chain the operator
+    // just watched ignite persists and becomes the live onboarding chain (Block 2).
+    const timer = setTimeout(() => router.push('/onboarding'), 780);
     return () => clearTimeout(timer);
   }, [igniting, router]);
 

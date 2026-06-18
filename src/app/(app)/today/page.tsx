@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
@@ -16,6 +17,8 @@ import {
   throughputLast7Days,
   worstDaysOfSupply,
 } from '@/lib/dashboard/transform';
+import { loadOnboardingState } from '@/lib/onboarding/queries';
+import { onboardingComplete } from '@/lib/onboarding/state';
 import { listPurchaseOrders } from '@/lib/purchase-orders/queries';
 import { buildOrderChain, openPoCount, orderConnector } from '@/lib/purchase-orders/transform';
 import { loadReorderQueue } from '@/lib/reorder/queue';
@@ -52,18 +55,28 @@ const STRIP_KEYS = ['AT STOCKOUT RISK', 'WORST DAYS OF SUPPLY', 'TOP SUPPLIER OT
  */
 export default async function TodayPage(): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const [pos, groups, alerts, otifBySupplier, productCount] = await Promise.all([
+  const [pos, groups, alerts, otifBySupplier, productCount, onboarding] = await Promise.all([
     listPurchaseOrders(supabase),
     loadReorderQueue(supabase),
     listOpenAlerts(supabase),
     loadSupplierOtif(supabase),
     countActiveProducts(supabase),
+    loadOnboardingState(supabase),
   ]);
+
+  // A tenant that hasn't finished (or opted out of) onboarding belongs in the
+  // guided flow, not on a bench they can't read yet (Block 2). Legacy tenants
+  // predating onboarding have a catalog but no state row — onboardingComplete
+  // treats that as done, so the guard never traps an existing account.
+  if (!onboardingComplete(onboarding, productCount)) {
+    redirect('/onboarding');
+  }
+
   const nowMs = Date.now();
   const stage = dashboardStage(productCount > 0, pos, groups, alerts);
 
-  // Fresh tenant: nothing on the bench yet. Offer both ingest paths (Block 2
-  // onboarding isn't built yet, so the genuine next step is connecting a source).
+  // Empty bench: a tenant who opted out of onboarding (seed-only) lands here with
+  // no catalog yet. Offer both ingest paths so the genuine next step is in reach.
   if (stage === 'fresh') {
     return (
       <div className={pageStyles.stack}>
