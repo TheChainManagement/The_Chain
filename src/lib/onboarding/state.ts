@@ -33,7 +33,8 @@ export interface OnboardingStateRow {
 export interface OnboardingCounts {
   /** Active products in the catalog. */
   products: number;
-  /** Suppliers (any status — having entered one clears the minimum). */
+  /** Active suppliers (matches the completion gate, so the chain can't advance to
+   *  Forecast on an archived-only supplier and then hard-fail). */
   suppliers: number;
   /** Active source_connections (QBO/CSV). */
   sources: number;
@@ -119,6 +120,24 @@ export function resolveOnboarding(
     path,
     needsPathPick: path == null,
   };
+}
+
+/**
+ * Map a QBO initial-sync phase to the lit-stage index of the onboarding sync
+ * tracker (Wave 2b): Catalog(0) → Suppliers(1) → Sales(2) → done(3). The tracker
+ * lights row i `done` when stage > i, `active` when stage === i. Unknown phases
+ * fall back to the first stage so the UI never goes blank mid-sync.
+ */
+const QBO_PHASE_STAGE: Record<string, number> = {
+  product: 0,
+  supplier: 1,
+  stock_movement: 2,
+  purchase_order: 3,
+  done: 3,
+};
+
+export function qboPhaseStage(phase: string): number {
+  return QBO_PHASE_STAGE[phase] ?? 0;
 }
 
 /**

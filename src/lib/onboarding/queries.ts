@@ -21,7 +21,7 @@ export async function loadOnboardingState(
 export async function loadOnboardingCounts(supabase: SupabaseClient): Promise<OnboardingCounts> {
   const [products, suppliers, sources] = await Promise.all([
     supabase.from('products').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('suppliers').select('id', { count: 'exact', head: true }),
+    supabase.from('suppliers').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     supabase
       .from('source_connections')
       .select('id', { count: 'exact', head: true })

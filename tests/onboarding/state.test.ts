@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   onboardingComplete,
   type OnboardingStateRow,
+  qboPhaseStage,
   resolveOnboarding,
 } from '@/lib/onboarding/state';
 
@@ -90,6 +91,21 @@ describe('resolveOnboarding', () => {
     expect(v.currentStep).toBe('catalog');
     expect(v.litCount).toBe(2);
     expect(v.links.find((l) => l.key === 'forecast')?.state).toBe('pending');
+  });
+});
+
+describe('qboPhaseStage', () => {
+  it('maps each QBO sync phase to its tracker stage', () => {
+    expect(qboPhaseStage('product')).toBe(0); // Catalog
+    expect(qboPhaseStage('supplier')).toBe(1); // Suppliers
+    expect(qboPhaseStage('stock_movement')).toBe(2); // Sales
+    expect(qboPhaseStage('purchase_order')).toBe(3);
+    expect(qboPhaseStage('done')).toBe(3);
+  });
+
+  it('falls back to the first stage on an unknown phase (never blank)', () => {
+    expect(qboPhaseStage('something_new')).toBe(0);
+    expect(qboPhaseStage('')).toBe(0);
   });
 });
 

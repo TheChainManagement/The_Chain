@@ -1,16 +1,20 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
+import { qboEnv } from '@/lib/env';
+import { getKindSpec } from '@/lib/import/field-specs';
 import { loadOnboardingCounts, loadOnboardingState } from '@/lib/onboarding/queries';
 import { onboardingComplete, resolveOnboarding } from '@/lib/onboarding/state';
+import { getQboStatus } from '@/lib/qbo/connection';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { CompleteControls } from './CompleteControls';
 import { FirstProductForm } from './FirstProductForm';
 import { FirstSupplierForm } from './FirstSupplierForm';
 import { OnboardingChain } from './OnboardingChain';
+import { OnboardingImportPanel } from './OnboardingImportPanel';
+import { OnboardingQboPanel } from './OnboardingQboPanel';
 import styles from './onboarding.module.css';
 import { PathPicker } from './PathPicker';
 import { SkipSetup } from './SkipSetup';
@@ -18,13 +22,13 @@ import { SkipSetup } from './SkipSetup';
 export const metadata = { title: 'Set up your workshop · The Chain' };
 
 /**
- * Onboarding (Block 2, Wave 2a). The five-link chain forms in front of the
- * operator — continuous from the sign-up morph — and each link lights as a step
- * completes. The fresh path runs entirely inline (first product → first supplier
- * → first forecast). QuickBooks and spreadsheet paths hand off to the existing
- * connect/import surfaces; the chain still tracks their catalog/supplier minimums
- * from live counts (in-chain sync streaming is Wave 2b). A completed (or legacy)
- * tenant never lands here — the guard sends them to /today.
+ * Onboarding (Block 2). The five-link chain forms in front of the operator —
+ * continuous from the sign-up morph — and each link lights as a step completes.
+ * The fresh path runs inline (first product → first supplier → first forecast).
+ * QuickBooks and spreadsheet paths run IN the flow too (Wave 2b): the QBO connect
+ * + first sync and the CSV import workbench are embedded here, so the chain fills
+ * in place. A completed (or legacy) tenant never lands here — the guard sends them
+ * to /today.
  */
 export default async function OnboardingPage(): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
@@ -39,8 +43,26 @@ export default async function OnboardingPage(): Promise<ReactNode> {
 
   const view = resolveOnboarding(state, counts);
   const isImportPath = view.path === 'qbo' || view.path === 'csv';
-  const importHref = view.path === 'qbo' ? '/integrations/quickbooks' : '/import';
-  const importLabel = view.path === 'qbo' ? 'Connect QuickBooks →' : 'Upload your spreadsheet →';
+
+  // Load only what the active import path needs for its inline panel (Wave 2b).
+  let qboConnected = false;
+  let qboConfigured = false;
+  if (view.path === 'qbo') {
+    try {
+      qboEnv();
+      qboConfigured = true;
+    } catch {
+      qboConfigured = false; // QBO env not set on this deploy — panel shows unavailable.
+    }
+    const { data: claims } = await supabase.auth.getClaims();
+    const tenantId = claims?.claims?.tenant_id as string | undefined;
+    const qboStatus = tenantId ? await getQboStatus(supabase, tenantId) : { connected: false };
+    qboConnected = qboStatus.connected;
+  }
+  const importSpecs =
+    view.path === 'csv'
+      ? [getKindSpec('product'), getKindSpec('supplier'), getKindSpec('stock_movement')]
+      : [];
 
   return (
     <div className={pageStyles.stack}>
@@ -58,18 +80,15 @@ export default async function OnboardingPage(): Promise<ReactNode> {
           <PathPicker />
         </Panel>
       ) : isImportPath && view.currentStep !== 'forecast' ? (
-        <Panel prefix="Bring in your data" title="Connect your source">
-          <div className={pageStyles.connect}>
-            <p className={pageStyles.connectCopy}>
-              {view.path === 'qbo'
-                ? 'Connect QuickBooks Online and The Chain reads your items, vendors, and purchase history. Each link below lights as your data lands.'
-                : 'Upload a CSV of your products, suppliers, and sales. Map the columns, preview, and import. Each link below lights as your data lands.'}
-            </p>
-            <Link href={importHref} className={pageStyles.cta}>
-              {importLabel}
-            </Link>
-          </div>
-        </Panel>
+        view.path === 'qbo' ? (
+          <Panel prefix="Bring in your data" title="QuickBooks Online">
+            <OnboardingQboPanel connected={qboConnected} configured={qboConfigured} />
+          </Panel>
+        ) : (
+          <Panel prefix="Bring in your data" title="Import a spreadsheet">
+            <OnboardingImportPanel specs={importSpecs} />
+          </Panel>
+        )
       ) : view.currentStep === 'catalog' ? (
         <Panel prefix="Step · catalog" title="Add your first product">
           <p className={styles.stepLead}>

@@ -364,3 +364,12 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   — infra-blocked (Playwright not wired); the RTL `_feature_onboarding_chain_memorable`
   test (empty → 2/5 → 5/5) + live browser verification stand in, per the standing
   substitution.
+
+## Block 2 — Onboarding (Wave 2b, 2026-06-18)
+- **`product_supplier` CSV import lane** — onboarding/import expose product, supplier,
+  and stock_movement kinds only; product↔supplier links (with unit_cost + lead_time)
+  are created via the fresh-path RPC and QBO sync, not CSV. A CSV link lane would be a
+  new import kind — separate feature, deferred.
+- **Onboarding acceptance E2E** — pilot-qbo / pilot-csv / pilot-fresh end-to-end +
+  crash/resume after process.exit. Engines are tested; the onboarding wiring is
+  browser-verified (CSV full; QBO connect-initiation). Action-layer + E2E deferred.

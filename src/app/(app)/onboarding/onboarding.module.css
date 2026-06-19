@@ -190,6 +190,90 @@
   }
 }
 
+/* ---------------------------------------------------------------- qbo sync phases */
+.phaseList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+.phaseRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+}
+.phaseRow[data-state="active"],
+.phaseRow[data-state="done"] {
+  color: var(--color-deep);
+}
+.phaseDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-hairline);
+  flex-shrink: 0;
+  transition: background var(--duration-quick) var(--ease-tick);
+}
+.phaseRow[data-state="active"] .phaseDot {
+  background: var(--color-signal);
+  animation: onboardingPulse var(--duration-pulse) var(--ease-tick) infinite;
+}
+.phaseRow[data-state="done"] .phaseDot {
+  background: var(--color-signal);
+}
+@keyframes onboardingPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phaseRow[data-state="active"] .phaseDot {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- inline import */
+.importPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+.continueLink {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-signal-line);
+  padding: 0 0 2px;
+  cursor: pointer;
+  transition: border-color var(--duration-quick) var(--ease-tick);
+}
+.continueLink:hover {
+  border-bottom-color: var(--color-signal);
+}
+.continueLink:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.continueLink:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 3px;
+}
+
 /* ---------------------------------------------------------------- skip */
 .skip {
   display: flex;
@@ -213,6 +297,12 @@
 .skipLink:hover,
 .skipNo:hover {
   color: var(--color-deep);
+}
+.skipLink:focus-visible,
+.skipYes:focus-visible,
+.skipNo:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 3px;
 }
 .skipConfirm {
   font-family: var(--font-body);

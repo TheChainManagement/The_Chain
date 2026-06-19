@@ -60,6 +60,28 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
     const admin = createSupabaseAdmin();
     await saveQboConnection(admin, { tenantId, realmId, credentials: { ...tokens, realmId } });
+
+    // If the operator connected from the onboarding flow (Block 2), keep them in
+    // it: stamp the Source link and bounce back to /onboarding so the chain forms
+    // in place instead of stranding them on the integrations screen.
+    const { data: ob } = await supabase
+      .from('onboarding_state')
+      .select('path, completed_at, source_connected_at')
+      .maybeSingle<{
+        path: string | null;
+        completed_at: string | null;
+        source_connected_at: string | null;
+      }>();
+    if (ob && ob.path === 'qbo' && ob.completed_at == null) {
+      if (ob.source_connected_at == null) {
+        await supabase
+          .from('onboarding_state')
+          .update({ source_connected_at: new Date().toISOString() })
+          .eq('tenant_id', tenantId)
+          .is('source_connected_at', null);
+      }
+      return NextResponse.redirect(new URL('/onboarding?connected=1', url.origin));
+    }
     return back('connected=1');
   } catch (err) {
     // No tokens/PII in the log — just the failure shape for prod debugging.

@@ -8,18 +8,16 @@ import styles from './onboarding.module.css';
 
 /**
  * The path-picker: the first onboarding choice (FEATURES step 1). Three routes
- * into the workshop. "Starting fresh" stays inline (guided forms); QuickBooks and
- * spreadsheet set the path, then hand off to the existing connect/import surfaces
- * — the chain lights Catalog/Suppliers as that data lands. Wave 2b streams the
- * sync progress inside the chain itself.
+ * into the workshop, all run IN the flow (Wave 2b): picking a path refreshes
+ * /onboarding, which then renders the matching inline panel — QuickBooks connect
+ * + sync, the CSV import workbench, or the fresh guided forms. The chain fills in
+ * place either way.
  */
 
 interface Option {
   path: OnboardingPath;
   title: string;
   blurb: string;
-  /** Where the operator goes after the path is set. null ⇒ stay (fresh). */
-  href: string | null;
 }
 
 const OPTIONS: Option[] = [
@@ -27,19 +25,16 @@ const OPTIONS: Option[] = [
     path: 'qbo',
     title: 'I use QuickBooks',
     blurb: 'Connect QuickBooks Online. We read your items, vendors, and history.',
-    href: '/integrations/quickbooks',
   },
   {
     path: 'csv',
     title: 'I have a spreadsheet',
     blurb: 'Upload a CSV of products, suppliers, or sales. Map the columns, preview, import.',
-    href: '/import',
   },
   {
     path: 'fresh',
     title: "I'm starting fresh",
     blurb: 'Add your first product and supplier by hand. The Chain takes it from there.',
-    href: null,
   },
 ];
 
@@ -59,11 +54,8 @@ export function PathPicker(): ReactNode {
         setChosen(null);
         return;
       }
-      if (option.href) {
-        router.push(option.href);
-      } else {
-        router.refresh();
-      }
+      // Every path now renders an inline panel on /onboarding; refresh to re-derive.
+      router.refresh();
     });
   }
 
