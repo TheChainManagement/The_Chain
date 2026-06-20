@@ -1,8 +1,9 @@
-# Block 17 — Marketing site (Waves 17a + 17b)
+# Block 17 — Marketing site (Waves 17a + 17b + 17c)
 
 Date: 2026-06-20
-Scope shipped here: 17a (segment + layout + hero) and 17b (/how-it-works + /pricing).
-Wave 17c (/about, /contact, SEO, Lighthouse) deferred.
+Scope shipped: 17a (segment + layout + hero), 17b (/how-it-works + /pricing), and
+17c (/about, /contact, OG image, JSON-LD, footer). Only Lighthouse ≥90 (Preview run)
+and the deferred hero visual remain open.
 
 > This file supersedes the earlier `_reviews/2026-06-20_block17a-marketing-hero.md`,
 > which described a first-pass hero (five-link chain + time-axis + metric strip)
@@ -81,3 +82,22 @@ config.js load + a `/e/` pageview capture fired to us.i.posthog.com.
 - **Held (standing disposition):** raw-px "tokens only" — house style across the app;
   holistic px→token sweep is the stack-audit ticket.
 - **Not defects (MG-directed):** hero visual deferral; pricing literals (MG draft).
+
+## 17c shipped (2026-06-20)
+- `/about` (editorial, the why) + `/contact` (email channels, `markgeorge@moretechnologies.com`,
+  flagged for MG to swap to a role address) — `editorial.module.css` shared.
+- SEO: `opengraph-image.tsx` branded OG card (verified 200/png; ImageResponse can't
+  read CSS vars, so brand hexes are inline by necessity), `SoftwareApplication` JSON-LD
+  on home (string-children, not dangerouslySetInnerHTML), `metadataBase` → Vercel prod URL.
+- Footer links How it works / Pricing / About / Contact across all pages.
+- **/pricing retention compare-table** added (dedicated row across all plans) per the
+  FEATURES spec; the per-tier retention row was removed (no more duplication).
+- Tests: about-contact + seo-footer (JSON-LD contents + footer coverage) + pricing
+  compare assertion. Suite 654.
+
+## Codex 17c (`_reviews/2026-06-20_block17c_about_contact_seo.md`) dispositions
+- **Fixed:** retention compare-table built; this evidence file de-staled (17c is shipped,
+  not deferred); memorable-test reference repointed to this file; JSON-LD/OG/footer now
+  test-guarded.
+- **Held:** OG hex (ImageResponse can't use tokens); raw-px (standing stack-audit); hero
+  visual (MG-directed); Lighthouse (Preview-run ticket); Playwright capture (infra).

@@ -33,6 +33,13 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  // Resolves OG image + canonical URLs. On Vercel this is the production domain;
+  // locally it falls back to the dev origin.
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : 'http://localhost:3100',
+  ),
   title: 'The Chain — Inventory you can prove. Reorders you can defend.',
   description:
     'AI-driven supply chain for small-to-mid B2B distributors. Connect QuickBooks Online, watch every PO advance link by link, and stop running stock on instinct.',

@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
  * intentionally deferred ("work on this further down"); the deliberate choice that
  * keeps the page from reading as a flat white screen is the faded engineering
  * blueprint behind a clean, confident opening — the slogan, the why, the CTA.
- * Paired with the live capture in `_reviews/2026-06-20_block17a-marketing-hero.md`.
+ * Paired with the live capture in `_reviews/2026-06-20_feature_marketing.md`.
  */
 
 vi.mock('@/lib/analytics', () => ({

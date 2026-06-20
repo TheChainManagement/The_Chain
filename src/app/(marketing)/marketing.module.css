@@ -283,10 +283,20 @@
   text-transform: uppercase;
   color: var(--color-deep);
 }
-.footLine {
+.footLinks {
+  display: flex;
+  gap: var(--spacing-5);
+  flex-wrap: wrap;
+}
+.footLinks a {
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-mid);
+  text-decoration: none;
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.footLinks a:hover {
+  color: var(--color-deep);
 }
 .footMeta {
   margin-left: auto;

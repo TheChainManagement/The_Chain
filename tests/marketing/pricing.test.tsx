@@ -30,6 +30,13 @@ describe('pricing — hairline tiers', () => {
     }
   });
 
+  it('renders a dedicated retention compare-table across all plans', () => {
+    const { getByTestId } = render(<Pricing />);
+    const compare = getByTestId('retention-compare');
+    const text = compare.textContent ?? '';
+    for (const v of ['1 year', '5 years', '10 years', 'Unlimited']) expect(text).toContain(v);
+  });
+
   it('marks Growth as the popular tier and routes every CTA to the trial', () => {
     const { getAllByTestId, getAllByRole } = render(<Pricing />);
     const popular = getAllByTestId('tier').filter((t) => t.getAttribute('data-popular') === 'true');

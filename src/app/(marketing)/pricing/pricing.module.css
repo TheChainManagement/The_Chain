@@ -160,24 +160,50 @@
   background: var(--color-divider);
 }
 
-.retention {
+/* ---- retention compare-table ---- */
+.compare {
+  margin-top: var(--spacing-7);
+  padding-top: var(--spacing-5);
+  border-top: 1px solid var(--color-hairline);
+}
+.compareLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  margin-bottom: var(--spacing-4);
+}
+.compareRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.compareCell {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: auto;
-  padding-top: var(--spacing-4);
-  border-top: 1px solid var(--color-hairline);
+  padding: 0 var(--spacing-5);
+  border-left: 1px solid var(--color-hairline);
 }
-.retLabel {
+.compareCell:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+.compareCell[data-popular="true"] {
+  box-shadow: inset 2px 0 0 var(--color-signal);
+  padding-left: var(--spacing-5);
+}
+.compareTier {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-dim);
 }
-.retValue {
+.compareValue {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-deep);
   font-variant-numeric: tabular-nums;
@@ -211,6 +237,14 @@
   }
   .col:nth-child(n + 3) {
     border-top: 1px solid var(--color-hairline);
+  }
+  .compareRow {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-4) 0;
+  }
+  .compareCell:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
   }
 }
 

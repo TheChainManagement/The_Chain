@@ -127,12 +127,21 @@ export default function Pricing() {
                 </li>
               ))}
             </ul>
-            <div className={styles.retention}>
-              <span className={styles.retLabel}>History retained</span>
-              <span className={styles.retValue}>{t.retention}</span>
-            </div>
           </div>
         ))}
+      </div>
+
+      {/* Retention compare-table: one scan across every plan's history window. */}
+      <div className={styles.compare} data-testid="retention-compare">
+        <span className={styles.compareLabel}>History retained</span>
+        <div className={styles.compareRow}>
+          {TIERS.map((t) => (
+            <span key={t.key} className={styles.compareCell} data-popular={t.popular ?? false}>
+              <span className={styles.compareTier}>{t.name}</span>
+              <span className={styles.compareValue}>{t.retention}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
       <p className={styles.footnote}>

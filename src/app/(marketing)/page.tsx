@@ -15,6 +15,22 @@ export const metadata: Metadata = {
   },
 };
 
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'The Chain',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  description:
+    'AI-driven supply chain for small-to-mid B2B distributors on QuickBooks: demand forecasting, defensible reorder points, supplier scorecards, and a visible PO chain.',
+  offers: { '@type': 'Offer', price: '129', priceCurrency: 'USD' },
+  publisher: { '@type': 'Organization', name: 'More Technologies' },
+};
+
+// Safe JSON-LD: string children (not dangerouslySetInnerHTML), `<` escaped so the
+// payload can never close the script tag early. Static data, no user input.
+const jsonLdText = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
+
 /**
  * Marketing home (Block 17a). A clean, confident opening: the slogan, the why,
  * the CTA — left-aligned over a faded engineering blueprint so the page reads as
@@ -24,6 +40,7 @@ export const metadata: Metadata = {
 export default function MarketingHome() {
   return (
     <div className={styles.home}>
+      <script type="application/ld+json">{jsonLdText}</script>
       <div className={styles.heroBg} aria-hidden="true" data-testid="hero-bg" />
 
       <section className={styles.hero} aria-labelledby="hero-headline">

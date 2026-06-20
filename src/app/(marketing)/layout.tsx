@@ -42,9 +42,12 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
 
       <footer className={styles.footer}>
         <span className={styles.footBrand}>The Chain</span>
-        <span className={styles.footLine}>
-          A More Technologies product · Inventory you can prove
-        </span>
+        <nav className={styles.footLinks} aria-label="Footer">
+          <Link href="/how-it-works">How it works</Link>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/about">About</Link>
+          <Link href="/contact">Contact</Link>
+        </nav>
         <span className={styles.footMeta}>© 2026 More Technologies</span>
       </footer>
     </div>
