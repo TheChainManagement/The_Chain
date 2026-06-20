@@ -77,6 +77,13 @@ export default async function FlowPage(): Promise<ReactNode> {
               </span>
             </Link>
           </li>
+          <li>
+            <Link href="/flow/audit-log" className={styles.card} data-tone="calm">
+              <span className={styles.cardKey}>Audit log</span>
+              <span className={styles.cardCount}>—</span>
+              <span className={styles.cardHint}>Every change, on the record</span>
+            </Link>
+          </li>
         </ul>
       </Panel>
     </div>

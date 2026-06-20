@@ -373,3 +373,29 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
 - **Onboarding acceptance E2E** — pilot-qbo / pilot-csv / pilot-fresh end-to-end +
   crash/resume after process.exit. Engines are tested; the onboarding wiring is
   browser-verified (CSV full; QBO connect-initiation). Action-layer + E2E deferred.
+
+## Block 14 — Audit log (Wave 14a shipped 2026-06-19; below deferred)
+- **Wave 14b — cold archive** — `coldArchiveWorkflow` (daily cron), Vercel Blob upload,
+  `cold_archives` table (id, tenant_id, partition_name, blob_url, archived_at),
+  `restoreColdPartition(tenantId, partitionName)` re-attach on upgrade, round-trip
+  bit-identity test. NOTE: the global retention floor is 10 years, so this workflow
+  never detaches a real partition for a decade — pure correctness-plumbing, zero
+  operator-visible value today. Build when storage cost or a real >10y tenant warrants.
+- **Audit p95 < 500ms bench** for a tenant with 12 months of history — seeded Vercel
+  Preview harness, same shape as the inventory/forecast benches.
+- **Playwright vertical-chain capture** (FEATURES Block 14 required artifact) —
+  infra-blocked (Playwright not wired); the RTL `_feature_audit_chain_memorable` test
+  (chain renders, today node, expand-on-click, upgrade stub, export link) + live browser
+  verification stand in, per the standing substitution.
+- **Role-abuse 403 as a live HTTP test** — viewer/planner GET the CSV export → 403.
+  Unit-covered via `canReadAudit` (all 6 roles) + the route's explicit gate; a full
+  HTTP role-switch test needs a seeded non-privileged session (action-layer deferral,
+  consistent with prior blocks).
+- **Load-more / cursor** beyond the 200-row viewer page — the viewer now shows the most
+  recent 200 in the window AND says so honestly ("Showing the most recent N… download the
+  CSV for the full record"); the CSV is the full paginated window. A cursor/load-more in
+  the UI is the remaining nicety (Codex round-1: the silent-drop part is fixed).
+- **Entity-filter chip list scans only the first 2,000 rows** (`listAuditEntityTypes`) —
+  rare entity types can drop off the filter controls on a very noisy tenant. A correct
+  distinct needs an RPC (= a migration, out of the no-migration 14a scope). Cosmetic;
+  filter convenience, not data correctness. (Codex round-1, ticketed.)

@@ -1,0 +1,324 @@
+/* Audit-log viewer (Block 14a). The memorable element is the vertical chain of
+   events: a 1px hairline spine with a node per entry, today's node filled deep
+   slate. Cobalt is reserved for the single intent slot (the CSV download +
+   filter selection); the record itself reads in ink, never cobalt. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-5);
+}
+
+.restricted {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+/* ---- toolbar ---- */
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+}
+.window {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.window strong {
+  color: var(--color-deep);
+  font-weight: 600;
+}
+.download {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-signal);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.download:hover {
+  text-decoration: underline;
+}
+
+/* ---- filters ---- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-mid);
+  text-decoration: none;
+  padding: 4px var(--spacing-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: 2px;
+  transition:
+    color var(--duration-quick) var(--ease-spring-soft),
+    border-color var(--duration-quick) var(--ease-spring-soft);
+}
+.chip:hover {
+  color: var(--color-deep);
+  border-color: var(--color-mid);
+}
+.chip[data-active="true"] {
+  color: var(--color-on-signal);
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+}
+
+/* ---- the chain ---- */
+.empty {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.chain {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* The spine: a continuous hairline threading every node, top to bottom. */
+.chain::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 6px;
+  width: 1px;
+  background: var(--color-hairline);
+}
+
+.entry {
+  position: relative;
+  padding-left: var(--spacing-6);
+}
+
+/* The node on the spine. Past = hollow ring; today = filled deep-slate dot. */
+.node {
+  position: absolute;
+  left: 1px;
+  top: calc(var(--spacing-4) + 2px);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+}
+.node[data-today="true"] {
+  background: var(--color-deep);
+  border-color: var(--color-deep);
+  box-shadow: 0 0 0 3px var(--color-bg);
+}
+
+.block {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--color-hairline);
+  padding: var(--spacing-4) 0;
+  cursor: default;
+}
+.entry:last-child .block {
+  border-bottom: 1px solid var(--color-hairline);
+}
+.block[data-expandable="true"] {
+  cursor: pointer;
+}
+.stamp {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.stampDate {
+  font-size: 12px;
+  color: var(--color-deep);
+}
+.stampTime {
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+.event {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.headline {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.block[data-expandable="true"]:hover .headline {
+  color: var(--color-signal);
+}
+.verb {
+  font-weight: 600;
+}
+.verb[data-verb="Created"] {
+  color: var(--color-flow);
+}
+.verb[data-verb="Removed"] {
+  color: var(--color-stop);
+}
+.entity {
+  color: var(--color-mid);
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+.ref {
+  color: var(--color-mid);
+}
+.todayTag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+  border: 1px solid var(--color-divider);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.chevron {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  white-space: nowrap;
+}
+.chevron[data-open="true"] {
+  color: var(--color-signal);
+}
+
+/* ---- expanded diff ---- */
+.diff {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-inset);
+  border-left: 2px solid var(--color-divider);
+}
+.diffRow {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: var(--spacing-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 0;
+}
+.diffKey {
+  color: var(--color-mid);
+  overflow-wrap: anywhere;
+}
+.diffVals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  overflow-wrap: anywhere;
+}
+.diffBefore {
+  color: var(--color-dim);
+  text-decoration: line-through;
+}
+.diffArrow {
+  color: var(--color-divider);
+}
+.diffAfter {
+  color: var(--color-deep);
+}
+.diffRow[data-kind="added"] .diffAfter {
+  color: var(--color-flow);
+}
+.diffRow[data-kind="removed"] .diffBefore {
+  color: var(--color-stop);
+}
+
+.capped {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+  margin: 0;
+}
+
+/* ---- upgrade stub ---- */
+.upgrade {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  padding: var(--spacing-4);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+.upgradeCopy {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.upgradeCopy strong {
+  color: var(--color-deep);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.upgradeCta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-signal);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.upgradeCta:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .block {
+    grid-template-columns: 56px 1fr;
+  }
+  .chevron {
+    grid-column: 2;
+  }
+  .diffRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
