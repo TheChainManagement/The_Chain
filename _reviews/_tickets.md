@@ -399,3 +399,17 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   rare entity types can drop off the filter controls on a very noisy tenant. A correct
   distinct needs an RPC (= a migration, out of the no-migration 14a scope). Cosmetic;
   filter convenience, not data correctness. (Codex round-1, ticketed.)
+
+## Block 17 — Marketing (17a + 17b shipped 2026-06-20; below deferred to 17c)
+- **/about + /contact pages** (FEATURES Block 17 step 5) — small, on-direction.
+- **SEO: OG image + JSON-LD structured data** — home has title/description; needs an
+  OpenGraph image and Organization/Product JSON-LD across the marketing routes.
+- **Lighthouse Performance ≥ 90 on the hero** (acceptance) — seeded Preview run, same
+  shape as other block benches.
+- **Playwright hero-capture** (FEATURES required artifact) — infra-blocked (Playwright
+  not wired); RTL memorable + live DOM/screenshots stand in. Re-scope once the hero
+  visual lands.
+- **Dedicated retention compare-table on /pricing** — per-tier "History retained" row
+  is comparable across columns today; a dedicated compare strip is a nicety.
+- **Hero visual** — MG pulled the chain render for a clean opening; revisit the hero
+  imagery "further down" (the optimized renders are held in `public/marketing/`).

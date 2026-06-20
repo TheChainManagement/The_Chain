@@ -1,4 +1,8 @@
-/* Marketing surface — no rails, no bench chrome. Tokens only. */
+/* Marketing surface (Block 17) — no rails, no bench chrome. Tokens only.
+   The hook is the WHY: "everything is connected," carried by a photoreal chain
+   render with the in-transit link lit cobalt, over a faded engineering blueprint
+   so the page never reads as a flat white screen. Reduced-motion lands every
+   reveal in its final state (guard at the bottom). */
 
 .shell {
   min-height: 100dvh;
@@ -7,12 +11,56 @@
   background: var(--color-bg);
 }
 
+/* ---- perpetual + scroll chrome ---- */
+.signalScan {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 60;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-signal) 40%,
+    var(--color-signal) 60%,
+    transparent
+  );
+  background-size: 28% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+  animation: scan var(--duration-scan) var(--ease-tick) 2.5s infinite;
+}
+@keyframes scan {
+  0% {
+    background-position: -30% 0;
+  }
+  100% {
+    background-position: 130% 0;
+  }
+}
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 61;
+  background: var(--color-signal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 80ms linear;
+}
+
+/* ---- top bar ---- */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-4) var(--spacing-6);
   border-bottom: 1px solid var(--color-hairline);
+  position: relative;
+  z-index: 2;
 }
 .brand {
   display: inline-flex;
@@ -37,8 +85,19 @@
   font-size: 14px;
   color: var(--color-mid);
   text-decoration: none;
+  transition: color var(--duration-quick) var(--ease-spring-soft);
 }
 .signin:hover {
+  color: var(--color-deep);
+}
+.navLink {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-mid);
+  text-decoration: none;
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.navLink:hover {
   color: var(--color-deep);
 }
 .cta {
@@ -52,7 +111,9 @@
   background: var(--color-signal);
   border: 1px solid var(--color-signal);
   text-decoration: none;
-  transition: background var(--duration-quick) var(--ease-spring-soft);
+  transition:
+    background var(--duration-quick) var(--ease-spring-soft),
+    box-shadow var(--duration-quick) var(--ease-spring-soft);
 }
 .cta:hover {
   background: var(--color-signal-bright);
@@ -63,39 +124,81 @@
   flex: 1;
 }
 
-.hero {
-  max-width: 1100px;
+/* ---- home + faded blueprint background ---- */
+.home {
+  position: relative;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: var(--spacing-9) var(--spacing-6);
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: var(--spacing-8);
-  align-items: center;
+  width: 100%;
+  padding: var(--spacing-8) var(--spacing-6) var(--spacing-9);
+}
+.heroBg {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 760px;
+  background: url("/marketing/bg-blueprint.jpg") no-repeat center top;
+  background-size: cover;
+  opacity: 0.12;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.9),
+    rgb(0 0 0 / 0.45) 55%,
+    transparent
+  );
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.45) 55%, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- hero (left-aligned copy over the faded blueprint) ---- */
+.hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 56vh;
+  padding-top: var(--spacing-7);
 }
 .heroCopy {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-5);
+  max-width: 34ch;
 }
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  align-self: flex-start;
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-dim);
-  border-left: 2px solid var(--color-signal);
-  padding-left: var(--spacing-2);
+  opacity: 0;
+  animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 180ms forwards;
+}
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-flow);
+  animation: pulse 2s var(--ease-tick) infinite;
 }
 .h1 {
   margin: 0;
   font-family: var(--font-display);
   font-variation-settings: "wdth" 75;
   font-weight: 800;
-  font-size: clamp(38px, 5vw, 60px);
-  line-height: 1.04;
-  letter-spacing: 0;
+  font-size: clamp(44px, 6vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.5px;
   color: var(--color-deep);
+  opacity: 0;
+  animation: fade-up 720ms var(--ease-spring-soft) 280ms forwards;
 }
 .lede {
   margin: 0;
@@ -103,44 +206,152 @@
   font-size: 18px;
   line-height: 1.55;
   color: var(--color-mid);
-  max-width: 48ch;
+  max-width: 46ch;
+  opacity: 0;
+  animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 400ms forwards;
 }
 .heroActions {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-5);
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 500ms forwards;
+}
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 22px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-on-signal);
+  background: var(--color-signal);
+  border: 1px solid var(--color-signal);
+  text-decoration: none;
+  transition:
+    background var(--duration-quick) var(--ease-spring-snappy),
+    box-shadow var(--duration-quick) var(--ease-spring-snappy);
+}
+.ctaPrimary:hover {
+  background: var(--color-signal-bright);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}
+.ctaSecondary {
+  position: relative;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-deep);
+  text-decoration: none;
+  padding-bottom: 2px;
+}
+.ctaSecondary::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--color-deep);
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition: transform var(--duration-base) var(--ease-spring-soft);
+}
+.ctaSecondary:hover::after {
+  transform: scaleX(1);
 }
 
-.heroAside {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-.asideLabel {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-dim);
-  margin-bottom: var(--spacing-3);
-}
-
+/* ---- footer ---- */
 .footer {
+  position: relative;
+  z-index: 2;
   border-top: 2px solid var(--color-divider);
-  padding: var(--spacing-5) var(--spacing-6);
+  margin-top: var(--spacing-8);
+  padding: var(--spacing-6);
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+.footBrand {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+.footLine {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.footMeta {
+  margin-left: auto;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--color-dim);
 }
 
-@media (max-width: 880px) {
-  .hero {
-    grid-template-columns: 1fr;
-    padding: var(--spacing-8) var(--spacing-5);
+/* ---- keyframes ---- */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
-  .heroAside {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ---- responsive ---- */
+@media (max-width: 880px) {
+  .home {
+    padding: var(--spacing-7) var(--spacing-5) var(--spacing-8);
+  }
+  .hero {
+    min-height: 48vh;
+    padding-top: var(--spacing-5);
+  }
+  .heroCopy {
+    max-width: none;
+  }
+  .topbar {
+    padding: var(--spacing-4) var(--spacing-5);
+  }
+  .navLink {
     display: none;
+  }
+}
+
+/* ---- reduced motion: land every reveal in its final state ---- */
+@media (prefers-reduced-motion: reduce) {
+  .eyebrow,
+  .h1,
+  .lede,
+  .heroActions {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .signalScan,
+  .liveDot {
+    animation: none;
+  }
+  .progress {
+    transition: none;
   }
 }

@@ -1,32 +1,51 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ChainGlyph } from '@/components/brand/ChainGlyph';
+import { MarketingChrome } from './MarketingChrome';
 import styles from './marketing.module.css';
+import { TrialCta } from './TrialCta';
 
 /**
- * (marketing) segment — public surfaces. No bench, no rails. Top bar + footer
- * chrome only; shares tokens with the app, never the bench layout.
+ * (marketing) segment — public surfaces. No bench, no rails, no app chrome.
+ * Editorial top bar + footer only; shares design tokens with the app, never the
+ * bench layout (acceptance: no left-rail / right-rail / bench-after on any
+ * marketing page). Nav section links land as their pages ship (17b/17c); 17a
+ * keeps only working links so nothing dead-ends.
  */
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <div className={styles.shell}>
+      <MarketingChrome />
+
       <header className={styles.topbar}>
         <Link href="/" className={styles.brand}>
           <ChainGlyph />
           The Chain
         </Link>
-        <nav className={styles.topActions}>
+        <nav className={styles.topActions} aria-label="Primary">
+          <Link href="/how-it-works" className={styles.navLink}>
+            How it works
+          </Link>
+          <Link href="/pricing" className={styles.navLink}>
+            Pricing
+          </Link>
           <Link href="/signin" className={styles.signin}>
             Sign in
           </Link>
-          <Link href="/signup" className={styles.cta}>
-            Get started
-          </Link>
+          <TrialCta className={styles.cta} location="nav">
+            Start 14-day trial
+          </TrialCta>
         </nav>
       </header>
+
       <main className={styles.main}>{children}</main>
+
       <footer className={styles.footer}>
-        THE CHAIN · A MORE TECHNOLOGIES PRODUCT · INVENTORY YOU CAN PROVE
+        <span className={styles.footBrand}>The Chain</span>
+        <span className={styles.footLine}>
+          A More Technologies product · Inventory you can prove
+        </span>
+        <span className={styles.footMeta}>© 2026 More Technologies</span>
       </footer>
     </div>
   );

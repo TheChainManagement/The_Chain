@@ -67,3 +67,6 @@ api/forecast/_shims/__pycache__
 # Workflow DevKit runtime artifacts (local runs + @workflow/vitest scratch)
 .workflow-data/
 .workflow-vitest/
+
+# Marketing hero source renders (large; optimized JPEGs are committed instead)
+public/marketing/TheChainHero*.png

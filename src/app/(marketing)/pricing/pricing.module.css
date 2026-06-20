@@ -1,0 +1,230 @@
+/* Pricing (Block 17b). Hairline-ruled tiers, no card boxes. Prices in tabular
+   Plex Mono via <StatNumber>. Cobalt is the single intent: the popular tier's
+   top rule + its CTA. Tokens only. */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+  padding: var(--spacing-9) var(--spacing-6);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  max-width: 44ch;
+  margin-bottom: var(--spacing-8);
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 800;
+  font-size: clamp(34px, 4.4vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.3px;
+  color: var(--color-deep);
+}
+.lede {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--color-mid);
+}
+
+/* ---- tier table: columns separated by hairlines, no cards ---- */
+.table {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--color-hairline);
+}
+.col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-5);
+  border-left: 1px solid var(--color-hairline);
+}
+.col:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+/* the single cobalt intent: the popular tier's top rule */
+.col[data-popular="true"] {
+  box-shadow: inset 0 2px 0 var(--color-signal);
+}
+.tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+}
+.tierName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--color-deep);
+}
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  min-height: 44px;
+}
+.per {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-dim);
+}
+.custom {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--color-deep);
+}
+.tagline {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-mid);
+  min-height: 40px;
+}
+.tierCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 16px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  text-align: center;
+  border: 1px solid var(--color-divider);
+  color: var(--color-deep);
+  transition:
+    border-color var(--duration-quick) var(--ease-spring-soft),
+    color var(--duration-quick) var(--ease-spring-soft);
+}
+.tierCta:hover {
+  border-color: var(--color-deep);
+}
+.col[data-popular="true"] .tierCta {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: var(--color-on-signal);
+}
+.col[data-popular="true"] .tierCta:hover {
+  background: var(--color-signal-bright);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}
+
+.features {
+  list-style: none;
+  margin: var(--spacing-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+.feature {
+  position: relative;
+  padding-left: var(--spacing-4);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-mid);
+}
+.feature::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  background: var(--color-divider);
+}
+
+.retention {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-hairline);
+}
+.retLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.retValue {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.footnote {
+  margin: var(--spacing-6) 0 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-dim);
+  max-width: 70ch;
+}
+
+@media (max-width: 880px) {
+  .page {
+    padding: var(--spacing-8) var(--spacing-5);
+  }
+  .table {
+    grid-template-columns: 1fr 1fr;
+  }
+  .col {
+    border-left: 1px solid var(--color-hairline);
+    padding: var(--spacing-5) var(--spacing-4);
+  }
+  .col:first-child {
+    padding-left: var(--spacing-4);
+  }
+  .col:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
+  }
+  .col:nth-child(n + 3) {
+    border-top: 1px solid var(--color-hairline);
+  }
+}
+
+@media (max-width: 560px) {
+  .table {
+    grid-template-columns: 1fr;
+  }
+  .col,
+  .col:first-child,
+  .col:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
+  }
+  .col:nth-child(n + 2) {
+    border-top: 1px solid var(--color-hairline);
+  }
+}

@@ -1,0 +1,27 @@
+// @vitest-environment jsdom
+import { render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/analytics', () => ({
+  track: vi.fn(),
+  initAnalytics: vi.fn(),
+  capturePageview: vi.fn(),
+}));
+
+const { default: HowItWorks } = await import('@/app/(marketing)/how-it-works/page');
+
+describe('how it works — the four-stage chain', () => {
+  it('renders the four stages in order', () => {
+    const { getAllByTestId } = render(<HowItWorks />);
+    const stages = getAllByTestId('stage');
+    expect(stages).toHaveLength(4);
+    const names = stages.map((s) => s.querySelector('h2')?.textContent);
+    expect(names).toEqual(['Connect', 'Forecast', 'Reorder', 'Receive']);
+  });
+
+  it('leads with the chain headline and a trial CTA', () => {
+    const { getByRole } = render(<HowItWorks />);
+    expect(getByRole('heading', { level: 1 }).textContent).toBe('Four links. One chain.');
+    expect(getByRole('link', { name: /start 14-day trial/i }).getAttribute('href')).toBe('/signup');
+  });
+});

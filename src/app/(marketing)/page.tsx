@@ -1,45 +1,54 @@
-import Link from 'next/link';
-import { ChainLink } from '@/components/ChainLink/ChainLink';
+import type { Metadata } from 'next';
 import styles from './marketing.module.css';
+import { TrialCta } from './TrialCta';
 
-export const metadata = {
-  title: 'The Chain — Inventory you can prove. Reorders you can defend.',
+export const metadata: Metadata = {
+  title: 'The Chain — Everything is connected.',
+  description:
+    'AI-driven supply chain for small-to-mid B2B distributors on QuickBooks. Supplier to shelf, every link in your inventory moves as one chain you can see. Stop guessing reorders — start proving them.',
+  openGraph: {
+    title: 'The Chain — Everything is connected.',
+    description:
+      'Forecast-driven reordering for QuickBooks distributors. See the whole chain, supplier to shelf.',
+    siteName: 'The Chain',
+    type: 'website',
+  },
 };
 
+/**
+ * Marketing home (Block 17a). A clean, confident opening: the slogan, the why,
+ * the CTA — left-aligned over a faded engineering blueprint so the page reads as
+ * light-engineered, never a flat white screen. The hero visual is intentionally
+ * deferred ("work on this further down"); this is the uncluttered first pass.
+ */
 export default function MarketingHome() {
   return (
-    <section className={styles.hero}>
-      <div className={styles.heroCopy}>
-        <span className={styles.eyebrow}>For small-to-mid B2B distributors</span>
-        <h1 className={styles.h1}>Inventory you can prove. Reorders you can defend.</h1>
-        <p className={styles.lede}>
-          Connect QuickBooks Online and The Chain reads your catalog, suppliers, and purchase
-          history, then watches every PO advance link by link. Statistical forecasts, defensible
-          reorder points, and supplier scorecards. Stop running stock on instinct.
-        </p>
-        <div className={styles.heroActions}>
-          <Link href="/signup" className={styles.cta}>
-            Create your workshop
-          </Link>
-          <Link href="/signin" className={styles.signin}>
-            Sign in
-          </Link>
-        </div>
-      </div>
+    <div className={styles.home}>
+      <div className={styles.heroBg} aria-hidden="true" data-testid="hero-bg" />
 
-      <aside className={styles.heroAside}>
-        <span className={styles.asideLabel}>PO-4471 · Calhoun Foods</span>
-        <ChainLink
-          step="SUPPLIER"
-          label="Atchafalaya Distributing"
-          when="Apr 14 · 08:10"
-          state="done"
-        />
-        <ChainLink step="ORDERED" label="142 units" when="Apr 14 · 16:42" state="done" />
-        <ChainLink step="IN TRANSIT" label="3 pallets" when="Apr 18 · 09:24" state="active" />
-        <ChainLink step="RECEIVED" label="Awaiting dock" state="pending" />
-        <ChainLink step="ON HAND" label="Not yet" state="pending" />
-      </aside>
-    </section>
+      <section className={styles.hero} aria-labelledby="hero-headline">
+        <div className={styles.heroCopy}>
+          <span className={styles.eyebrow}>
+            <span className={styles.liveDot} aria-hidden="true" />
+            For B2B distributors on QuickBooks
+          </span>
+          <h1 id="hero-headline" className={styles.h1}>
+            Everything is connected.
+          </h1>
+          <p className={styles.lede}>
+            Supplier to shelf, every link in your inventory moves as one chain you can see. Stop
+            guessing reorders — start proving them.
+          </p>
+          <div className={styles.heroActions}>
+            <TrialCta className={styles.ctaPrimary} location="hero">
+              Start 14-day trial
+            </TrialCta>
+            <a href="/signin" className={styles.ctaSecondary}>
+              Sign in
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
