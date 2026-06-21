@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 /**
  * seed-bench.mjs — populate an isolated bench tenant with 5,000 active SKUs +
  * inventory so `bench:inventory` can measure the inventory_list_v query at the
@@ -11,7 +12,6 @@
  * Usage: node scripts/seed-bench.mjs   (DB via SUPABASE_DB_URL or local default)
  */
 import { Client } from 'pg';
-import { readFileSync } from 'node:fs';
 
 const SKU_COUNT = Number(process.env.SEED_SKUS ?? 5000);
 const SLUG = 'bench-5k';

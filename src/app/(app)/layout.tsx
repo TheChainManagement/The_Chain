@@ -3,6 +3,8 @@ import { type ReactNode, Suspense } from 'react';
 import { BenchAtmosphere } from '@/components/bench/BenchAtmosphere';
 import { LeftRail } from '@/components/bench/LeftRail';
 import { RightRail } from '@/components/bench/RightRail';
+import { hasAppAccess } from '@/lib/billing/plans';
+import { loadSubscription } from '@/lib/billing/subscription';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from './bench.module.css';
 
@@ -51,6 +53,17 @@ async function BenchGate({ children }: { children: ReactNode }) {
 
   if (!count || count < 1) {
     redirect('/signin');
+  }
+
+  // Hard paywall (Block 16): a verified member still needs an active (or comp)
+  // subscription to reach the bench. No access → the gated plan picker, which
+  // also handles past_due/canceled (Manage billing) for existing customers.
+  // Read via the admin client because subscriptions are RLS-readable by
+  // owner/finance only, but the paywall must hold for every role; tenantId was
+  // just verified above, so the service-role read stays tenant-scoped.
+  const sub = await loadSubscription(tenantId);
+  if (!hasAppAccess(sub?.status)) {
+    redirect('/choose-plan');
   }
 
   return (

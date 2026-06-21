@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync, writeFileSync } from 'node:fs';
 /**
  * bench-inventory.mjs — measure the inventory_list_v query at the 5k-SKU
  * acceptance scale, through the authenticated/RLS path (set role authenticated +
@@ -9,7 +10,6 @@
  * Run `node scripts/seed-bench.mjs` first. DB via SUPABASE_DB_URL or local default.
  */
 import { Client } from 'pg';
-import { readFileSync, writeFileSync } from 'node:fs';
 
 const RUNS = Number(process.env.BENCH_RUNS ?? 10);
 const SLUG = 'bench-5k';
@@ -92,9 +92,7 @@ try {
     '',
   ].join('\n');
 
-  const date = new Date(Number(process.env.BENCH_DATE_MS ?? Date.now()))
-    .toISOString()
-    .slice(0, 10);
+  const date = new Date(Number(process.env.BENCH_DATE_MS ?? Date.now())).toISOString().slice(0, 10);
   const out = new URL(`../_reviews/${date}_bench_inventory.md`, import.meta.url);
   writeFileSync(out, report);
   console.log(`p50 ${p50.toFixed(1)}ms / p95 ${p95.toFixed(1)}ms over ${warm.rows} rows.`);

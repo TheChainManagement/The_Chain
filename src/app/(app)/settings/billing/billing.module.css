@@ -1,0 +1,68 @@
+/* Billing settings (Block 16). Hairline definition rows, mono values. Tokens. */
+
+.rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.label {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-deep);
+}
+.value[data-status="past_due"] {
+  color: var(--color-warn);
+}
+.value[data-status="canceled"] {
+  color: var(--color-stop);
+}
+.value[data-status="active"],
+.value[data-status="comp"] {
+  color: var(--color-flow);
+}
+.note {
+  margin: var(--spacing-4) 0 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-mid);
+}
+.manage {
+  appearance: none;
+  cursor: pointer;
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-on-signal);
+  background: var(--color-signal);
+  border: 1px solid var(--color-signal);
+  transition:
+    background var(--duration-quick) var(--ease-spring-snappy),
+    box-shadow var(--duration-quick) var(--ease-spring-snappy);
+}
+.manage:hover {
+  background: var(--color-signal-bright);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}

@@ -65,3 +65,18 @@ export function qboEnv() {
     QBO_TOKEN_ENC_KEY: required('QBO_TOKEN_ENC_KEY'),
   };
 }
+
+/**
+ * Stripe billing env (Block 16). Server-only, lazy — only the billing paths read
+ * it. Hosted Checkout means no client Stripe.js, so the publishable key isn't
+ * required here. The webhook secret is read directly by the webhook route so a
+ * missing price ID never blocks signature verification.
+ */
+export function stripeEnv() {
+  return {
+    STRIPE_SECRET_KEY: required('STRIPE_SECRET_KEY'),
+    STRIPE_PRICE_STARTER: required('STRIPE_PRICE_STARTER'),
+    STRIPE_PRICE_GROWTH: required('STRIPE_PRICE_GROWTH'),
+    STRIPE_PRICE_PRO: required('STRIPE_PRICE_PRO'),
+  };
+}
