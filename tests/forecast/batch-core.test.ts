@@ -306,7 +306,15 @@ describe('forecast batch core — plan → chunk → finalize against real Supab
   it('forecasts the chunk: routing, promotion, benchmark fills, dead letters', async () => {
     const result = await runForecastChunk(
       admin,
-      { tenantId, runId: syncRunId, shardIndex: 0, shardSize: 200, offset: 0, limit: 25, nowMs: NOW },
+      {
+        tenantId,
+        runId: syncRunId,
+        shardIndex: 0,
+        shardSize: 200,
+        offset: 0,
+        limit: 25,
+        nowMs: NOW,
+      },
       API,
     );
 
@@ -400,7 +408,11 @@ describe('forecast batch core — plan → chunk → finalize against real Supab
       .from('forecast_evaluations')
       .select('rmsse, beats_baseline, rolling_origin_windows')
       .eq('forecast_id', promoted?.id ?? '')
-      .single<{ rmsse: string | number; beats_baseline: boolean; rolling_origin_windows: number }>();
+      .single<{
+        rmsse: string | number;
+        beats_baseline: boolean;
+        rolling_origin_windows: number;
+      }>();
     expect(evaluation?.beats_baseline).toBe(true);
     expect(Number(evaluation?.rmsse)).toBeCloseTo(0.81, 2);
   });
@@ -436,7 +448,15 @@ describe('forecast batch core — plan → chunk → finalize against real Supab
 
     const rerun = await runForecastChunk(
       admin,
-      { tenantId, runId: syncRunId, shardIndex: 0, shardSize: 200, offset: 0, limit: 25, nowMs: NOW },
+      {
+        tenantId,
+        runId: syncRunId,
+        shardIndex: 0,
+        shardSize: 200,
+        offset: 0,
+        limit: 25,
+        nowMs: NOW,
+      },
       API,
     );
     // The failed SKU has no forecast row, so it (and only it) is retried.

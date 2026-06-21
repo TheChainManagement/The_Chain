@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { getKindSpec } from '@/lib/import/field-specs';
-import { autoMap, type ColumnMapping, missingRequired, normalizeHeader, unmappedHeaders } from '@/lib/import/mapping';
+import {
+  autoMap,
+  type ColumnMapping,
+  missingRequired,
+  normalizeHeader,
+  unmappedHeaders,
+} from '@/lib/import/mapping';
 import { mapRows, rowToPayload } from '@/lib/import/transform';
 
 const productSpec = getKindSpec('product');
@@ -52,7 +58,12 @@ describe('rowToPayload coercion + validation', () => {
   };
 
   it('builds a canonical payload from a clean row', () => {
-    const result = rowToPayload(1, { SKU: 'AB-1', Name: 'Widget', UOM: 'each', Status: 'Active' }, productSpec, mapping);
+    const result = rowToPayload(
+      1,
+      { SKU: 'AB-1', Name: 'Widget', UOM: 'each', Status: 'Active' },
+      productSpec,
+      mapping,
+    );
     expect(result.errors).toEqual([]);
     expect(result.payload).toMatchObject({
       kind: 'product',
@@ -63,21 +74,41 @@ describe('rowToPayload coercion + validation', () => {
   });
 
   it('defaults an optional enum (status) to its first value when blank', () => {
-    const result = rowToPayload(2, { SKU: 'AB-2', Name: 'Gadget', UOM: '', Status: '' }, productSpec, mapping);
+    const result = rowToPayload(
+      2,
+      { SKU: 'AB-2', Name: 'Gadget', UOM: '', Status: '' },
+      productSpec,
+      mapping,
+    );
     expect(result.payload?.attributes).toMatchObject({ status: 'active' });
   });
 
   it('normalizes enum spelling and rejects unknown values', () => {
-    const ok = rowToPayload(3, { SKU: 'AB-3', Name: 'X', UOM: '', Status: 'Discontinued' }, productSpec, mapping);
+    const ok = rowToPayload(
+      3,
+      { SKU: 'AB-3', Name: 'X', UOM: '', Status: 'Discontinued' },
+      productSpec,
+      mapping,
+    );
     expect(ok.payload?.attributes).toMatchObject({ status: 'discontinued' });
 
-    const bad = rowToPayload(4, { SKU: 'AB-4', Name: 'X', UOM: '', Status: 'frozen' }, productSpec, mapping);
+    const bad = rowToPayload(
+      4,
+      { SKU: 'AB-4', Name: 'X', UOM: '', Status: 'frozen' },
+      productSpec,
+      mapping,
+    );
     expect(bad.payload).toBeNull();
     expect(bad.errors[0]).toMatchObject({ row: 4, field: 'status', code: 'invalid_enum' });
   });
 
   it('flags a missing required field with its row number', () => {
-    const result = rowToPayload(7, { SKU: '', Name: 'No SKU', UOM: '', Status: '' }, productSpec, mapping);
+    const result = rowToPayload(
+      7,
+      { SKU: '', Name: 'No SKU', UOM: '', Status: '' },
+      productSpec,
+      mapping,
+    );
     expect(result.payload).toBeNull();
     expect(result.errors).toContainEqual(
       expect.objectContaining({ row: 7, field: 'sku', code: 'missing_required' }),
@@ -86,7 +117,13 @@ describe('rowToPayload coercion + validation', () => {
 });
 
 describe('mapRows (valid rows survive bad rows)', () => {
-  const mapping: ColumnMapping = { sku: 'SKU', name: 'Name', description: null, unitOfMeasure: null, status: null };
+  const mapping: ColumnMapping = {
+    sku: 'SKU',
+    name: 'Name',
+    description: null,
+    unitOfMeasure: null,
+    status: null,
+  };
 
   it('keeps valid payloads and collects errors with row numbers without blocking', () => {
     const rows = [

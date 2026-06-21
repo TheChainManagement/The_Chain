@@ -32,7 +32,9 @@ describe('ImportWorkbench — the three ingestion lanes', () => {
     expect(tabs).toHaveLength(3);
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
     // the lit rail (the memorable cobalt signal) lives on the active lane
-    expect(container.querySelector('[role="tab"][data-active="true"] span:last-child')).not.toBeNull();
+    expect(
+      container.querySelector('[role="tab"][data-active="true"] span:last-child'),
+    ).not.toBeNull();
   });
 
   it('moves the active lane on click (re-keying the flow)', async () => {

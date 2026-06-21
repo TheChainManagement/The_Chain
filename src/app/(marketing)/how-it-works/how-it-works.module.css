@@ -1,19 +1,18 @@
-/* How it works (Block 17b). Sequential scroll with sticky-stacked sections: each
-   stage pins to the top and the next sheet slides up over it. The mini chain
-   advances its lit link per stage (the chain motif at smaller scale). Tokens
-   only, no bench. */
+/* How it works (premium re-cut). A guided blueprint workbench: sticky chain rail
+   + scrolling inspection plates + a sticky visual that re-crops the supply-chain
+   model to the stage in view. Tokens only, no bench chrome. */
 
 .page {
   width: 100%;
 }
 
 .intro {
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
-  padding: var(--spacing-9) var(--spacing-6) var(--spacing-7);
+  padding: var(--spacing-9) var(--spacing-6) var(--spacing-6);
 }
 .eyebrow {
   font-family: var(--font-mono);
@@ -27,117 +26,291 @@
   margin: 0;
   max-width: 18ch;
   font-family: var(--font-display);
-  font-variation-settings: "wdth" 80;
-  font-weight: 800;
-  font-size: clamp(34px, 4.4vw, 52px);
-  line-height: 1.02;
-  letter-spacing: -0.3px;
+  font-variation-settings: "wdth" 78;
+  font-weight: 850;
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
   color: var(--color-deep);
 }
 .lede {
   margin: 0;
-  max-width: 44ch;
+  max-width: 46ch;
   font-family: var(--font-body);
   font-size: 18px;
   line-height: 1.55;
   color: var(--color-mid);
 }
 
-/* ---- the sticky stack ---- */
-.stack {
-  position: relative;
-}
-.stage {
-  position: sticky;
-  top: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  background: var(--color-bg);
-  border-top: 1px solid var(--color-divider);
-  /* the sheet edge catches a hairline of light as it slides up over the prior */
-  box-shadow: 0 -1px 0 var(--color-surface);
-}
-.stageInner {
-  max-width: 1180px;
+/* ---- the workbench ---- */
+.workbench {
+  max-width: 1280px;
   margin: 0 auto;
-  width: 100%;
-  padding: var(--spacing-8) var(--spacing-6);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-6) var(--spacing-8);
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: var(--spacing-6);
+  align-items: start;
 }
 
-/* mini chain — the four links, the current one lit */
-.miniChain {
+/* sticky vertical chain rail */
+.rail {
+  position: sticky;
+  top: 104px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-6);
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
 }
-.miniLink {
+.railLink {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-3) 0;
+}
+/* vertical connector to the next node */
+.railLink:not([data-last])::after {
+  content: "";
+  position: absolute;
+  top: calc(50% + 18px);
+  bottom: -18px;
+  width: 1px;
+  background: var(--color-hairline);
+}
+.railLink[data-state="done"]:not([data-last])::after,
+.railLink[data-state="active"]:not([data-last])::after {
+  background: var(--color-signal-line);
+}
+.railNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   color: var(--color-dim);
-  padding: 5px 10px;
+  background: var(--color-surface);
   border: 1px solid var(--color-hairline);
+  transition:
+    background var(--duration-base) var(--ease-spring-soft),
+    color var(--duration-base) var(--ease-spring-soft),
+    border-color var(--duration-base) var(--ease-spring-soft);
 }
-.miniLink[data-active="true"] {
+.railLink[data-state="done"] .railNum {
+  color: var(--color-deep);
+  background: var(--color-inset);
+}
+.railLink[data-state="active"] .railNum {
   color: var(--color-on-signal);
   background: var(--color-signal);
   border-color: var(--color-signal);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}
+.railName {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
-.num {
+/* ---- scrolling inspection plates ---- */
+.stages {
+  display: flex;
+  flex-direction: column;
+}
+.stage {
+  min-height: 78vh;
+  display: flex;
+  align-items: center;
+}
+.plate {
+  position: relative;
+  width: 100%;
+  max-width: 46ch;
+  padding: var(--spacing-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  /* blueprint corner-cut */
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  opacity: 0.5;
+  transform: translateY(8px);
+  transition:
+    opacity var(--duration-base) var(--ease-spring-soft),
+    transform var(--duration-base) var(--ease-spring-soft),
+    border-color var(--duration-base) var(--ease-spring-soft);
+}
+.stage[data-active="true"] .plate {
+  opacity: 1;
+  transform: translateY(0);
+  border-color: var(--color-divider);
+}
+.plateNum {
   font-family: var(--font-mono);
   font-size: 13px;
-  color: var(--color-deep);
   font-variant-numeric: tabular-nums;
+  color: var(--color-deep);
 }
-.numTotal {
+.plateTotal {
   color: var(--color-dim);
 }
 .stageName {
-  margin: 0;
+  margin: var(--spacing-3) 0 0;
   font-family: var(--font-display);
   font-variation-settings: "wdth" 75;
-  font-weight: 800;
-  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 850;
+  font-size: clamp(36px, 4.6vw, 60px);
   line-height: 1;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.01em;
   color: var(--color-deep);
 }
 .summary {
-  margin: var(--spacing-2) 0 0;
+  margin: var(--spacing-3) 0 0;
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 20px;
+  font-size: 19px;
   color: var(--color-deep);
 }
 .body {
-  margin: 0;
-  max-width: 52ch;
+  margin: var(--spacing-3) 0 0;
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.6;
   color: var(--color-mid);
+}
+.metric {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-hairline);
+}
+.metricValue {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--color-signal);
+}
+.metricLabel {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-dim);
+}
+
+/* ---- sticky visual ---- */
+.visualCol {
+  position: sticky;
+  top: 104px;
+  align-self: start;
+}
+.visual {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  height: 76vh;
+  max-height: 680px;
+  overflow: hidden;
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+  /* blueprint corner-cut on the sheet */
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
+}
+.visualImg {
+  object-fit: cover;
+  /* renders printed onto the panel, like the hero bench */
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity var(--duration-reveal) var(--ease-spring-soft),
+    transform 1200ms var(--ease-spring-soft);
+}
+.visualImg[data-on="true"] {
+  opacity: 1;
+  transform: scale(1);
+}
+/* cobalt target bracket that glides to the active region (overlay only — no
+   layout thrash; documented geometry-transition exception like the progress bar) */
+.target {
+  position: absolute;
+  border: 1px solid var(--color-signal);
+  box-shadow: var(--shadow-cobalt-inner);
+  pointer-events: none;
+  /* Re-keyed per stage in GuidedFlow so it fades in on the new region. Position
+     snaps (no geometry transition) to honor the no-top/left/width/height rule. */
+  opacity: 0;
+  animation: target-in var(--duration-base) var(--ease-spring-soft) forwards;
+}
+@keyframes target-in {
+  to {
+    opacity: 1;
+  }
+}
+.target::before,
+.target::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: var(--color-signal);
+}
+.target::before {
+  left: -3.5px;
+  top: -3.5px;
+}
+.target::after {
+  right: -3.5px;
+  bottom: -3.5px;
+}
+.caption {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  border-top: 1px solid var(--color-hairline);
+  border-right: 1px solid var(--color-hairline);
+}
+.captionStep {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 80;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+.captionMetric {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-signal);
 }
 
 /* ---- cta ---- */
 .cta {
   position: relative;
   z-index: 1;
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   gap: var(--spacing-5);
   flex-wrap: wrap;
   padding: var(--spacing-8) var(--spacing-6) var(--spacing-9);
-  background: var(--color-bg);
   border-top: 2px solid var(--color-divider);
 }
 .ctaPrimary {
@@ -170,22 +343,64 @@
   color: var(--color-signal);
 }
 
-@media (max-width: 880px) {
-  .intro {
-    padding: var(--spacing-8) var(--spacing-5) var(--spacing-6);
+/* ---- responsive: stack with a sticky visual on top ---- */
+@media (max-width: 980px) {
+  .workbench {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+    padding: var(--spacing-5) var(--spacing-5) var(--spacing-7);
   }
-  .stageInner {
-    padding: var(--spacing-7) var(--spacing-5);
+  .rail {
+    display: none;
+  }
+  .visualCol {
+    order: -1;
+    position: sticky;
+    top: 56px;
+    width: 100%;
+    z-index: 5;
+  }
+  .visual {
+    height: 38vh;
+  }
+  .stage {
+    min-height: auto;
+    padding: var(--spacing-2) 0;
+  }
+  .plate {
+    max-width: none;
+    opacity: 1;
+    transform: none;
+  }
+  .intro {
+    padding: var(--spacing-8) var(--spacing-5) var(--spacing-5);
   }
   .cta {
     padding: var(--spacing-7) var(--spacing-5) var(--spacing-8);
   }
 }
 
-/* The stack pins sheets to the top; honor reduced-motion by letting them flow. */
+/* ---- reduced motion: un-stick, show all visuals stacked, no transitions ---- */
 @media (prefers-reduced-motion: reduce) {
-  .stage {
-    position: relative;
-    min-height: 0;
+  .rail,
+  .visualCol {
+    position: static;
+  }
+  .plate {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .visualImg {
+    transition: none;
+    transform: none;
+  }
+  .visualImg[data-on="true"] {
+    transform: none;
+  }
+  .target {
+    animation: none;
+    opacity: 1;
   }
 }

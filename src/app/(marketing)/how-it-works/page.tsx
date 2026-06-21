@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { TrialCta } from '../TrialCta';
+import { GuidedFlow } from './GuidedFlow';
 import styles from './how-it-works.module.css';
 
 export const metadata: Metadata = {
@@ -8,39 +9,11 @@ export const metadata: Metadata = {
     'Four links, one chain. Connect QuickBooks, see a real forecast, reorder with proof, and close the loop on every PO.',
 };
 
-const STAGES = [
-  {
-    n: '01',
-    name: 'Connect',
-    summary: 'Link QuickBooks Online in minutes.',
-    body: 'The Chain reads your catalog, suppliers, and purchase history, then keeps syncing both ways. No CSV gymnastics, no migration project, no rip-and-replace.',
-  },
-  {
-    n: '02',
-    name: 'Forecast',
-    summary: 'See real demand, not a guess.',
-    body: 'Every SKU gets a statistical forecast, scored against a baseline so you know which numbers to trust and which to watch. The math is the source of truth — Claude only explains it.',
-  },
-  {
-    n: '03',
-    name: 'Reorder',
-    summary: 'Order with proof.',
-    body: 'Defensible reorder points, safety stock, and supplier scorecards turn "I think we’re low" into a purchase order you can defend. One click sends it to the supplier.',
-  },
-  {
-    n: '04',
-    name: 'Receive',
-    summary: 'Close the loop.',
-    body: 'Track every PO from supplier to received. Stock updates itself, the chain advances link by link, and the next forecast gets smarter from what just happened.',
-  },
-] as const;
-
 /**
- * How it works (Block 17b). Sequential scroll with sticky-stacked sections: each
- * stage pins to the top and the next sheet slides up over it, so the page
- * physically stacks Connect → Forecast → Reorder → Receive as you scroll. The
- * mini chain at the top of each sheet advances its lit link to match the stage —
- * the chain motif at smaller scale. Editorial, no bench.
+ * How it works (Block 17b, premium re-cut 2026-06-21). A guided blueprint
+ * workbench: the four stages scroll in the center, a sticky supply-chain model
+ * re-crops to the stage in view, and a cobalt chain rail advances its lit link.
+ * Replaces the type-only sticky stack that read as dead whitespace.
  */
 export default function HowItWorks() {
   return (
@@ -54,27 +27,7 @@ export default function HowItWorks() {
         </p>
       </header>
 
-      <div className={styles.stack}>
-        {STAGES.map((s, i) => (
-          <section key={s.name} className={styles.stage} data-testid="stage">
-            <div className={styles.stageInner}>
-              <div className={styles.miniChain} aria-hidden="true">
-                {STAGES.map((m, j) => (
-                  <span key={m.name} className={styles.miniLink} data-active={j === i}>
-                    {m.name}
-                  </span>
-                ))}
-              </div>
-              <span className={styles.num}>
-                {s.n} <span className={styles.numTotal}>/ 04</span>
-              </span>
-              <h2 className={styles.stageName}>{s.name}</h2>
-              <p className={styles.summary}>{s.summary}</p>
-              <p className={styles.body}>{s.body}</p>
-            </div>
-          </section>
-        ))}
-      </div>
+      <GuidedFlow />
 
       <div className={styles.cta}>
         <TrialCta className={styles.ctaPrimary} location="how_it_works">

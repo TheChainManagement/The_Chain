@@ -28,7 +28,10 @@ let tenantId: string;
 let connectionId: string;
 
 function fixtureAdapter(tenant: string): QboSourceAdapter {
-  const client = new QboClient({ realmId: 'sandbox', environment: 'sandbox' }, new FixtureTransport());
+  const client = new QboClient(
+    { realmId: 'sandbox', environment: 'sandbox' },
+    new FixtureTransport(),
+  );
   return new QboSourceAdapter(client, tenant);
 }
 
@@ -69,8 +72,14 @@ async function count(table: string): Promise<number> {
 beforeAll(async () => {
   const existing = await findUserId(EMAIL);
   if (existing) await admin.auth.admin.deleteUser(existing);
-  await admin.auth.admin.createUser({ email: EMAIL, password: 'integration-pw', email_confirm: true });
-  const client = createClient(URL, ANON, { auth: { autoRefreshToken: false, persistSession: false } });
+  await admin.auth.admin.createUser({
+    email: EMAIL,
+    password: 'integration-pw',
+    email_confirm: true,
+  });
+  const client = createClient(URL, ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   await client.auth.signInWithPassword({ email: EMAIL, password: 'integration-pw' });
   await client.rpc('bootstrap_tenant', { p_business_name: 'QBO Sync Co' });
   await client.auth.refreshSession();
@@ -105,7 +114,13 @@ afterAll(async () => {
 describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
   it('writes items, vendors, and movements, then finalizes the run', async () => {
     const syncRunId = await newSyncRun();
-    const counts = await syncCatalogFromAdapter(admin, fixtureAdapter(tenantId), tenantId, syncRunId, connectionId);
+    const counts = await syncCatalogFromAdapter(
+      admin,
+      fixtureAdapter(tenantId),
+      tenantId,
+      syncRunId,
+      connectionId,
+    );
 
     // 5 Inventory items (the Service item is skipped, not an error); 4 vendors.
     expect(counts.catalog).toBe(5);
@@ -166,7 +181,9 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
 
     const { data: po } = await admin
       .from('purchase_orders')
-      .select('id, supplier_id, status, total, external_po_id, external_reference, recommended_by, expected_delivery_at')
+      .select(
+        'id, supplier_id, status, total, external_po_id, external_reference, recommended_by, expected_delivery_at',
+      )
       .eq('tenant_id', tenantId)
       .eq('external_reference', 'PO-1001')
       .single<{
@@ -224,7 +241,13 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
     expect(before).toBe(3);
 
     const syncRunId = await newSyncRun();
-    await syncCatalogFromAdapter(admin, fixtureAdapter(tenantId), tenantId, syncRunId, connectionId);
+    await syncCatalogFromAdapter(
+      admin,
+      fixtureAdapter(tenantId),
+      tenantId,
+      syncRunId,
+      connectionId,
+    );
 
     const { count: after } = await admin
       .from('purchase_order_lines')
@@ -243,7 +266,13 @@ describe('syncCatalogFromAdapter — initial QBO sync into the catalog', () => {
     };
 
     const syncRunId = await newSyncRun();
-    await syncCatalogFromAdapter(admin, fixtureAdapter(tenantId), tenantId, syncRunId, connectionId);
+    await syncCatalogFromAdapter(
+      admin,
+      fixtureAdapter(tenantId),
+      tenantId,
+      syncRunId,
+      connectionId,
+    );
 
     expect(await count('products')).toBe(before.products);
     expect(await count('suppliers')).toBe(before.suppliers);

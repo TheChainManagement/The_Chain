@@ -75,7 +75,10 @@ describe('approvePurchaseOrder', () => {
 
   it('does not start the workflow when approval was a no-op replay', async () => {
     rlsQueue = [ok({ id: 'PO1', supplier_id: 'S1' }), ok({ status: 'active' })];
-    approveMock = vi.fn(async () => ({ ok: false, error: 'This order has already been approved.' }));
+    approveMock = vi.fn(async () => ({
+      ok: false,
+      error: 'This order has already been approved.',
+    }));
     const res = await approvePurchaseOrder({ poId: 'PO1' });
     expect(res.ok).toBe(false);
     expect(startMock).not.toHaveBeenCalled();

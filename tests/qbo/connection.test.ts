@@ -5,8 +5,8 @@ import {
   deactivateQboConnection,
   getQboStatus,
   loadQboConnection,
-  saveQboConnection,
   type StoredCredentials,
+  saveQboConnection,
 } from '@/lib/qbo/connection';
 import { connect } from '../helpers/db';
 
@@ -67,7 +67,7 @@ describe('qbo connection layer (service-role)', () => {
     expect(loaded?.credentials.refreshToken).toBe('RT-secret-value');
   });
 
-  it("stores ciphertext at rest, not the plaintext tokens", async () => {
+  it('stores ciphertext at rest, not the plaintext tokens', async () => {
     const raw = await pg.query<{ b: string }>(
       "select encode(encrypted_credentials, 'base64') b from source_connections where tenant_id = $1 and source = 'qbo'",
       [tenantId],

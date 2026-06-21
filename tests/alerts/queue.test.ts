@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALERT_KIND_LABEL, relativeAge } from '@/lib/alerts/format';
-import { openAlertCounts } from '@/lib/alerts/queue';
 import type { AlertView } from '@/lib/alerts/queue';
+import { openAlertCounts } from '@/lib/alerts/queue';
 
 /** Queue read-model helpers (in-app alerts engine) — pure. */
 

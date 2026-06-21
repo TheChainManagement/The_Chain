@@ -53,7 +53,12 @@ beforeEach(() => {
   rlsQueue = [];
   revalidated = [];
   claims = { tenant_id: 'T1', tenant_role: 'owner', sub: 'U1' };
-  receiveMock = vi.fn(async () => ({ ok: true, status: 'received', sampleSize: 6, replayed: false }));
+  receiveMock = vi.fn(async () => ({
+    ok: true,
+    status: 'received',
+    sampleSize: 6,
+    replayed: false,
+  }));
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -64,7 +69,12 @@ describe('markPurchaseOrderReceived', () => {
     expect(res).toMatchObject({ ok: true, status: 'received' });
     expect(receiveMock).toHaveBeenCalledTimes(1);
     expect(revalidated).toEqual(
-      expect.arrayContaining(['/purchase-orders/PO1', '/purchase-orders', '/suppliers/S1', '/suppliers']),
+      expect.arrayContaining([
+        '/purchase-orders/PO1',
+        '/purchase-orders',
+        '/suppliers/S1',
+        '/suppliers',
+      ]),
     );
   });
 

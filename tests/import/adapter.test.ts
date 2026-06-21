@@ -64,9 +64,9 @@ describe('pull', () => {
   });
 
   it('throws FatalError for an unsupported kind', async () => {
-    await expect(new CsvSourceAdapter({}).pull('purchase_order', null, 'key-5')).rejects.toBeInstanceOf(
-      FatalError,
-    );
+    await expect(
+      new CsvSourceAdapter({}).pull('purchase_order', null, 'key-5'),
+    ).rejects.toBeInstanceOf(FatalError);
   });
 });
 

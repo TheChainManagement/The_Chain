@@ -42,8 +42,9 @@ describe('pricing — hairline tiers', () => {
     const popular = getAllByTestId('tier').filter((t) => t.getAttribute('data-popular') === 'true');
     expect(popular).toHaveLength(1);
     expect(popular[0]?.querySelector('h2')?.textContent).toBe('Growth');
+    // Four tier CTAs + the closing ChainCtaBand CTA = 5, all routing to sign-up.
     const ctas = getAllByRole('link', { name: /start 14-day trial/i });
-    expect(ctas).toHaveLength(4);
+    expect(ctas).toHaveLength(5);
     for (const cta of ctas) expect(cta.getAttribute('href')).toBe('/signup');
   });
 });

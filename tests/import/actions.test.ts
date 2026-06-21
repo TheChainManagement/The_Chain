@@ -19,7 +19,9 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
-  createSupabaseServer: async () => ({ auth: { getClaims: async () => ({ data: { claims: h.claims } }) } }),
+  createSupabaseServer: async () => ({
+    auth: { getClaims: async () => ({ data: { claims: h.claims } }) },
+  }),
 }));
 vi.mock('@/lib/import/commit', () => ({
   runCsvImport: h.runCsvImport,
@@ -28,7 +30,9 @@ vi.mock('@/lib/import/commit', () => ({
 vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdmin: () => ({
     from: () => ({
-      insert: () => ({ select: () => ({ single: async () => ({ data: { id: 'run1' }, error: null }) }) }),
+      insert: () => ({
+        select: () => ({ single: async () => ({ data: { id: 'run1' }, error: null }) }),
+      }),
       update: h.adminUpdate,
     }),
   }),
@@ -49,7 +53,10 @@ function input(kind: 'product' | 'supplier' | 'stock_movement', csvText = smallC
 beforeEach(() => {
   h.claims = { tenant_id: 't1', tenant_role: 'owner' };
   h.runCsvImport.mockReset();
-  h.runCsvImport.mockResolvedValue({ ok: true, summary: { syncRunId: 's', imported: 1, skipped: 0, failed: 0, total: 1, failures: [] } });
+  h.runCsvImport.mockResolvedValue({
+    ok: true,
+    summary: { syncRunId: 's', imported: 1, skipped: 0, failed: 0, total: 1, failures: [] },
+  });
   h.start.mockReset();
   h.start.mockResolvedValue({ runId: 'wf1' });
   h.revalidatePath.mockClear();

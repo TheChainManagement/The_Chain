@@ -667,8 +667,8 @@
 
 **Step-by-step build sequence:**
 1. Build `/(marketing)` route segment with NO rails, NO bench layout — standard editorial flow against the same design tokens.
-2. Build `/` (hero) page. Headline using Mona Sans wdth 75 weight 800. Chain hero with the notched-connector + ignite animation. CTA "Start 14-day trial." Asymmetric layout, not centered.
-3. Build `/how-it-works` page. Sequential scroll with sticky-stacked sections — Connect → Forecast → Reorder → Receive. Each section uses the chain motif at smaller scale.
+2. Build `/` (hero) page. Headline using Mona Sans width axis (stamps wdth 60→78) weight 850. Composited isometric supply-chain model (mix-blend) over a rotated blueprint underlay. Live PO chain `DEMAND → FORECAST → PO → SUPPLIER → RECEIVED` with the ignite reaching the **PO** link (marketing metaphor leads with the forecasting value; revised 2026-06-21 per MG, supersedes the older supplier→in-transit→received wording). CTA "Start 14-day trial." Asymmetric layout, not centered.
+3. Build `/how-it-works` page. **Guided blueprint workbench (revised 2026-06-21 per MG — the original "sticky-stacked sections" read as dead whitespace and was reworked):** sticky cobalt chain rail + scrolling inspection plates + a sticky visual that re-crops the model/blueprint to the stage in view (IntersectionObserver) — Connect → Forecast → Reorder → Receive. The chain motif threads the rail.
 4. Build `/pricing` page. Tier table using hairline rules and tabular Plex Mono prices via `<StatNumber>`. No card boxes around tiers. Compare-table for retention windows.
 5. Build `/about` and `/contact` (small, on-direction).
 6. Build `/(marketing)/_layout.tsx` — same nav + footer as the product, NO bench.
@@ -687,7 +687,7 @@
 - [ ] Accessibility: focus-visible, semantic headings, alt text.
 - [ ] **Memorable element visible in preview screenshot or Playwright interaction test.**
 
-**What's memorable:** The hero chain animation IS the marketing hook. Page loads, the chain forms left-to-right with the ignite animation reaching the "in transit" link — exactly what visitors see on the product dashboard later. The animation is the demo. No screenshots needed. (Required visible artifact: Playwright test loads `/` and captures the hero chain at 200ms, 1000ms, and final state.)
+**What's memorable:** The hero IS the marketing hook. The isometric supply-chain model reads as printed onto the drafting bench (mix-blend over a blueprint), the headline stamps in on the Mona Sans width axis, and the live PO chain forms left-to-right with the ignite reaching the **PO** link — the same chain language visitors see in the product. The closing `ChainCtaBand` pays it off with the photoreal cobalt-link macro. (Visible artifact: preview screenshots in `_reviews/2026-06-21_feature_marketing.md`; a Playwright timing capture at 200/1000ms/final is ticketed — Playwright is not yet wired into the project, consistent with the prior connect-screen artifact ticket.)
 
 ---
 

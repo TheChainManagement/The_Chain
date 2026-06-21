@@ -23,8 +23,16 @@ describe('fingerprints', () => {
     expect(productFingerprint({ name: 'Washer', status: 'active' })).not.toBe(a);
   });
   it('supplier contact order does not change the fingerprint', () => {
-    const a = supplierFingerprint({ name: 'Acme', status: 'active', contact: { email: 'a', phone: 'b' } });
-    const b = supplierFingerprint({ name: 'Acme', status: 'active', contact: { phone: 'b', email: 'a' } });
+    const a = supplierFingerprint({
+      name: 'Acme',
+      status: 'active',
+      contact: { email: 'a', phone: 'b' },
+    });
+    const b = supplierFingerprint({
+      name: 'Acme',
+      status: 'active',
+      contact: { phone: 'b', email: 'a' },
+    });
     expect(a).toBe(b);
   });
 });
@@ -63,7 +71,10 @@ describe('decideCatalogConflict', () => {
       }),
     );
     expect(d.action).toBe('apply');
-    expect(d.conflict).toEqual({ policyDecision: 'last_write_wins', appliedResolution: 'accept_remote' });
+    expect(d.conflict).toEqual({
+      policyDecision: 'last_write_wins',
+      appliedResolution: 'accept_remote',
+    });
   });
 
   it('LWW: local newer → keep + accept_local conflict', () => {
@@ -77,7 +88,10 @@ describe('decideCatalogConflict', () => {
       }),
     );
     expect(d.action).toBe('keep');
-    expect(d.conflict).toEqual({ policyDecision: 'last_write_wins', appliedResolution: 'accept_local' });
+    expect(d.conflict).toEqual({
+      policyDecision: 'last_write_wins',
+      appliedResolution: 'accept_local',
+    });
   });
 
   it('needs_review when both changed but the clocks are equal/missing', () => {
@@ -91,7 +105,10 @@ describe('decideCatalogConflict', () => {
       }),
     );
     expect(equal.action).toBe('keep');
-    expect(equal.conflict).toEqual({ policyDecision: 'needs_review', appliedResolution: 'pending' });
+    expect(equal.conflict).toEqual({
+      policyDecision: 'needs_review',
+      appliedResolution: 'pending',
+    });
 
     const missing = decideCatalogConflict(
       base({ storedFp: 'A', localFp: 'L', incomingFp: 'R', incomingExternalUpdatedAt: null }),
@@ -99,4 +116,3 @@ describe('decideCatalogConflict', () => {
     expect(missing.conflict?.policyDecision).toBe('needs_review');
   });
 });
-

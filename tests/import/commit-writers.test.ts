@@ -100,7 +100,8 @@ afterAll(async () => {
 });
 
 describe('runCsvImport — suppliers', () => {
-  const SUPPLIERS = 'Name,Lead Time,Min Order,Status\nAtlas Foods,7,500,active\nBayou Supply,14,,active\n';
+  const SUPPLIERS =
+    'Name,Lead Time,Min Order,Status\nAtlas Foods,7,500,active\nBayou Supply,14,,active\n';
 
   it('upserts suppliers with their terms', async () => {
     const res = await run(A, 'supplier', SUPPLIERS, 'sup-1');

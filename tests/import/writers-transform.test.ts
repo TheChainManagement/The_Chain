@@ -41,13 +41,19 @@ describe('mapRows — supplier (case-folded natural key)', () => {
 
 describe('mapRows — stock_movement', () => {
   it('does not dedup rows on the recurring SKU (a product sells many times)', () => {
-    const res = map('stock_movement', 'SKU,Movement,Quantity,Date\nMOV-1,sale,-5,2026-03-15\nMOV-1,sale,-2,2026-03-16\n');
+    const res = map(
+      'stock_movement',
+      'SKU,Movement,Quantity,Date\nMOV-1,sale,-5,2026-03-15\nMOV-1,sale,-2,2026-03-16\n',
+    );
     expect(res.payloads).toHaveLength(2); // same SKU, both rows survive
     expect(res.errors).toHaveLength(0);
   });
 
   it('coerces a signed quantity and flags a missing required field', () => {
-    const res = map('stock_movement', 'SKU,Movement,Quantity,Date\nMOV-1,sale,-5,2026-03-15\nMOV-2,receipt,,2026-03-16\n');
+    const res = map(
+      'stock_movement',
+      'SKU,Movement,Quantity,Date\nMOV-1,sale,-5,2026-03-15\nMOV-2,receipt,,2026-03-16\n',
+    );
     expect(res.payloads).toHaveLength(1);
     const a = res.payloads[0]?.attributes as { quantity: number; type: string };
     expect(a.quantity).toBe(-5);

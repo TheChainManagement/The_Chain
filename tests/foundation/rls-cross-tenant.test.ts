@@ -115,7 +115,9 @@ describe('cross-tenant RLS isolation', () => {
     ).rejects.toThrow(/row-level security/i);
     await client.query('rollback to savepoint xtenant');
 
-    const upd = await client.query(`update public.products set name = name where tenant_id = $1`, [B]);
+    const upd = await client.query(`update public.products set name = name where tenant_id = $1`, [
+      B,
+    ]);
     expect(upd.rowCount).toBe(0);
   });
 
@@ -124,9 +126,9 @@ describe('cross-tenant RLS isolation', () => {
     await client.query('savepoint partchild');
     // Direct child access is revoked entirely; parent-routed queries (covered
     // above) still work because privileges are checked on the parent.
-    await expect(
-      client.query(`select count(*) from public.stock_movements_2026`),
-    ).rejects.toThrow(/permission denied/i);
+    await expect(client.query(`select count(*) from public.stock_movements_2026`)).rejects.toThrow(
+      /permission denied/i,
+    );
     await client.query('rollback to savepoint partchild');
   });
 });

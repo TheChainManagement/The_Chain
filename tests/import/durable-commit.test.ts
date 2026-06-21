@@ -14,7 +14,9 @@ const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
-const admin = createClient(URL, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
+const admin = createClient(URL, SERVICE, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 const EMAIL = 'it-csv-durable@bayou-it.example';
 
 let tenantId: string;
@@ -60,8 +62,14 @@ const mapping = (fields: Record<string, string>) => fields;
 beforeAll(async () => {
   const existing = await findUserId(EMAIL);
   if (existing) await admin.auth.admin.deleteUser(existing);
-  await admin.auth.admin.createUser({ email: EMAIL, password: 'integration-pw', email_confirm: true });
-  const client = createClient(URL, ANON, { auth: { autoRefreshToken: false, persistSession: false } });
+  await admin.auth.admin.createUser({
+    email: EMAIL,
+    password: 'integration-pw',
+    email_confirm: true,
+  });
+  const client = createClient(URL, ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   await client.auth.signInWithPassword({ email: EMAIL, password: 'integration-pw' });
   await client.rpc('bootstrap_tenant', { p_business_name: 'Durable Co' });
   await client.auth.refreshSession();
@@ -119,14 +127,23 @@ describe('runImportDurable — products (admin path)', () => {
 
   it('is idempotent: a fresh re-run does not duplicate', async () => {
     const syncRunId = await newSyncRun('product');
-    await runImportDurable({ tenantId, kind: 'product', csvText: productCsv, mapping: productMap, syncRunId });
+    await runImportDurable({
+      tenantId,
+      kind: 'product',
+      csvText: productCsv,
+      mapping: productMap,
+      syncRunId,
+    });
     expect(await count('products')).toBe(3); // upsert, never duplicate
   });
 
   it('resumes: re-running a completed run skips the already-done work', async () => {
     // Re-use a run whose cursor.processed is already at total → every batch is skipped.
     const syncRunId = await newSyncRun('product');
-    await admin.from('sync_runs').update({ cursor: { processed: 3, total: 3, kind: 'product' } }).eq('id', syncRunId);
+    await admin
+      .from('sync_runs')
+      .update({ cursor: { processed: 3, total: 3, kind: 'product' } })
+      .eq('id', syncRunId);
     const summary = await runImportDurable({
       tenantId,
       kind: 'product',

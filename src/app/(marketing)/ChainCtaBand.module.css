@@ -1,0 +1,133 @@
+/* ChainCtaBand — closing payoff. Steel chain macro composited (multiply) onto a
+   pewter band, bleeding right; slogan + CTA on the left. Tokens only. */
+
+.band {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: 360px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  background: var(--color-inset);
+  border-top: 2px solid var(--color-divider);
+}
+
+.visual {
+  position: absolute;
+  inset: 0 0 0 42%;
+  z-index: 0;
+  pointer-events: none;
+}
+.macro {
+  object-fit: cover;
+  object-position: center;
+  /* printed onto the band, same language as the hero */
+  mix-blend-mode: multiply;
+  /* fade the left edge into the band so it reads as emerging, not pasted */
+  -webkit-mask-image: linear-gradient(90deg, transparent, rgb(0 0 0) 34%);
+  mask-image: linear-gradient(90deg, transparent, rgb(0 0 0) 34%);
+}
+
+.copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-8) var(--spacing-6);
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-flow);
+}
+.h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 78;
+  font-weight: 850;
+  font-size: clamp(34px, 4vw, 52px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  color: var(--color-deep);
+}
+.lede {
+  margin: 0;
+  max-width: 38ch;
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-5);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-2);
+}
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 22px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-on-signal);
+  background: var(--color-signal);
+  border: 1px solid var(--color-signal);
+  text-decoration: none;
+  transition:
+    background var(--duration-quick) var(--ease-spring-snappy),
+    box-shadow var(--duration-quick) var(--ease-spring-snappy);
+}
+.ctaPrimary:hover {
+  background: var(--color-signal-bright);
+  box-shadow: var(--shadow-cobalt-inner), var(--shadow-cobalt-diffusion);
+}
+.ctaSecondary {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-deep);
+  text-decoration: none;
+}
+.ctaSecondary:hover {
+  color: var(--color-signal);
+}
+
+@media (max-width: 880px) {
+  .band {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .visual {
+    position: relative;
+    inset: auto;
+    height: 46vw;
+    order: -1;
+  }
+  .macro {
+    -webkit-mask-image: linear-gradient(rgb(0 0 0), transparent);
+    mask-image: linear-gradient(rgb(0 0 0), transparent);
+  }
+  .copy {
+    padding: var(--spacing-6) var(--spacing-5) var(--spacing-7);
+  }
+}

@@ -83,12 +83,18 @@ describe('profiles.active_tenant_id cannot point at a tenant you do not belong t
 describe('the access-token hook only mints tenant claims when membership is real', () => {
   it('a spoofed active_tenant_id (no membership) yields NO tenant_id claim', async () => {
     // Force the spoof at the data layer (as if RLS had been bypassed somehow).
-    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [B, UA]);
+    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [
+      B,
+      UA,
+    ]);
     expect(await hookTenantClaim(UA)).toBeNull();
   });
 
   it('a real membership yields the tenant_id claim', async () => {
-    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [A, UA]);
+    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [
+      A,
+      UA,
+    ]);
     expect(await hookTenantClaim(UA)).toBe(A);
   });
 
@@ -97,7 +103,10 @@ describe('the access-token hook only mints tenant claims when membership is real
   // request; writing `role='owner'` makes every authenticated query fail with
   // `role "owner" does not exist`. This is the exact bug that bounced all logins.
   it('mints the member role as tenant_role and leaves the reserved role as authenticated (5L)', async () => {
-    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [A, UA]);
+    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [
+      A,
+      UA,
+    ]);
     const claims = await hookClaims(UA, { role: 'authenticated' });
     expect(claims?.tenant_role).toBe('owner');
     expect(claims?.role).toBe('authenticated');
@@ -105,8 +114,14 @@ describe('the access-token hook only mints tenant claims when membership is real
   });
 
   it('a removed member gets NO tenant_id claim on re-login', async () => {
-    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [A, UA]);
-    await client.query(`delete from public.tenant_members where tenant_id = $1 and user_id = $2`, [A, UA]);
+    await client.query(`update public.profiles set active_tenant_id = $1 where user_id = $2`, [
+      A,
+      UA,
+    ]);
+    await client.query(`delete from public.tenant_members where tenant_id = $1 and user_id = $2`, [
+      A,
+      UA,
+    ]);
     expect(await hookTenantClaim(UA)).toBeNull();
   });
 });
