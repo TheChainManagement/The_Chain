@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  actionVerb,
   AUDIT_ROLES,
+  actionVerb,
   canReadAudit,
   diffFields,
   entityLabel,
@@ -36,7 +36,9 @@ describe('retention tier windows', () => {
   });
 
   it('computes a cutoff for bounded tiers and null for enterprise', () => {
-    expect(tierWindowCutoffIso('starter', NOW)).toBe(new Date(NOW - 365 * 86_400_000).toISOString());
+    expect(tierWindowCutoffIso('starter', NOW)).toBe(
+      new Date(NOW - 365 * 86_400_000).toISOString(),
+    );
     expect(tierWindowCutoffIso('enterprise', NOW)).toBeNull();
   });
 

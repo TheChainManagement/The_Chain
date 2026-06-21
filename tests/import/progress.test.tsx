@@ -25,6 +25,8 @@ describe('ProgressBar — durable import progress', () => {
 
   it('reads 0 before any total is known (preparing)', () => {
     const { container } = render(<ProgressBar processed={0} total={0} />);
-    expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('0');
+    expect(container.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe(
+      '0',
+    );
   });
 });

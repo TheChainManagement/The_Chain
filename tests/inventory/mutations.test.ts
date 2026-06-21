@@ -74,7 +74,12 @@ beforeAll(async () => {
 
   const p = await A.client
     .from('products')
-    .insert({ tenant_id: A.tenantId, sku: 'IT-MUT-1', name: 'Integration widget', status: 'active' })
+    .insert({
+      tenant_id: A.tenantId,
+      sku: 'IT-MUT-1',
+      name: 'Integration widget',
+      status: 'active',
+    })
     .select('id')
     .single<{ id: string }>();
   productId = p.data?.id as string;

@@ -13,7 +13,9 @@ import { finalizeReceivedPurchaseOrder } from '@/lib/purchase-orders/finalize';
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-const admin = createClient(URL, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
+const admin = createClient(URL, SERVICE, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 const EMAIL = 'it-finalize@bayou-it.example';
 
 let tenantId: string;
@@ -33,8 +35,14 @@ async function findUserId(email: string): Promise<string | undefined> {
 beforeAll(async () => {
   const existing = await findUserId(EMAIL);
   if (existing) await admin.auth.admin.deleteUser(existing);
-  await admin.auth.admin.createUser({ email: EMAIL, password: 'integration-pw', email_confirm: true });
-  const client = createClient(URL, ANON, { auth: { autoRefreshToken: false, persistSession: false } });
+  await admin.auth.admin.createUser({
+    email: EMAIL,
+    password: 'integration-pw',
+    email_confirm: true,
+  });
+  const client = createClient(URL, ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   await client.auth.signInWithPassword({ email: EMAIL, password: 'integration-pw' });
   await client.rpc('bootstrap_tenant', { p_business_name: 'Finalize Co' });
   await client.auth.refreshSession();

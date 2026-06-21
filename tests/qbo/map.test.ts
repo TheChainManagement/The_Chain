@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FIXTURE_BILLS,
+  FIXTURE_ITEMS,
+  FIXTURE_PURCHASE_ORDERS,
+  FIXTURE_SALES,
+  FIXTURE_VENDORS,
+} from '@/lib/qbo/fixtures';
+import {
   buildQboPurchaseOrder,
   mapBills,
   mapItems,
@@ -8,13 +15,6 @@ import {
   mapVendors,
   poDocNumber,
 } from '@/lib/qbo/map';
-import {
-  FIXTURE_BILLS,
-  FIXTURE_ITEMS,
-  FIXTURE_PURCHASE_ORDERS,
-  FIXTURE_SALES,
-  FIXTURE_VENDORS,
-} from '@/lib/qbo/fixtures';
 import type { CanonicalPayload } from '@/lib/source-adapter';
 
 describe('mapItems', () => {
@@ -36,12 +36,14 @@ describe('mapItems', () => {
   });
 
   it('falls back to Name when Sku is blank', () => {
-    const p = mapItems([{ Id: '900', Name: 'Unskued Widget', Type: 'Inventory', Active: true }]).items[0]!;
+    const p = mapItems([{ Id: '900', Name: 'Unskued Widget', Type: 'Inventory', Active: true }])
+      .items[0]!;
     expect(p.attributes.sku).toBe('Unskued Widget');
   });
 
   it('marks an inactive item discontinued', () => {
-    const p = mapItems([{ Id: '901', Name: 'Old', Sku: 'OLD-1', Type: 'Inventory', Active: false }]).items[0]!;
+    const p = mapItems([{ Id: '901', Name: 'Old', Sku: 'OLD-1', Type: 'Inventory', Active: false }])
+      .items[0]!;
     expect(p.attributes.status).toBe('discontinued');
   });
 });
@@ -80,7 +82,11 @@ describe('mapPurchaseOrders', () => {
     expect(open?.attributes.supplierExternalId).toBe('56');
     expect(open?.attributes.status).toBe('sent'); // QBO Open → sent
     expect(open?.attributes.lines).toHaveLength(2);
-    expect(open?.attributes.lines[0]).toMatchObject({ lineNo: 1, productExternalId: '101', orderedQty: 1000 });
+    expect(open?.attributes.lines[0]).toMatchObject({
+      lineNo: 1,
+      productExternalId: '101',
+      orderedQty: 1000,
+    });
 
     const closed = items.find((p) => p.externalId === '302');
     expect(closed?.attributes.status).toBe('closed'); // QBO Closed → closed
@@ -123,7 +129,12 @@ describe('mapBills + mapSalesTxns (stock movements)', () => {
       {
         Id: '700',
         TxnDate: '2026-05-30',
-        Line: [{ DetailType: 'ItemBasedExpenseLineDetail', ItemBasedExpenseLineDetail: { ItemRef: { value: '101' }, Qty: 1 } }],
+        Line: [
+          {
+            DetailType: 'ItemBasedExpenseLineDetail',
+            ItemBasedExpenseLineDetail: { ItemRef: { value: '101' }, Qty: 1 },
+          },
+        ],
       },
     ]).items[0]!;
     expect(dateOnly.attributes.occurredAt).toBe('2026-05-30T00:00:00.000Z');
@@ -132,7 +143,12 @@ describe('mapBills + mapSalesTxns (stock movements)', () => {
       {
         Id: '701',
         TxnDate: '2026-05-30T13:45:00-05:00',
-        Line: [{ DetailType: 'ItemBasedExpenseLineDetail', ItemBasedExpenseLineDetail: { ItemRef: { value: '101' }, Qty: 1 } }],
+        Line: [
+          {
+            DetailType: 'ItemBasedExpenseLineDetail',
+            ItemBasedExpenseLineDetail: { ItemRef: { value: '101' }, Qty: 1 },
+          },
+        ],
       },
     ]).items[0]!;
     expect(withTime.attributes.occurredAt).toBe('2026-05-30T13:45:00-05:00'); // preserved as-is
@@ -165,7 +181,11 @@ describe('poDocNumber + buildQboPurchaseOrder (push)', () => {
     expect(body.PrivateNote).toContain('tenant=tenant-123');
     expect(body.PrivateNote).toContain(`po=${payload.externalId}`);
     const line = (body.Line as Array<Record<string, unknown>>)[0]!;
-    expect(line.ItemBasedExpenseLineDetail).toMatchObject({ ItemRef: { value: '101' }, Qty: 1000, UnitPrice: 0.42 });
+    expect(line.ItemBasedExpenseLineDetail).toMatchObject({
+      ItemRef: { value: '101' },
+      Qty: 1000,
+      UnitPrice: 0.42,
+    });
     expect(line.Amount).toBe(420);
   });
 });

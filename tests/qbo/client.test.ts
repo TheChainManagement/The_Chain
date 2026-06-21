@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { QboClient } from '@/lib/qbo/client';
-import { FatalError, RetryableError } from '@/lib/source-adapter';
 import type { QboRequest, QboResponse, QboTransport } from '@/lib/qbo/transport';
+import { FatalError, RetryableError } from '@/lib/source-adapter';
 
 /** A transport that returns one canned response, capturing the request it saw. */
 class CannedTransport implements QboTransport {
@@ -30,7 +30,9 @@ describe('QboClient.query', () => {
     });
     const res = await c.query('SELECT * FROM Item');
     expect(res.QueryResponse?.Item).toHaveLength(1);
-    expect(transport.last?.url).toContain('https://sandbox-quickbooks.api.intuit.com/v3/company/900/query');
+    expect(transport.last?.url).toContain(
+      'https://sandbox-quickbooks.api.intuit.com/v3/company/900/query',
+    );
     expect(transport.last?.url).toContain('minorversion=');
   });
 
@@ -50,7 +52,10 @@ describe('QboClient.query', () => {
 
   it('throws FatalError(code=auth) on 401', async () => {
     const { client: c } = client({ status: 401, headers: {}, body: {} });
-    await expect(c.query('SELECT * FROM Item')).rejects.toMatchObject({ name: 'FatalError', code: 'auth' });
+    await expect(c.query('SELECT * FROM Item')).rejects.toMatchObject({
+      name: 'FatalError',
+      code: 'auth',
+    });
   });
 
   it('throws FatalError carrying Intuit fault detail on a 400', async () => {

@@ -116,8 +116,24 @@ describe('mapSupplierListRow', () => {
     const row = mapSupplierListRow({
       ...base,
       supplier_scorecards: [
-        { window_kind: 'rolling_90d', otif_pct: '0.80', on_time_pct: '0.82', in_full_pct: '0.9', lead_time_avg_days: null, lead_time_stddev_days: null, sample_size: 9 },
-        { window_kind: 'rolling_30d', otif_pct: '0.95', on_time_pct: '0.96', in_full_pct: '0.98', lead_time_avg_days: null, lead_time_stddev_days: null, sample_size: 4 },
+        {
+          window_kind: 'rolling_90d',
+          otif_pct: '0.80',
+          on_time_pct: '0.82',
+          in_full_pct: '0.9',
+          lead_time_avg_days: null,
+          lead_time_stddev_days: null,
+          sample_size: 9,
+        },
+        {
+          window_kind: 'rolling_30d',
+          otif_pct: '0.95',
+          on_time_pct: '0.96',
+          in_full_pct: '0.98',
+          lead_time_avg_days: null,
+          lead_time_stddev_days: null,
+          sample_size: 4,
+        },
       ],
     });
     expect(row.otifPct).toBeCloseTo(0.95);
@@ -190,9 +206,9 @@ describe('validateLinkInput', () => {
     expect(validateLinkInput({ supplierId: 's', unitCost: 'abc' }).ok).toBe(false);
   });
   it('accepts numeric terms', () => {
-    expect(validateLinkInput({ supplierId: 's', unitCost: '1.25', leadTimeDays: '7', moq: '1' })).toEqual(
-      { ok: true },
-    );
+    expect(
+      validateLinkInput({ supplierId: 's', unitCost: '1.25', leadTimeDays: '7', moq: '1' }),
+    ).toEqual({ ok: true });
   });
 });
 

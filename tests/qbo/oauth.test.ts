@@ -10,7 +10,10 @@ import {
 } from '@/lib/qbo/oauth';
 import { FatalError, RetryableError } from '@/lib/source-adapter';
 
-function cannedHttp(response: { status: number; body: unknown }): { http: TokenHttp; seen: TokenHttpRequest[] } {
+function cannedHttp(response: { status: number; body: unknown }): {
+  http: TokenHttp;
+  seen: TokenHttpRequest[];
+} {
   const seen: TokenHttpRequest[] = [];
   const http: TokenHttp = async (req) => {
     seen.push(req);
@@ -66,28 +69,49 @@ describe('exchangeAuthCode', () => {
   it('throws FatalError(code=oauth) on a 401', async () => {
     const { http } = cannedHttp({ status: 401, body: { error: 'invalid_grant' } });
     await expect(
-      exchangeAuthCode(http, { clientId: 'C', clientSecret: 'S', redirectUri: 'r', code: 'c', nowIso: 'n' }),
+      exchangeAuthCode(http, {
+        clientId: 'C',
+        clientSecret: 'S',
+        redirectUri: 'r',
+        code: 'c',
+        nowIso: 'n',
+      }),
     ).rejects.toMatchObject({ name: 'FatalError', code: 'oauth' });
   });
 
   it('throws RetryableError on a 429', async () => {
     const { http } = cannedHttp({ status: 429, body: {} });
     await expect(
-      exchangeAuthCode(http, { clientId: 'C', clientSecret: 'S', redirectUri: 'r', code: 'c', nowIso: 'n' }),
+      exchangeAuthCode(http, {
+        clientId: 'C',
+        clientSecret: 'S',
+        redirectUri: 'r',
+        code: 'c',
+        nowIso: 'n',
+      }),
     ).rejects.toBeInstanceOf(RetryableError);
   });
 
   it('throws FatalError when a 200 body is missing tokens', async () => {
     const { http } = cannedHttp({ status: 200, body: { token_type: 'bearer' } });
     await expect(
-      exchangeAuthCode(http, { clientId: 'C', clientSecret: 'S', redirectUri: 'r', code: 'c', nowIso: 'n' }),
+      exchangeAuthCode(http, {
+        clientId: 'C',
+        clientSecret: 'S',
+        redirectUri: 'r',
+        code: 'c',
+        nowIso: 'n',
+      }),
     ).rejects.toMatchObject({ name: 'FatalError', code: 'token_response' });
   });
 });
 
 describe('refreshAccessToken', () => {
   it('sends the refresh_token grant and returns rotated tokens', async () => {
-    const { http, seen } = cannedHttp({ status: 200, body: { ...TOKEN_BODY, access_token: 'AT-new' } });
+    const { http, seen } = cannedHttp({
+      status: 200,
+      body: { ...TOKEN_BODY, access_token: 'AT-new' },
+    });
     const tokens = await refreshAccessToken(http, {
       clientId: 'C',
       clientSecret: 'S',
@@ -103,14 +127,18 @@ describe('refreshAccessToken', () => {
 describe('revokeToken', () => {
   it('tolerates a 200 and a 4xx (already-revoked), throws only on 5xx', async () => {
     const ok = cannedHttp({ status: 200, body: {} });
-    await expect(revokeToken(ok.http, { clientId: 'C', clientSecret: 'S', token: 't' })).resolves.toBeUndefined();
+    await expect(
+      revokeToken(ok.http, { clientId: 'C', clientSecret: 'S', token: 't' }),
+    ).resolves.toBeUndefined();
 
     const gone = cannedHttp({ status: 400, body: {} });
-    await expect(revokeToken(gone.http, { clientId: 'C', clientSecret: 'S', token: 't' })).resolves.toBeUndefined();
+    await expect(
+      revokeToken(gone.http, { clientId: 'C', clientSecret: 'S', token: 't' }),
+    ).resolves.toBeUndefined();
 
     const down = cannedHttp({ status: 503, body: {} });
-    await expect(revokeToken(down.http, { clientId: 'C', clientSecret: 'S', token: 't' })).rejects.toBeInstanceOf(
-      RetryableError,
-    );
+    await expect(
+      revokeToken(down.http, { clientId: 'C', clientSecret: 'S', token: 't' }),
+    ).rejects.toBeInstanceOf(RetryableError);
   });
 });

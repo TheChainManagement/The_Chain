@@ -15,7 +15,13 @@ import { autoMap, type ColumnMapping } from '@/lib/import/mapping';
  */
 
 const spec = getKindSpec('product');
-const sample = { 'Item Number': 'AB-1', 'Product Name': 'Widget', UOM: 'each', Status: 'active', Color: 'blue' };
+const sample = {
+  'Item Number': 'AB-1',
+  'Product Name': 'Widget',
+  UOM: 'each',
+  Status: 'active',
+  Color: 'blue',
+};
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -30,7 +36,13 @@ describe('ColumnMapper — the memorable pegboard', () => {
     const headers = ['Item Number', 'Product Name', 'UOM', 'Status', 'Color'];
     const mapping = autoMap(headers, spec); // wires sku, name, unitOfMeasure, status (4)
     const { container } = render(
-      <ColumnMapper spec={spec} headers={headers} sampleRow={sample} mapping={mapping} onChange={vi.fn()} />,
+      <ColumnMapper
+        spec={spec}
+        headers={headers}
+        sampleRow={sample}
+        mapping={mapping}
+        onChange={vi.fn()}
+      />,
     );
     // The connector lines ARE the memorable element.
     expect(container.querySelectorAll('svg path')).toHaveLength(4);
@@ -40,7 +52,13 @@ describe('ColumnMapper — the memorable pegboard', () => {
     const headers = ['Product Name', 'Color']; // no SKU column
     const mapping = autoMap(headers, spec);
     const { container } = render(
-      <ColumnMapper spec={spec} headers={headers} sampleRow={sample} mapping={mapping} onChange={vi.fn()} />,
+      <ColumnMapper
+        spec={spec}
+        headers={headers}
+        sampleRow={sample}
+        mapping={mapping}
+        onChange={vi.fn()}
+      />,
     );
     // SKU is required and unmapped -> a missing port exists.
     expect(container.querySelector('[data-missing]')).not.toBeNull();
@@ -53,7 +71,15 @@ describe('ColumnMapper — the memorable pegboard', () => {
     expect(mapping.description).toBeNull();
 
     const onChange = vi.fn();
-    render(<ColumnMapper spec={spec} headers={headers} sampleRow={sample} mapping={mapping} onChange={onChange} />);
+    render(
+      <ColumnMapper
+        spec={spec}
+        headers={headers}
+        sampleRow={sample}
+        mapping={mapping}
+        onChange={onChange}
+      />,
+    );
 
     await userEvent.click(screen.getByRole('button', { name: /Color/ }));
     await userEvent.click(screen.getByRole('button', { name: /Description/ }));

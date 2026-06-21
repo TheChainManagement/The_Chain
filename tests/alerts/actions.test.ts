@@ -53,7 +53,10 @@ describe('alert queue actions', () => {
   it('acknowledge moves the row to acknowledged, fenced to open/acknowledged', async () => {
     const res = await acknowledgeAlert('a1');
     expect(res.ok).toBe(true);
-    expect(updateCalls[0]).toEqual({ status: 'acknowledged', inStatuses: ['open', 'acknowledged'] });
+    expect(updateCalls[0]).toEqual({
+      status: 'acknowledged',
+      inStatuses: ['open', 'acknowledged'],
+    });
     expect(revalidated).toContain('/flow/alerts');
   });
 

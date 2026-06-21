@@ -197,7 +197,14 @@ describe('getForecastBatchProgress — poller mapping', () => {
         cursor: {
           kind: 'forecast_batch',
           total: 900,
-          totals: { processed: 900, modeled: 700, benchmarked: 180, promoted: 412, failed: 20, transitions: 9 },
+          totals: {
+            processed: 900,
+            modeled: 700,
+            benchmarked: 180,
+            promoted: 412,
+            failed: 20,
+            transitions: 9,
+          },
           failed_shards: [],
         },
       }),

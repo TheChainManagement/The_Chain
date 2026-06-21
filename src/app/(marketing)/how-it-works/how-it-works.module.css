@@ -246,11 +246,15 @@
   border: 1px solid var(--color-signal);
   box-shadow: var(--shadow-cobalt-inner);
   pointer-events: none;
-  transition:
-    left var(--duration-base) var(--ease-spring-soft),
-    top var(--duration-base) var(--ease-spring-soft),
-    width var(--duration-base) var(--ease-spring-soft),
-    height var(--duration-base) var(--ease-spring-soft);
+  /* Re-keyed per stage in GuidedFlow so it fades in on the new region. Position
+     snaps (no geometry transition) to honor the no-top/left/width/height rule. */
+  opacity: 0;
+  animation: target-in var(--duration-base) var(--ease-spring-soft) forwards;
+}
+@keyframes target-in {
+  to {
+    opacity: 1;
+  }
 }
 .target::before,
 .target::after {
@@ -396,6 +400,7 @@
     transform: none;
   }
   .target {
-    transition: none;
+    animation: none;
+    opacity: 1;
   }
 }

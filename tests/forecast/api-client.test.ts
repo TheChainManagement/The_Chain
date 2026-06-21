@@ -53,7 +53,10 @@ describe('callForecastApi — contract + error taxonomy', () => {
       seen = (init.headers as Record<string, string>)['x-forecast-secret'] ?? null;
       return new Response(JSON.stringify(OK_BODY), { status: 200 });
     };
-    await callForecastApi({ baseUrl: 'http://forecast.test', secret: 's3cr3t', fetchImpl }, REQUEST);
+    await callForecastApi(
+      { baseUrl: 'http://forecast.test', secret: 's3cr3t', fetchImpl },
+      REQUEST,
+    );
     expect(seen).toBe('s3cr3t');
   });
 

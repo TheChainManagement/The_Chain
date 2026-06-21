@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { QboSourceAdapter } from '@/lib/qbo/adapter';
 import { QboClient } from '@/lib/qbo/client';
 import { FixtureTransport } from '@/lib/qbo/fixtures';
-import { FatalError } from '@/lib/source-adapter';
-import type { Cursor, PullResult } from '@/lib/source-adapter';
 import type { QboRequest, QboResponse, QboTransport } from '@/lib/qbo/transport';
+import type { Cursor, PullResult } from '@/lib/source-adapter';
+import { FatalError } from '@/lib/source-adapter';
 
-function adapter(pageSize?: number, transport: QboTransport = new FixtureTransport()): QboSourceAdapter {
+function adapter(
+  pageSize?: number,
+  transport: QboTransport = new FixtureTransport(),
+): QboSourceAdapter {
   const client = new QboClient({ realmId: '900', environment: 'sandbox' }, transport);
   return new QboSourceAdapter(client, 'tenant-123', pageSize);
 }
@@ -154,7 +157,11 @@ describe('QboSourceAdapter.push — PO write-back idempotency', () => {
       async request(req: QboRequest): Promise<QboResponse> {
         if (req.method === 'POST') {
           creates += 1;
-          return { status: 200, headers: {}, body: { PurchaseOrder: { Id: 'NEW', SyncToken: '0' } } };
+          return {
+            status: 200,
+            headers: {},
+            body: { PurchaseOrder: { Id: 'NEW', SyncToken: '0' } },
+          };
         }
         // The round-trip lookup finds an existing PO.
         return {

@@ -23,8 +23,24 @@ function detail(overrides: Partial<PurchaseOrderDetail> = {}): PurchaseOrderDeta
     updatedAt: '2026-06-13T00:00:00.000Z',
     createdAt: '2026-06-13T00:00:00.000Z',
     lines: [
-      { lineNo: 1, productId: 'p1', sku: 'SKU-1', name: 'Widget', orderedQty: 10, receivedQty: 0, unitCost: 5 },
-      { lineNo: 2, productId: 'p2', sku: 'SKU-2', name: 'Gadget, deluxe', orderedQty: 4, receivedQty: 2, unitCost: 20 },
+      {
+        lineNo: 1,
+        productId: 'p1',
+        sku: 'SKU-1',
+        name: 'Widget',
+        orderedQty: 10,
+        receivedQty: 0,
+        unitCost: 5,
+      },
+      {
+        lineNo: 2,
+        productId: 'p2',
+        sku: 'SKU-2',
+        name: 'Gadget, deluxe',
+        orderedQty: 4,
+        receivedQty: 2,
+        unitCost: 20,
+      },
     ],
     ...overrides,
   };
@@ -53,7 +69,15 @@ describe('purchaseOrderToCsv', () => {
     const csv = purchaseOrderToCsv(
       detail({
         lines: [
-          { lineNo: 1, productId: 'p1', sku: 'SKU-1', name: 'Widget', orderedQty: 10, receivedQty: 0, unitCost: null },
+          {
+            lineNo: 1,
+            productId: 'p1',
+            sku: 'SKU-1',
+            name: 'Widget',
+            orderedQty: 10,
+            receivedQty: 0,
+            unitCost: null,
+          },
         ],
       }),
     );

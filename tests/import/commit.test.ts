@@ -88,7 +88,8 @@ afterAll(async () => {
 });
 
 // 2 valid rows + 1 bad (missing SKU).
-const CSV = 'SKU,Name,Status\nCSV-1,First widget,active\nCSV-2,Second widget,discontinued\n,No sku here,active\n';
+const CSV =
+  'SKU,Name,Status\nCSV-1,First widget,active\nCSV-2,Second widget,discontinued\n,No sku here,active\n';
 
 describe('runCsvImport — first import', () => {
   it('upserts the valid rows and logs the bad row to sync_failures', async () => {

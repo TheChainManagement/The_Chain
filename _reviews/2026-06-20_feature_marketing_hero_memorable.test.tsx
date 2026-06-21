@@ -32,4 +32,21 @@ describe('marketing hero — everything is connected', () => {
     const { getByTestId } = render(<MarketingHome />);
     expect(getByTestId('hero-bg')).toBeTruthy();
   });
+
+  it('renders the five-link PO chain with the PO link active (the ignite)', () => {
+    const { container } = render(<MarketingHome />);
+    const links = Array.from(container.querySelectorAll('[data-state]'));
+    expect(links.map((l) => l.textContent?.trim())).toEqual([
+      'DEMAND',
+      'FORECAST',
+      'PO',
+      'SUPPLIER',
+      'RECEIVED',
+    ]);
+    const active = container.querySelectorAll('[data-state="active"]');
+    expect(active).toHaveLength(1);
+    expect(active[0]?.textContent?.trim()).toBe('PO');
+    // DEMAND + FORECAST are done.
+    expect(container.querySelectorAll('[data-state="done"]')).toHaveLength(2);
+  });
 });

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { OrderChain } from '@/app/(app)/purchase-orders/OrderChain';
 import { OrderTrack } from '@/components/OrderTrack/OrderTrack';
 import type { PurchaseOrderListRow } from '@/lib/purchase-orders/transform';
-import { OrderChain } from '@/app/(app)/purchase-orders/OrderChain';
 
 /**
  * Memorable-artifact guard for the PO chain (Block 6, Wave 6.3-A). The order's

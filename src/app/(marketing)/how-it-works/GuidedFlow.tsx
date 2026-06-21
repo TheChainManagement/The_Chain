@@ -172,6 +172,7 @@ export function GuidedFlow() {
             />
           ))}
           <span
+            key={activeStage.key}
             className={styles.target}
             style={{
               left: activeStage.frame.left,

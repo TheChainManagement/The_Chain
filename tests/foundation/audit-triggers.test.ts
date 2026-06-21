@@ -168,7 +168,9 @@ describe('audit dispatcher — fires on every tracked table', () => {
         )
     `);
     const untracked = rows.map((r) => r.relname);
-    expect(untracked, `tenant tables missing an audit trigger: ${untracked.join(', ')}`).toEqual([]);
+    expect(untracked, `tenant tables missing an audit trigger: ${untracked.join(', ')}`).toEqual(
+      [],
+    );
   });
 });
 

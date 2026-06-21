@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  onboardingComplete,
   type OnboardingStateRow,
+  onboardingComplete,
   qboPhaseStage,
   resolveOnboarding,
 } from '@/lib/onboarding/state';
@@ -85,7 +85,11 @@ describe('resolveOnboarding', () => {
   it('is monotonic: a later done link cannot light past an earlier gap', () => {
     // forecast stamped but catalog empty (degenerate) → chain clamps at catalog.
     const v = resolveOnboarding(
-      row({ path: 'fresh', source_connected_at: '2026-06-17', first_forecast_ready_at: '2026-06-17' }),
+      row({
+        path: 'fresh',
+        source_connected_at: '2026-06-17',
+        first_forecast_ready_at: '2026-06-17',
+      }),
       ZERO,
     );
     expect(v.currentStep).toBe('catalog');

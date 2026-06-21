@@ -59,10 +59,38 @@ notched-link PO-chain grammar threaded through as the page's connective logic.
   `matchMedia` / `IntersectionObserver`).
 - `npm run build` clean (full route manifest, PPR intact).
 
-## Open / next
-- Awaiting MG binary verdict (ship / pivot) on hero + how-it-works.
-- If ship: carry the visual language to `/pricing`, `/about`, `/contact`.
-- Hero leader-vector endpoint floats slightly; refine or drop.
-- Lighthouse ≥90 still a Preview-run ticket (Block 17 acceptance).
-- Photoreal chain macros (`TheChainHero3/4.png`) not yet used — candidate for a
-  pricing/CTA band.
+## Whole surface (done after MG "1000× better" verdict)
+- MG approved hero + how-it-works ("a thousand times better"); one fix requested
+  (the PO chain block looked cut off / unequal) — FIXED: the five hero links are
+  now equal-width grid columns with a clean connector hairline (no corner-biting
+  diamond), PO is a full cobalt square.
+- Carried the language across the rest of the surface:
+  - **Pricing:** faint blueprint atmosphere in the header's empty top-right + the
+    shared `ChainCtaBand` payoff.
+  - **About:** the supplier→shelf loop shown inline as the chain motif + band.
+  - **Contact:** band.
+  - **`ChainCtaBand`** (new, shared): photoreal cobalt-link macro
+    (`TheChainHero4.png`, previously unused) composited (multiply) as the closing
+    "Everything is connected." payoff on pricing/about/contact.
+
+## Codex review (2026-06-21, `_reviews/2026-06-21_feature_marketing_overhaul.md`)
+Full-weight gpt-5.4 pass, compliance PASS. Disposition:
+- **Fixed in-slice:** target-bracket animated `top/left/width/height` → now snaps
+  position + fades via opacity (re-keyed per stage), honoring the motion rule.
+  FEATURES.md contract updated for the new hero chain sequence (PO ignite) + the
+  guided-workbench how-it-works pattern (both changed by MG). Tests strengthened
+  (hero 5-link chain + PO-active guard; how-it-works workbench active-stage +
+  caption metric). This evidence file de-drifted.
+- **False positive:** `:focus-visible` IS implemented — global rule in
+  `globals.css:101` covers every focusable element (Codex only scanned the
+  marketing modules).
+- **Noted / ticketed (pre-existing, not this slice):** Lighthouse ≥90 needs a
+  deployed Preview (Block 17 ticket); raw-px values + craft-guard scope are the
+  existing stack-audit ticket; Playwright timing capture is infra-blocked
+  (Playwright not wired into the project, same as the connect-screen artifact).
+
+## Still open
+- Hero leader-vector endpoint floats slightly; refine or drop next pass.
+- Lighthouse ≥90 (Preview-run ticket).
+- `TheChainHero2.png` / `bg-blueprint.jpg` drive the blueprint surfaces;
+  `TheChainHero3.png` remains a spare.
