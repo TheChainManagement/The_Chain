@@ -25,7 +25,7 @@ export async function GET(
   if (!po) return new NextResponse('Not found', { status: 404 });
 
   const csv = purchaseOrderToCsv(po);
-  // The reference can carry spaces ("QBO #301"); slugify for a clean filename.
+  // The reference can carry spaces (e.g. "QBO 301"); slugify for a clean filename.
   const slug =
     po.reference.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || `po-${po.id.slice(0, 8)}`;
 

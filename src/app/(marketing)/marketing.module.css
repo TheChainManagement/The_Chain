@@ -124,48 +124,157 @@
   flex: 1;
 }
 
-/* ---- home + faded blueprint background ---- */
+/* ---- home: composited engineering bench ---- */
 .home {
   position: relative;
-  max-width: 1180px;
+  max-width: 1280px;
   margin: 0 auto;
   width: 100%;
-  padding: var(--spacing-8) var(--spacing-6) var(--spacing-9);
-}
-.heroBg {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 760px;
-  background: url("/marketing/bg-blueprint.jpg") no-repeat center top;
-  background-size: cover;
-  opacity: 0.12;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0.9),
-    rgb(0 0 0 / 0.45) 55%,
-    transparent
-  );
-  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.9), rgb(0 0 0 / 0.45) 55%, transparent);
-  pointer-events: none;
-  z-index: 0;
+  padding: 0 var(--spacing-6);
 }
 
-/* ---- hero (left-aligned copy over the faded blueprint) ---- */
+/* ---- hero: two-zone, copy left / composited model right (VARIANCE 6) ---- */
 .hero {
   position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 56vh;
-  padding-top: var(--spacing-7);
+  isolation: isolate; /* contain mix-blend compositing to this stage only */
+  min-height: min(88vh, 800px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  align-items: center;
+  gap: var(--spacing-6);
 }
+
+/* The visual field: blueprint underlay + isometric model, bleeding off the
+   right and bottom edges so the model reads as a working object on the bench. */
+.stage {
+  position: absolute;
+  inset: -6% -16% -10% 34%;
+  z-index: 0;
+  pointer-events: none;
+}
+.blueprintUnder {
+  position: absolute;
+  inset: -8% -6% -4% -8%;
+  background: url("/marketing/bg-blueprint.jpg") no-repeat center;
+  background-size: cover;
+  opacity: 0.14;
+  transform: rotate(-1.2deg) scale(1.08);
+  -webkit-mask-image: radial-gradient(120% 90% at 60% 45%, rgb(0 0 0) 35%, transparent 78%);
+  mask-image: radial-gradient(120% 90% at 60% 45%, rgb(0 0 0) 35%, transparent 78%);
+}
+.isoRender {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 104%;
+  height: auto;
+  /* The compositing move: white studio backdrop multiplies into the paper, so
+     the model is printed on the bench, not pasted in a white box. The cobalt
+     chain and status pins survive the blend; the soft contact shadows ground it. */
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+  transform-origin: bottom right;
+  animation: model-settle 900ms var(--ease-spring-soft) 350ms forwards;
+}
+
+/* Cobalt vector — a drafting leader line nodding from the copy column toward the
+   model's lit chain. Decorative; draws in after the model settles. */
+.vector {
+  position: absolute;
+  left: 2%;
+  top: 56%;
+  width: 26%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-signal-line) 30%,
+    var(--color-signal)
+  );
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: vector-draw var(--duration-reveal) var(--ease-tick) 1100ms forwards;
+}
+.vector::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: -2.5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-signal);
+}
+
+/* The scrubber — inspect the print. Crosshair + mono coordinate readout that
+   tracks the cursor over the model (driven by --mx/--my from HeroScrubber). */
+.scrubber {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-spring-soft);
+  --mx: 50%;
+  --my: 50%;
+}
+.scrubber[data-on="true"] {
+  opacity: 1;
+}
+.scrubV,
+.scrubH {
+  position: absolute;
+  background: var(--color-signal-line);
+  pointer-events: none;
+}
+.scrubV {
+  top: 0;
+  bottom: 0;
+  left: var(--mx);
+  width: 1px;
+}
+.scrubH {
+  left: 0;
+  right: 0;
+  top: var(--my);
+  height: 1px;
+}
+.scrubNode {
+  position: absolute;
+  left: var(--mx);
+  top: var(--my);
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border: 1px solid var(--color-signal);
+  background: var(--color-signal-dim);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.scrubReadout {
+  position: absolute;
+  left: var(--mx);
+  top: var(--my);
+  transform: translate(12px, 10px);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--color-signal);
+  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  padding: 2px 5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .heroCopy {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--spacing-5);
-  max-width: 34ch;
+  max-width: 38ch;
+  padding: var(--spacing-9) 0;
 }
 .eyebrow {
   display: inline-flex;
@@ -190,15 +299,30 @@
 }
 .h1 {
   margin: 0;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font-display);
-  font-variation-settings: "wdth" 75;
-  font-weight: 800;
-  font-size: clamp(44px, 6vw, 72px);
-  line-height: 0.98;
-  letter-spacing: -0.5px;
+  font-weight: 850;
+  font-size: clamp(52px, 7vw, 92px);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
   color: var(--color-deep);
+}
+/* Each line stamps in on the Mona Sans WIDTH axis — narrow → settled, like a
+   stamped label locking into registration. wdth is animatable; we pair it with
+   a small rise. Lines stagger so the headline assembles. */
+.h1line {
+  display: block;
+  font-variation-settings: "wdth" 60;
   opacity: 0;
-  animation: fade-up 720ms var(--ease-spring-soft) 280ms forwards;
+  transform: translateY(8px);
+  animation: stamp 700ms var(--ease-spring-soft) forwards;
+}
+.h1line:nth-child(1) {
+  animation-delay: 260ms;
+}
+.h1line:nth-child(2) {
+  animation-delay: 380ms;
 }
 .lede {
   margin: 0;
@@ -210,13 +334,100 @@
   opacity: 0;
   animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 400ms forwards;
 }
+/* ---- the live PO chain (compact marketing variant of the product motif) ----
+   Five geometrically identical links: equal-width grid columns, centered labels.
+   A clean connector hairline bridges each gap (no corner-biting diamond, so the
+   active cobalt link reads as a whole square, not a cut one). */
+.heroChain {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  width: 100%;
+  margin: var(--spacing-1) 0;
+}
+.chainLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: link-in 460ms var(--ease-spring-soft) forwards;
+  animation-delay: calc(560ms + var(--i) * 90ms);
+}
+/* connector hairline bridging the gap to the next link */
+.chainLink:not([data-last])::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: var(--color-signal-line);
+  transform: translateY(-50%);
+  z-index: 1;
+}
+.chainStep {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+  white-space: nowrap;
+}
+.chainLink[data-state="done"] {
+  background: var(--color-inset);
+}
+.chainLink[data-state="done"] .chainStep {
+  color: var(--color-deep);
+}
+.chainLink[data-state="pending"] .chainStep {
+  color: var(--color-dim);
+}
+.chainLink[data-state="active"] {
+  border-color: var(--color-signal);
+  box-shadow: var(--shadow-cobalt-inner);
+}
+.chainLink[data-state="active"] .chainStep {
+  color: var(--color-on-signal);
+}
+.dot {
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-signal);
+  z-index: 3;
+}
+/* IGNITE — cobalt sweeps the PO link from the left after it lands. */
+.ignite {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--color-signal-bright), var(--color-signal));
+  transform-origin: left;
+  transform: scaleX(0);
+  z-index: 0;
+  animation: chain-ignite var(--duration-reveal) var(--ease-spring-snappy) forwards;
+  animation-delay: calc(560ms + 2 * 90ms + 200ms);
+}
+
 .heroActions {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-5);
   flex-wrap: wrap;
   opacity: 0;
-  animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 500ms forwards;
+  animation: fade-up var(--duration-reveal) var(--ease-spring-soft) 1150ms forwards;
 }
 .ctaPrimary {
   display: inline-flex;
@@ -326,18 +537,64 @@
     opacity: 0.4;
   }
 }
+@keyframes stamp {
+  from {
+    font-variation-settings: "wdth" 60;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    font-variation-settings: "wdth" 78;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes model-settle {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes vector-draw {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes link-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes chain-ignite {
+  to {
+    transform: scaleX(1);
+  }
+}
 
 /* ---- responsive ---- */
 @media (max-width: 880px) {
   .home {
-    padding: var(--spacing-7) var(--spacing-5) var(--spacing-8);
+    padding: 0 var(--spacing-5);
   }
   .hero {
-    min-height: 48vh;
-    padding-top: var(--spacing-5);
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding-bottom: var(--spacing-7);
+  }
+  .stage {
+    inset: 0 -18% auto -18%;
+    height: 64vw;
+  }
+  .blueprintUnder {
+    opacity: 0.1;
   }
   .heroCopy {
     max-width: none;
+    padding: 70vw 0 0;
+  }
+  .scrubber {
+    display: none;
   }
   .topbar {
     padding: var(--spacing-4) var(--spacing-5);
@@ -351,15 +608,33 @@
 @media (prefers-reduced-motion: reduce) {
   .eyebrow,
   .h1,
+  .h1line,
   .lede,
-  .heroActions {
+  .heroChain,
+  .chainLink,
+  .heroActions,
+  .isoRender {
     opacity: 1;
     transform: none;
+    animation: none;
+  }
+  .h1line {
+    font-variation-settings: "wdth" 78;
+  }
+  .ignite {
+    transform: scaleX(1);
+    animation: none;
+  }
+  .vector {
+    transform: scaleX(1);
     animation: none;
   }
   .signalScan,
   .liveDot {
     animation: none;
+  }
+  .scrubber {
+    display: none;
   }
   .progress {
     transition: none;

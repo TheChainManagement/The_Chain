@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { ChainCtaBand } from '../ChainCtaBand';
 import { TrialCta } from '../TrialCta';
 import styles from './pricing.module.css';
 
@@ -86,68 +87,77 @@ const TIERS: Tier[] = [
  */
 export default function Pricing() {
   return (
-    <div className={styles.page}>
-      <header className={styles.intro}>
-        <span className={styles.eyebrow}>Pricing</span>
-        <h1 className={styles.h1}>Priced to pay for itself.</h1>
-        <p className={styles.lede}>
-          Fourteen-day free trial, no card to start. Priced by what you run — locations, SKUs,
-          history — not per seat.
-        </p>
-      </header>
+    <>
+      <div className={styles.page}>
+        <div className={styles.bp} aria-hidden="true" />
+        <header className={styles.intro}>
+          <span className={styles.eyebrow}>Pricing</span>
+          <h1 className={styles.h1}>Priced to pay for itself.</h1>
+          <p className={styles.lede}>
+            Fourteen-day free trial, no card to start. Priced by what you run — locations, SKUs,
+            history — not per seat.
+          </p>
+        </header>
 
-      <div className={styles.table}>
-        {TIERS.map((t) => (
-          <div
-            key={t.key}
-            className={styles.col}
-            data-popular={t.popular ?? false}
-            data-testid="tier"
-          >
-            {t.popular ? <span className={styles.tag}>Most popular</span> : null}
-            <h2 className={styles.tierName}>{t.name}</h2>
-            <div className={styles.price}>
-              {t.price === 'custom' ? (
-                <span className={styles.custom}>Custom</span>
-              ) : (
-                <>
-                  <StatNumber value={t.price} unit="$" unitPosition="prefix" size="hero" />
-                  <span className={styles.per}>/mo</span>
-                </>
-              )}
-            </div>
-            <p className={styles.tagline}>{t.tagline}</p>
-            <TrialCta className={styles.tierCta} location={`pricing_${t.key}`}>
-              Start 14-day trial
-            </TrialCta>
-            <ul className={styles.features}>
-              {t.features.map((f) => (
-                <li key={f} className={styles.feature}>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-
-      {/* Retention compare-table: one scan across every plan's history window. */}
-      <div className={styles.compare} data-testid="retention-compare">
-        <span className={styles.compareLabel}>History retained</span>
-        <div className={styles.compareRow}>
+        <div className={styles.table}>
           {TIERS.map((t) => (
-            <span key={t.key} className={styles.compareCell} data-popular={t.popular ?? false}>
-              <span className={styles.compareTier}>{t.name}</span>
-              <span className={styles.compareValue}>{t.retention}</span>
-            </span>
+            <div
+              key={t.key}
+              className={styles.col}
+              data-popular={t.popular ?? false}
+              data-testid="tier"
+            >
+              {t.popular ? <span className={styles.tag}>Most popular</span> : null}
+              <h2 className={styles.tierName}>{t.name}</h2>
+              <div className={styles.price}>
+                {t.price === 'custom' ? (
+                  <span className={styles.custom}>Custom</span>
+                ) : (
+                  <>
+                    <StatNumber value={t.price} unit="$" unitPosition="prefix" size="hero" />
+                    <span className={styles.per}>/mo</span>
+                  </>
+                )}
+              </div>
+              <p className={styles.tagline}>{t.tagline}</p>
+              <TrialCta className={styles.tierCta} location={`pricing_${t.key}`}>
+                Start 14-day trial
+              </TrialCta>
+              <ul className={styles.features}>
+                {t.features.map((f) => (
+                  <li key={f} className={styles.feature}>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
+
+        {/* Retention compare-table: one scan across every plan's history window. */}
+        <div className={styles.compare} data-testid="retention-compare">
+          <span className={styles.compareLabel}>History retained</span>
+          <div className={styles.compareRow}>
+            {TIERS.map((t) => (
+              <span key={t.key} className={styles.compareCell} data-popular={t.popular ?? false}>
+                <span className={styles.compareTier}>{t.name}</span>
+                <span className={styles.compareValue}>{t.retention}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <p className={styles.footnote}>
+          Every plan runs the full product during your trial. Switch or cancel anytime. Enterprise
+          pricing is set after a short conversation about your operation.
+        </p>
       </div>
 
-      <p className={styles.footnote}>
-        Every plan runs the full product during your trial. Switch or cancel anytime. Enterprise
-        pricing is set after a short conversation about your operation.
-      </p>
-    </div>
+      <ChainCtaBand
+        location="pricing_band"
+        secondaryHref="/how-it-works"
+        secondaryLabel="See how it works →"
+      />
+    </>
   );
 }

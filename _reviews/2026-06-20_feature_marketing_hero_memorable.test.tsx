@@ -3,11 +3,14 @@ import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 /**
- * Memorable-artifact guard for the marketing hero (Block 17a). The hero visual is
- * intentionally deferred ("work on this further down"); the deliberate choice that
- * keeps the page from reading as a flat white screen is the faded engineering
- * blueprint behind a clean, confident opening — the slogan, the why, the CTA.
- * Paired with the live capture in `_reviews/2026-06-20_feature_marketing.md`.
+ * Memorable-artifact guard for the marketing hero. Re-cut 2026-06-21
+ * (build-beautiful): the isometric supply-chain model is now composited onto the
+ * drafting bench with mix-blend over a rotated engineering blueprint, the
+ * headline stamps in on the Mona Sans width axis, and the live PO chain ignites
+ * cobalt at the PO link. This guard holds the load-bearing invariants: the slogan
+ * is the H1, the trial CTA points at sign-up, and the blueprint underlay still
+ * renders (hero-bg) so the page is never a flat white screen.
+ * Paired with the live capture in `_reviews/2026-06-21_feature_marketing.md`.
  */
 
 vi.mock('@/lib/analytics', () => ({

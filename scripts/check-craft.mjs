@@ -39,6 +39,10 @@ export function checkCraft() {
   for (const file of files) {
     const rel = file.slice(SRC.length);
     if (rel === TOKEN_FILE) continue; // the one place literals are allowed
+    // OG/social images are rendered server-side by satori (next/og ImageResponse),
+    // which cannot resolve CSS custom properties — colors MUST be literal there.
+    // Same carve-out spirit as the token file; the colors still mirror globals.css.
+    if (/(^|\/)(opengraph|twitter)-image\.tsx$/.test(rel)) continue;
     const text = readFileSync(file, 'utf8');
     text.split('\n').forEach((line, i) => {
       if (HEX.test(line)) violations.push(`${rel}:${i + 1} hardcoded color: ${line.trim()}`);

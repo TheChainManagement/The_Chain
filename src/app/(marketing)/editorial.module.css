@@ -59,6 +59,40 @@
   font-weight: 600;
 }
 
+/* the named loop, shown as the chain motif (equal links, clean connectors) */
+.flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  margin: var(--spacing-3) 0;
+}
+.flowLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-mid);
+}
+.flowLink:not([data-last])::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  width: 9px;
+  height: 1px;
+  background: var(--color-signal-line);
+  transform: translateY(-50%);
+}
+
 /* contact channels */
 .channels {
   display: flex;
