@@ -623,36 +623,38 @@
 
 ---
 
-## Feature: Subscription, trial, billing wiring
+## Feature: Subscription + billing wiring (hard paywall)
 
-**Why**: PRD §"Feature list" + MG decision 2026-05-30 — Self-serve sign-up with 14-day trial default. Marketing-site + subscription-billing required for Wave 1 launch. PRD-implied Wave 1 scope confirmed by MG 2026-05-30.
+**Why**: PRD §"Feature list". **MG decision 2026-06-21 supersedes the original 14-day-trial model: NO free trial.** Hard paywall — sign up → pick a tier → pay → access. Self-serve Starter/Growth/Pro; Enterprise is contact-only. Stripe activated now (pricing is locked: $129 / $299 / $599). Discounts handled later via Stripe promo codes (the Checkout field is already enabled). The earlier trial countdown / `extendTrial` / `setRetentionTier` / trial-expiration cron are dropped — Stripe drives tier + status.
 
 **Dependencies:**
-- Other features: Account creation (creates trial), Audit log.
-- Services: Stripe (wired, not activated at Wave 1 ship), Workflow DevKit (trial countdown + state transitions).
+- Other features: Account creation (creates an `incomplete` subscription), Audit log (auto via the `audit_subscriptions` trigger).
+- Services: Stripe (live, hosted Checkout + Customer Portal + webhook), Supabase (service-role for the cross-role paywall read + webhook writes).
 - Data: `subscriptions`, `audit_log`.
 
 **Step-by-step build sequence:**
-1. Sign-up creates `subscriptions` row with `status=trial`, `trial_start=now()`, `trial_end=now()+14 days`, `retention_tier='free'`.
-2. Trial countdown component (`<StatNumber>` digit) in the left rail, only visible while `status='trial'`.
-3. Server Action `extendTrial` (admin only, audit-logged) for design partners and pilot customers.
-4. Server Action `setRetentionTier` (admin only initially; surfaces in user UI when billing activates) — immediately changes audit-log + stock-movements visibility window.
-5. `/app/settings/billing` placeholder showing current status + comp-flag + tier + trial end. Card collection UI wired but disabled until pricing locks.
-6. Wire Stripe webhook receiver via `createWebhook`. When activated: `customer.subscription.created/updated/deleted` events update `subscriptions`.
+1. Sign-up creates a `subscriptions` row with `status='incomplete'`, `retention_tier='free'` (no trial dates). No access yet.
+2. Paywall in `BenchGate` ((app)/layout): a verified member without `active`/`comp` is redirected to `/choose-plan`. The read goes through the service-role client (subscriptions are RLS-readable by owner/finance only, but the paywall must hold for every role; tenant verified first).
+3. `/choose-plan` gated picker (auth + membership verified via `requireMember`, NOT behind the bench paywall): three tiers → Stripe Checkout; Enterprise → `/contact`; existing customers (past_due/canceled) → Manage billing (Customer Portal).
+4. Checkout (`lib/billing/checkout.ts`): hosted Checkout session, one Stripe customer per tenant, `allow_promotion_codes: true`, tenant in `client_reference_id` + metadata.
+5. `/choose-plan/success`: reconciles the subscription synchronously from the Checkout Session (tenant-guarded), so access is granted without webhook latency, then → `/today`.
+6. Stripe webhook (`/api/webhooks/stripe`): signature-verified (raw body), service-role writes, handles `checkout.session.completed` + `customer.subscription.created/updated/deleted`; idempotent on the tenant_id PK. Owns the ongoing lifecycle (renewals, past_due, cancellations).
+7. `/settings/billing`: current plan + status + retained-history window + Manage-billing (portal). Comp accounts show as complimentary, no portal.
 
 **Acceptance criteria:**
-- [ ] Trial countdown displays accurate days remaining (computed from `trial_end - now()`).
-- [ ] Trial expiration: when `now() > trial_end`, status transitions to `past_due` via a daily cron step; app surfaces transition to read-only mode (forecasts viewable, no new POs, no settings changes); banner replaced with "Trial expired — upgrade to continue."
-- [ ] Retention tier change updates audit-log visibility within seconds (cache-tag invalidation on `subscriptions:tenantId`).
-- [ ] Comp accounts behave identically to active for app access; reflected only in admin UI.
+- [x] Unpaid signup cannot reach the bench — redirected to `/choose-plan`. (Verified live.)
+- [x] Checkout creates a real Stripe subscription Checkout session for the tenant at the locked price. (Verified live.)
+- [x] A paid/active subscription grants access (paywall opens). (Verified live via webhook → active → app.)
+- [ ] Comp accounts behave identically to active for app access; reflected only in billing/admin UI.
+- [ ] Webhook idempotent on Stripe retries (same tenant_id PK upsert).
 
 **Codex review checklist:**
-- [ ] Trial expiration handling: data preserved, app surfaces gated, clear upgrade CTA. Verified by integration test that fast-forwards clock past `trial_end`.
-- [ ] Stripe wiring (deferred activation): when activated, idempotency on webhook handling (Stripe retries handled).
-- [ ] **Role abuse test: planner attempts to call `setRetentionTier` Server Action → returns AUTHORIZATION_DENIED.** Viewer attempts → same. Owner attempts → succeeds. Finance attempts → succeeds for tier read, denied for tier write per RLS matrix interpretation (subscriptions are system-mutate only; need a deliberate admin path).
-- [ ] **Memorable element visible in preview screenshot or Playwright interaction test.**
+- [x] Billing entrypoints verify real tenant membership (`requireMember`), not just the JWT claim — a stale token for a removed member cannot reach checkout/portal.
+- [x] Service-role billing writes throw on DB error (no silent 200 / false "activated").
+- [ ] **Webhook signature failure → 400; missing secret → 500. Idempotency on retries.** (Signature path unit-tested; idempotency live-verified.)
+- [ ] **Memorable element visible in preview screenshot or interaction test.** (Paywall → choose-plan → checkout → activation flow; screenshots in `_reviews/2026-06-21_feature_block16_billing.md`.)
 
-**What's memorable:** The trial countdown is a single Plex Mono "DAYS" + big number `<StatNumber>` in the lower-left rail. No banner, no panic, no "your trial expires soon!" toast. A quiet operator counter, same restraint as everything else in the bench. (Required visible artifact: Playwright test captures the rail countdown at day 14 and at day 2.)
+**What's memorable:** The chain you can't cross until you pay. A new operator watches their workshop chain ignite at signup, then hits the one gate that matters — `/choose-plan`, the same hairline-tier language as the marketing pricing — and the moment Stripe confirms, the bench opens. No trial countdown, no nag. One clean gate, then the work.
 
 ---
 

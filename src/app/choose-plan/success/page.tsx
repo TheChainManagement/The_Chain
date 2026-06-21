@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
 import { type ReactNode, Suspense } from 'react';
+import { requireMember } from '@/lib/billing/guard';
 import { mapStripeStatus } from '@/lib/billing/plans';
 import { getStripe } from '@/lib/billing/stripe';
 import { applyStripeSubscription } from '@/lib/billing/subscription';
-import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
  * Checkout return (Block 16). Reconciles the subscription synchronously from the
@@ -30,14 +30,7 @@ async function CheckoutSuccessInner({
 }: {
   searchParams: Promise<{ session_id?: string }>;
 }): Promise<ReactNode> {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/signin');
-  const { data: claims } = await supabase.auth.getClaims();
-  const tenantId = claims?.claims?.tenant_id as string | undefined;
-  if (!tenantId) redirect('/signin');
+  const { tenantId } = await requireMember();
 
   const { session_id } = await searchParams;
   if (!session_id) redirect('/choose-plan');

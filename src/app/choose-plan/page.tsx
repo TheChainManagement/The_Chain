@@ -3,9 +3,9 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { signOut } from '@/app/(auth)/actions';
 import { ChainGlyph } from '@/components/brand/ChainGlyph';
+import { requireMember } from '@/lib/billing/guard';
 import { hasAppAccess, PLAN_INFO } from '@/lib/billing/plans';
 import { loadSubscription } from '@/lib/billing/subscription';
-import { createSupabaseServer } from '@/lib/supabase/server';
 import { startCheckout, startPortal } from './actions';
 import styles from './choose-plan.module.css';
 
@@ -39,14 +39,7 @@ async function ChoosePlanInner({
 }: {
   searchParams: Promise<{ error?: string; canceled?: string }>;
 }) {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/signin');
-  const { data: claims } = await supabase.auth.getClaims();
-  const tenantId = claims?.claims?.tenant_id as string | undefined;
-  if (!tenantId) redirect('/signin');
+  const { tenantId } = await requireMember();
 
   const sub = await loadSubscription(tenantId);
   if (hasAppAccess(sub?.status)) redirect('/today');

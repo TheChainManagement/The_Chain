@@ -38,7 +38,7 @@ export default function Contact() {
             </span>
           </div>
           <div className={styles.channel}>
-            <span className={styles.channelLabel}>Already on a trial?</span>
+            <span className={styles.channelLabel}>Already a customer?</span>
             <a
               className={styles.channelValue}
               href={`mailto:${CONTACT_EMAIL}?subject=The%20Chain%20support`}

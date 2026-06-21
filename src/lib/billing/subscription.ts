@@ -21,11 +21,14 @@ export interface SubscriptionRow {
 
 export async function loadSubscription(tenantId: string): Promise<SubscriptionRow | null> {
   const admin = createSupabaseAdmin();
-  const { data } = await admin
+  const { data, error } = await admin
     .from('subscriptions')
     .select('status, plan_code, retention_tier, billing_customer_id')
     .eq('tenant_id', tenantId)
     .maybeSingle<SubscriptionRow>();
+  // A read failure must not read as "no subscription" — that would silently let
+  // the paywall fall open/closed on a transient DB error. Surface it.
+  if (error) throw new Error(`loadSubscription failed: ${error.message}`);
   return data ?? null;
 }
 
@@ -56,16 +59,20 @@ export async function applyStripeSubscription(params: {
     update.retention_tier = retentionForTier(tier);
   }
 
-  await admin.from('subscriptions').update(update).eq('tenant_id', tenantId);
+  const { error } = await admin.from('subscriptions').update(update).eq('tenant_id', tenantId);
+  // Throw on a failed write so the webhook returns 500 (Stripe retries) and the
+  // success page doesn't redirect as if activation succeeded. No silent billing.
+  if (error) throw new Error(`applyStripeSubscription failed: ${error.message}`);
 }
 
 /** Persist the Stripe customer id on a tenant's row (set once at checkout). */
 export async function setBillingCustomer(tenantId: string, customerId: string): Promise<void> {
   const admin = createSupabaseAdmin();
-  await admin
+  const { error } = await admin
     .from('subscriptions')
     .update({ billing_customer_id: customerId, billing_provider: 'stripe' })
     .eq('tenant_id', tenantId);
+  if (error) throw new Error(`setBillingCustomer failed: ${error.message}`);
 }
 
 /**
@@ -74,10 +81,11 @@ export async function setBillingCustomer(tenantId: string, customerId: string): 
  */
 export async function findTenantByCustomer(customerId: string): Promise<string | null> {
   const admin = createSupabaseAdmin();
-  const { data } = await admin
+  const { data, error } = await admin
     .from('subscriptions')
     .select('tenant_id')
     .eq('billing_customer_id', customerId)
     .maybeSingle<{ tenant_id: string }>();
+  if (error) throw new Error(`findTenantByCustomer failed: ${error.message}`);
   return data?.tenant_id ?? null;
 }

@@ -65,9 +65,10 @@ export function AuthForm({ mode }: { mode: 'signin' | 'signup' }) {
   useEffect(() => {
     if (!igniting) return;
     // Navigate as the chain finishes forming. Whole transition stays under 800ms.
-    // /onboarding carries the same five forming links, so the chain the operator
-    // just watched ignite persists and becomes the live onboarding chain (Block 2).
-    const timer = setTimeout(() => router.push('/onboarding'), 780);
+    // Hard paywall (Block 16): a new tenant is unpaid, so signup leads to the plan
+    // picker (sign up → choose plan → pay → in). After payment the bench routes to
+    // onboarding; going straight to /choose-plan avoids the paywall bounce.
+    const timer = setTimeout(() => router.push('/choose-plan'), 780);
     return () => clearTimeout(timer);
   }, [igniting, router]);
 

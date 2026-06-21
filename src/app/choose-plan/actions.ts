@@ -3,28 +3,17 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createCheckoutSession, createPortalSession } from '@/lib/billing/checkout';
+import { requireMember } from '@/lib/billing/guard';
 import { isPlanTier } from '@/lib/billing/plans';
-import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
- * Gated billing actions (Block 16). Each verifies the authenticated user + their
- * JWT tenant claim before touching Stripe, then redirects to the hosted Stripe
- * page. Stripe calls are wrapped so a provider error lands the user back on the
- * picker with a flag rather than an unhandled error (redirect() returns `never`,
- * so the success redirect is only reached when the call succeeded).
+ * Gated billing actions (Block 16). Each verifies the authenticated user AND a
+ * real current membership in the JWT's tenant (requireMember — same bar as the
+ * bench) before touching Stripe, then redirects to the hosted Stripe page. Stripe
+ * calls are wrapped so a provider error lands the user back on the picker with a
+ * flag rather than an unhandled error (redirect() returns `never`, so the success
+ * redirect is only reached when the call succeeded).
  */
-
-async function authedTenant(): Promise<{ email: string | null; tenantId: string }> {
-  const supabase = await createSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/signin');
-  const { data: claims } = await supabase.auth.getClaims();
-  const tenantId = claims?.claims?.tenant_id as string | undefined;
-  if (!tenantId) redirect('/signin');
-  return { email: user.email ?? null, tenantId };
-}
 
 async function origin(): Promise<string> {
   const h = await headers();
@@ -36,7 +25,7 @@ async function origin(): Promise<string> {
 export async function startCheckout(formData: FormData): Promise<void> {
   const tier = String(formData.get('tier') ?? '');
   if (!isPlanTier(tier)) redirect('/choose-plan?error=invalid_plan');
-  const { email, tenantId } = await authedTenant();
+  const { email, tenantId } = await requireMember();
   let url: string;
   try {
     url = await createCheckoutSession({ tenantId, userEmail: email, tier, origin: await origin() });
@@ -47,7 +36,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
 }
 
 export async function startPortal(): Promise<void> {
-  const { tenantId } = await authedTenant();
+  const { tenantId } = await requireMember();
   let url: string;
   try {
     url = await createPortalSession({ tenantId, origin: await origin() });
