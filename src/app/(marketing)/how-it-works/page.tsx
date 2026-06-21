@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { TrialCta } from '../TrialCta';
+import { GetStartedCta } from '../GetStartedCta';
 import { GuidedFlow } from './GuidedFlow';
 import styles from './how-it-works.module.css';
 
@@ -30,9 +30,9 @@ export default function HowItWorks() {
       <GuidedFlow />
 
       <div className={styles.cta}>
-        <TrialCta className={styles.ctaPrimary} location="how_it_works">
-          Start 14-day trial
-        </TrialCta>
+        <GetStartedCta className={styles.ctaPrimary} location="how_it_works">
+          Get started
+        </GetStartedCta>
         <a href="/pricing" className={styles.ctaSecondary}>
           See pricing →
         </a>

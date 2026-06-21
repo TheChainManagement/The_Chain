@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ChainGlyph } from '@/components/brand/ChainGlyph';
+import { GetStartedCta } from './GetStartedCta';
 import { MarketingChrome } from './MarketingChrome';
 import styles from './marketing.module.css';
-import { TrialCta } from './TrialCta';
 
 /**
  * (marketing) segment — public surfaces. No bench, no rails, no app chrome.
@@ -32,9 +32,9 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <Link href="/signin" className={styles.signin}>
             Sign in
           </Link>
-          <TrialCta className={styles.cta} location="nav">
-            Start 14-day trial
-          </TrialCta>
+          <GetStartedCta className={styles.cta} location="nav">
+            Get started
+          </GetStartedCta>
         </nav>
       </header>
 

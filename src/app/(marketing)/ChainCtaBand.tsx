@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import styles from './ChainCtaBand.module.css';
-import { TrialCta } from './TrialCta';
+import { GetStartedCta } from './GetStartedCta';
 
 /**
  * ChainCtaBand — the closing payoff shared across the marketing pages. The
@@ -38,13 +38,13 @@ export function ChainCtaBand({
           Everything is connected.
         </h2>
         <p className={styles.lede}>
-          See the whole chain, supplier to shelf, and prove every reorder. Fourteen-day trial, no
-          card to start.
+          See the whole chain, supplier to shelf, and prove every reorder. Pick the plan that fits
+          and start today.
         </p>
         <div className={styles.actions}>
-          <TrialCta className={styles.ctaPrimary} location={location}>
-            Start 14-day trial
-          </TrialCta>
+          <GetStartedCta className={styles.ctaPrimary} location={location}>
+            Get started
+          </GetStartedCta>
           <a href={secondaryHref} className={styles.ctaSecondary}>
             {secondaryLabel}
           </a>

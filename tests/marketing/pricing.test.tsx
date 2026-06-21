@@ -37,14 +37,16 @@ describe('pricing — hairline tiers', () => {
     for (const v of ['1 year', '5 years', '10 years', 'Unlimited']) expect(text).toContain(v);
   });
 
-  it('marks Growth as the popular tier and routes every CTA to the trial', () => {
-    const { getAllByTestId, getAllByRole } = render(<Pricing />);
+  it('marks Growth as popular, routes paid tiers to sign-up, Enterprise to contact', () => {
+    const { getAllByTestId, getAllByRole, getByRole } = render(<Pricing />);
     const popular = getAllByTestId('tier').filter((t) => t.getAttribute('data-popular') === 'true');
     expect(popular).toHaveLength(1);
     expect(popular[0]?.querySelector('h2')?.textContent).toBe('Growth');
-    // Four tier CTAs + the closing ChainCtaBand CTA = 5, all routing to sign-up.
-    const ctas = getAllByRole('link', { name: /start 14-day trial/i });
-    expect(ctas).toHaveLength(5);
+    // Hard paywall: 3 paid-tier CTAs + the closing ChainCtaBand CTA = 4, all to sign-up.
+    const ctas = getAllByRole('link', { name: /get started/i });
+    expect(ctas).toHaveLength(4);
     for (const cta of ctas) expect(cta.getAttribute('href')).toBe('/signup');
+    // Enterprise is contact-only, not self-serve checkout.
+    expect(getByRole('link', { name: /contact us/i }).getAttribute('href')).toBe('/contact');
   });
 });

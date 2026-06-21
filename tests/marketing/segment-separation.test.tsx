@@ -29,7 +29,7 @@ describe('marketing segment does not inherit the bench', () => {
 
     // Editorial chrome present.
     expect(getAllByText('The Chain').length).toBeGreaterThan(0);
-    expect(getByText(/start 14-day trial/i)).toBeTruthy();
+    expect(getByText(/get started/i)).toBeTruthy();
     expect(getByText(/© 2026 more technologies/i)).toBeTruthy();
 
     // Bench chrome absent — none of the app rail nav items leak onto marketing.

@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import type { CSSProperties } from 'react';
+import { GetStartedCta } from './GetStartedCta';
 import { HeroScrubber } from './HeroScrubber';
 import styles from './marketing.module.css';
-import { TrialCta } from './TrialCta';
 
 export const metadata: Metadata = {
   title: 'The Chain — Everything is connected.',
@@ -111,9 +111,9 @@ export default function MarketingHome() {
           </div>
 
           <div className={styles.heroActions}>
-            <TrialCta className={styles.ctaPrimary} location="hero">
-              Start 14-day trial
-            </TrialCta>
+            <GetStartedCta className={styles.ctaPrimary} location="hero">
+              Get started
+            </GetStartedCta>
             <a href="/how-it-works" className={styles.ctaSecondary}>
               See how it works
             </a>

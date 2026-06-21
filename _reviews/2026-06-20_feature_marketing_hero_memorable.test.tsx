@@ -22,10 +22,10 @@ vi.mock('@/lib/analytics', () => ({
 const { default: MarketingHome } = await import('@/app/(marketing)/page');
 
 describe('marketing hero — everything is connected', () => {
-  it('leads with the slogan and the trial CTA', () => {
+  it('leads with the slogan and the get-started CTA', () => {
     const { getByRole } = render(<MarketingHome />);
     expect(getByRole('heading', { level: 1 }).textContent).toBe('Everything is connected.');
-    expect(getByRole('link', { name: /start 14-day trial/i }).getAttribute('href')).toBe('/signup');
+    expect(getByRole('link', { name: /get started/i }).getAttribute('href')).toBe('/signup');
   });
 
   it('renders the faded blueprint background (never a flat white screen)', () => {

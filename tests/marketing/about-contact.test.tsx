@@ -16,7 +16,7 @@ describe('about page', () => {
     const { getByRole, getByText } = render(<About />);
     expect(getByRole('heading', { level: 1 }).textContent).toContain('big operators');
     expect(getByText(/built by/i).textContent).toContain('More Technologies');
-    expect(getByRole('link', { name: /start 14-day trial/i }).getAttribute('href')).toBe('/signup');
+    expect(getByRole('link', { name: /get started/i }).getAttribute('href')).toBe('/signup');
   });
 });
 
@@ -29,6 +29,6 @@ describe('contact page', () => {
     );
     expect(mailtos.length).toBeGreaterThan(0);
     expect(mailtos[0]?.getAttribute('href')).toContain('@moretechnologies.com');
-    expect(getByRole('link', { name: /start 14-day trial/i }).getAttribute('href')).toBe('/signup');
+    expect(getByRole('link', { name: /get started/i }).getAttribute('href')).toBe('/signup');
   });
 });

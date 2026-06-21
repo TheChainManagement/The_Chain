@@ -16,7 +16,7 @@ export default function SignUpPage() {
         <div className={styles.heading}>
           <h1 className={styles.title}>Set up your workshop</h1>
           <p className={styles.sub}>
-            Fourteen-day trial. Connect QuickBooks later. Start proving your inventory today.
+            Pick your plan, connect QuickBooks, and start proving your inventory today.
           </p>
         </div>
 

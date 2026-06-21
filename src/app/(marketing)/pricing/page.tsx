@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { ChainCtaBand } from '../ChainCtaBand';
-import { TrialCta } from '../TrialCta';
+import { GetStartedCta } from '../GetStartedCta';
 import styles from './pricing.module.css';
 
 export const metadata: Metadata = {
   title: 'Pricing — The Chain',
   description:
-    'Simple, value-based pricing for B2B distributors. 14-day free trial, no card to start. Starter, Growth, Pro, and Enterprise.',
+    'Simple, value-based pricing for B2B distributors. Pick a plan and start today — Starter, Growth, Pro, and Enterprise.',
 };
 
 interface Tier {
@@ -83,7 +83,7 @@ const TIERS: Tier[] = [
 /**
  * Pricing (Block 17b). Hairline-ruled tiers, no card boxes; prices in tabular
  * Plex Mono via <StatNumber>. Value-based bands that map to the retention tiers.
- * Every plan starts on the same 14-day trial.
+ * Self-serve sign-up + pay (hard paywall); Enterprise is contact-only.
  */
 export default function Pricing() {
   return (
@@ -94,8 +94,8 @@ export default function Pricing() {
           <span className={styles.eyebrow}>Pricing</span>
           <h1 className={styles.h1}>Priced to pay for itself.</h1>
           <p className={styles.lede}>
-            Fourteen-day free trial, no card to start. Priced by what you run — locations, SKUs,
-            history — not per seat.
+            Priced by what you run — locations, SKUs, history — not per seat. Pick your plan and
+            you’re in.
           </p>
         </header>
 
@@ -120,9 +120,15 @@ export default function Pricing() {
                 )}
               </div>
               <p className={styles.tagline}>{t.tagline}</p>
-              <TrialCta className={styles.tierCta} location={`pricing_${t.key}`}>
-                Start 14-day trial
-              </TrialCta>
+              {t.price === 'custom' ? (
+                <a className={styles.tierCta} href="/contact">
+                  Contact us
+                </a>
+              ) : (
+                <GetStartedCta className={styles.tierCta} location={`pricing_${t.key}`}>
+                  Get started
+                </GetStartedCta>
+              )}
               <ul className={styles.features}>
                 {t.features.map((f) => (
                   <li key={f} className={styles.feature}>
@@ -148,7 +154,7 @@ export default function Pricing() {
         </div>
 
         <p className={styles.footnote}>
-          Every plan runs the full product during your trial. Switch or cancel anytime. Enterprise
+          Every plan runs the full product from day one. Change tiers or cancel anytime. Enterprise
           pricing is set after a short conversation about your operation.
         </p>
       </div>

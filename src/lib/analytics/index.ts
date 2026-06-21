@@ -35,7 +35,7 @@ export function capturePageview(path: string): void {
 }
 
 /** The marketing funnel events we track. Extend as pages land. */
-export type MarketingEvent = 'trial_start_clicked' | 'signin_clicked' | 'how_it_works_clicked';
+export type MarketingEvent = 'get_started_clicked' | 'signin_clicked' | 'how_it_works_clicked';
 
 export function track(event: MarketingEvent, props?: Record<string, unknown>): void {
   if (!enabled()) return;

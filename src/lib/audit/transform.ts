@@ -29,9 +29,10 @@ export function canReadAudit(role: string | null | undefined): role is AuditRole
 /**
  * Tier to visible window, in days. The hot window is how far back the operator
  * can read before the trail tucks behind an upgrade. `null` = unlimited (no
- * cutoff). Free maps to the 14-day trial length; the rest are the FEATURES.md
- * tiers. The exact spans lock with pricing — changing a number here moves the
- * whole window with zero partition movement (the rows never leave the table).
+ * cutoff). Free is the minimal default window for an unpaid/incomplete account;
+ * the rest are the FEATURES.md paid tiers. The exact spans lock with pricing —
+ * changing a number here moves the whole window with zero partition movement
+ * (the rows never leave the table).
  */
 export const RETENTION_WINDOW_DAYS: Record<RetentionTier, number | null> = {
   free: 14,

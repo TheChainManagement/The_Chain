@@ -22,7 +22,7 @@ describe('how it works — the four-stage chain', () => {
   it('leads with the chain headline and a trial CTA', () => {
     const { getByRole } = render(<HowItWorks />);
     expect(getByRole('heading', { level: 1 }).textContent).toBe('Four links. One chain.');
-    expect(getByRole('link', { name: /start 14-day trial/i }).getAttribute('href')).toBe('/signup');
+    expect(getByRole('link', { name: /get started/i }).getAttribute('href')).toBe('/signup');
   });
 
   it('mounts the guided workbench with Connect active and a per-stage metric', () => {
