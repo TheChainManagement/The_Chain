@@ -257,13 +257,16 @@ these are the accepted-deferred items:
   test proves token park + resume + per-PO isolation. The indefinite hook-park IS the long-gap
   mechanism (no timer to skip), and crash-resume is a DevKit runtime guarantee that's awkward to
   unit-test in-process. Revisit if we adopt a workflow max-age policy or see a real stuck run.
-- **QBO `sent`-path unit test for approve-core.** Current coverage exercises the manual `exported`
-  path against real Postgres; the connected write-back path needs a mocked QBO connection fixture.
-  Add alongside the next QBO adapter test pass.
-- **Supplier scorecard panel on the PO detail hero** (FEATURES.md:451). The page links to the
-  supplier record (full ReliabilityRibbon lives there); surfacing the rolling-30d OTIF *on* the PO
-  page would put reliability where the approve/receive decision happens. Cheap follow-up with the
-  existing `ReliabilityRibbon` + the queue's scorecard read.
+- ~~**QBO `sent`-path unit test for approve-core.**~~ CLOSED 2026-06-23. `approve-core.ts` now
+  seams the QBO factory via `ApproveDeps.createAdapter`; `tests/purchase-orders/approve-core.test.ts`
+  covers the connected push→`sent` path (entity id + DocNumber persisted, in-transit committed),
+  degrade-on-push-failure → `exported`, and mapped-but-not-connected → `exported`. Production passes
+  no deps → the real factory is used. (Live acceptance against the Intuit sandbox still pending MG's login.)
+- ~~**Supplier scorecard panel on the PO detail hero** (FEATURES.md:451).~~ CLOSED 2026-06-23.
+  `/purchase-orders/[poId]` now renders a Supplier reliability panel (reusing `ReliabilityRibbon` +
+  `getSupplierDetail`'s rolling-30d OTIF / on-time / in-full / actual lead time) between the order
+  chain and the lines, with a "Full scorecard →" link. Reliability now sits where the approve/receive
+  decision is made. Live-verified.
 - **`audit_log` lifecycle assertion test** (FEATURES.md:468). Audit triggers fire on every
   `purchase_orders` transition (trigger present, audit suite green); add a focused test asserting
   approve/partial/full-receipt/export rows for belt-and-suspenders on the money path.

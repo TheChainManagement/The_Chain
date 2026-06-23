@@ -457,7 +457,8 @@
 > - PO detail + receive live at `/purchase-orders/[poId]` (reusing the Block 10 / Wave 6.3-A cockpit), NOT `/app/reorder/po/[poId]` + a separate `/receive` route. One page, inline disclosure controls.
 > - Approval is a **synchronous** Server Action (`approvePurchaseOrder({ poId })`) so the operator sees `sent` vs `exported` immediately. The durable `purchaseOrderLifecycleWorkflow` owns only the long receipt wait + finalize, not the approve→push→wait chain. Idempotency is DB-enforced (PO status guard + DocNumber-keyed QBO push), so no explicit `idempotency_key` param.
 > - `receive_purchase_order` is idempotent on a caller key (`po_receipt_events` ledger) — the Block 10 deferred item, delivered here.
-> - Supplier scorecard panel on the PO hero is ticketed (the page links to the supplier record where the full ribbon lives).
+> - Supplier scorecard panel on the PO hero **SHIPPED 2026-06-23**: `SupplierReliabilityPanel` renders the rolling-30d OTIF / on-time / in-full + actual lead time ±σ and reuses `ReliabilityRibbon`, between the order chain and the lines, with a "Full scorecard →" link (reuses `getSupplierDetail`). Reliability now sits where the approve/receive decision is made.
+> - QBO `sent` write-back path is now test-covered (2026-06-23): `approveAndPushPurchaseOrder` takes an `ApproveDeps.createAdapter` seam (defaults to the real factory) so the connected push→`sent` path, the push-failure→`exported` degrade, and the mapped-but-not-connected→`exported` path are all exercised in `tests/purchase-orders/approve-core.test.ts`. *Live acceptance against the Intuit sandbox (a real PO landing in QuickBooks) still pending an operator Intuit login.*
 
 **Acceptance criteria:**
 - [x] Recommendation → PO → approved → exported → received → on-hand update runs end-to-end for a real test account in under 2 minutes manual time. *(verified live; evidence 2026-06-13)*
