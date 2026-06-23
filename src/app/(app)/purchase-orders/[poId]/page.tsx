@@ -17,10 +17,12 @@ import {
   poStatusLabel,
 } from '@/lib/purchase-orders/transform';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { getSupplierDetail } from '@/lib/suppliers/queries';
 import { OrderChain } from '../OrderChain';
 import { ApproveControls } from './ApproveControls';
 import styles from './po-detail.module.css';
 import { ReceiveControls } from './ReceiveControls';
+import { SupplierReliabilityPanel } from './SupplierReliabilityPanel';
 
 export const metadata = { title: 'Purchase Order · The Chain' };
 
@@ -47,7 +49,12 @@ export default async function PurchaseOrderDetailPage({
 
   // The policy numbers the reorder insight narrates — rendered on-screen so every
   // figure Claude cites is verifiable (trust hierarchy). Null when no policy yet.
-  const ctx = await loadReorderContext(supabase, tenantId, po.id);
+  // The supplier's rolling-30d reliability is loaded alongside so it sits right
+  // where the approve/receive decision is made (FEATURES.md:451).
+  const [ctx, supplier] = await Promise.all([
+    loadReorderContext(supabase, tenantId, po.id),
+    getSupplierDetail(supabase, po.supplierId),
+  ]);
   const hasContext =
     ctx != null &&
     (ctx.onHand != null ||
@@ -77,6 +84,8 @@ export default async function PurchaseOrderDetailPage({
       <section className={styles.hero} aria-label={`Order ${po.reference} progress`}>
         <OrderChain po={po} />
       </section>
+
+      {supplier ? <SupplierReliabilityPanel supplier={supplier} /> : null}
 
       <Panel
         prefix="Lines"

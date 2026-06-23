@@ -23,7 +23,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createQboAdapterForTenant } from '@/lib/qbo/factory';
 import { poDocNumber } from '@/lib/qbo/map';
-import type { CanonicalPayload } from '@/lib/source-adapter';
+import type { CanonicalPayload, PushResult } from '@/lib/source-adapter';
 import { CANONICAL_SCHEMA_VERSION } from '@/lib/source-adapter/canonical';
 
 export type ApproveResult =
@@ -41,6 +41,28 @@ interface ApproveParams {
   poId: string;
   /** Injected for deterministic token refresh in the QBO factory + tests. */
   nowMs: number;
+}
+
+/** The slice of a QBO adapter the write-back path uses. */
+interface PushAdapter {
+  push(
+    kind: 'purchase_order',
+    payload: CanonicalPayload<'purchase_order'>,
+    idempotencyKey: string,
+  ): Promise<PushResult>;
+}
+
+/**
+ * Seams the live QBO factory out so the connected `sent` write-back path is
+ * testable without a real Intuit connection (the codebase's standard transport/
+ * token injection idiom). Production passes nothing → the real factory is used.
+ */
+export interface ApproveDeps {
+  createAdapter?: (
+    admin: SupabaseClient,
+    tenantId: string,
+    nowMs: number,
+  ) => Promise<{ adapter: PushAdapter } | null>;
 }
 
 interface PoRow {
@@ -64,8 +86,10 @@ const APPROVABLE = new Set(['draft', 'recommended']);
 export async function approveAndPushPurchaseOrder(
   admin: SupabaseClient,
   params: ApproveParams,
+  deps: ApproveDeps = {},
 ): Promise<ApproveResult> {
   const { tenantId, poId, nowMs } = params;
+  const createAdapter = deps.createAdapter ?? createQboAdapterForTenant;
 
   const { data: po, error: poErr } = await admin
     .from('purchase_orders')
@@ -104,7 +128,7 @@ export async function approveAndPushPurchaseOrder(
   let externalVersion: number | null = null;
 
   if (fullyMapped) {
-    const handle = await createQboAdapterForTenant(admin, tenantId, nowMs);
+    const handle = await createAdapter(admin, tenantId, nowMs);
     if (handle) {
       const payload: CanonicalPayload<'purchase_order'> = {
         kind: 'purchase_order',

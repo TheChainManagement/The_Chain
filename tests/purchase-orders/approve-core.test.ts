@@ -1,13 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { approveAndPushPurchaseOrder } from '@/lib/purchase-orders/approve-core';
+import { type ApproveDeps, approveAndPushPurchaseOrder } from '@/lib/purchase-orders/approve-core';
+import { poDocNumber } from '@/lib/qbo/map';
 
 /**
- * PO approval against the real local Supabase (Block 11b). With no QBO
- * connection (and no `external_ids->>'qbo'` on the supplier/products), approval
- * takes the manual EXPORTED path: status advances draft → exported and the
- * ordered quantity is committed as `inventory_levels.in_transit`. Re-approving
- * is idempotent (no second in-transit increment). Requires `supabase start`.
+ * PO approval against the real local Supabase (Block 11b).
+ *
+ * EXPORTED path: with no QBO connection (or any supplier/product lacking an
+ * `external_ids->>'qbo'`), approval advances draft → exported and commits the
+ * ordered quantity as `inventory_levels.in_transit`. Re-approving is idempotent.
+ *
+ * SENT path: when the supplier AND every line carry a `qbo` external id and a
+ * QBO connection exists, approval pushes the PO back to QuickBooks first, then
+ * advances draft → sent and persists the returned entity id + DocNumber. The
+ * QBO adapter factory is seamed via `ApproveDeps.createAdapter` so the connected
+ * write-back is exercised without a live Intuit connection. A push failure
+ * degrades to the exported path so approval still commits. Requires `supabase start`.
  */
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
@@ -22,6 +30,38 @@ let tenantId: string;
 let supplierId: string;
 let locationId: string;
 let productId: string;
+let mappedSupplierId: string;
+let mappedProductId: string;
+
+const QBO_PO_ID = 'qbo-po-7788';
+const QBO_SYNC_TOKEN = 4;
+
+/** A fake QBO factory whose adapter push succeeds, returning a stable entity. */
+const sentDeps: ApproveDeps = {
+  createAdapter: async () => ({
+    adapter: {
+      push: async () => ({
+        externalId: QBO_PO_ID,
+        externalVersion: QBO_SYNC_TOKEN,
+        appliedAt: '2026-06-23T00:00:00.000Z',
+      }),
+    },
+  }),
+};
+
+/** A connected factory whose push throws — must degrade to the exported path. */
+const pushFailsDeps: ApproveDeps = {
+  createAdapter: async () => ({
+    adapter: {
+      push: async () => {
+        throw new Error('QBO unreachable');
+      },
+    },
+  }),
+};
+
+/** Mapped supplier + SKU, but no connection (factory returns null) → exported. */
+const noConnectionDeps: ApproveDeps = { createAdapter: async () => null };
 
 async function findUserId(email: string): Promise<string | undefined> {
   for (let page = 1; page <= 20; page++) {
@@ -33,13 +73,18 @@ async function findUserId(email: string): Promise<string | undefined> {
   return undefined;
 }
 
-/** A draft PO with one line of `qty` at `cost`. */
-async function newDraftPo(qty: number, cost: number): Promise<string> {
+/** A draft PO with one line of `qty` at `cost` against the given supplier/SKU. */
+async function newDraftPo(
+  qty: number,
+  cost: number,
+  supplier = supplierId,
+  product = productId,
+): Promise<string> {
   const { data: po } = await admin
     .from('purchase_orders')
     .insert({
       tenant_id: tenantId,
-      supplier_id: supplierId,
+      supplier_id: supplier,
       location_id: locationId,
       status: 'draft',
       recommended_by: 'system',
@@ -51,19 +96,24 @@ async function newDraftPo(qty: number, cost: number): Promise<string> {
     tenant_id: tenantId,
     po_id: po?.id,
     line_no: 1,
-    product_id: productId,
+    product_id: product,
     ordered_qty: qty,
     unit_cost: cost,
   });
   return po?.id ?? '';
 }
 
-async function inTransit(): Promise<number> {
+/** A draft PO whose supplier + SKU both carry `external_ids.qbo` (write-back eligible). */
+function newMappedDraftPo(qty: number, cost: number): Promise<string> {
+  return newDraftPo(qty, cost, mappedSupplierId, mappedProductId);
+}
+
+async function inTransit(product = productId): Promise<number> {
   const { data } = await admin
     .from('inventory_levels')
     .select('in_transit')
     .eq('tenant_id', tenantId)
-    .eq('product_id', productId)
+    .eq('product_id', product)
     .eq('location_id', locationId)
     .maybeSingle<{ in_transit: number }>();
   return Number(data?.in_transit ?? 0);
@@ -104,6 +154,30 @@ beforeAll(async () => {
     .select('id')
     .single<{ id: string }>();
   productId = prod?.id ?? '';
+
+  // A QBO-mapped supplier + SKU (both carry external_ids.qbo) → write-back eligible.
+  const { data: mSup } = await admin
+    .from('suppliers')
+    .insert({
+      tenant_id: tenantId,
+      name: 'QBO Vendor',
+      contact: {},
+      external_ids: { qbo: '55' },
+    })
+    .select('id')
+    .single<{ id: string }>();
+  mappedSupplierId = mSup?.id ?? '';
+  const { data: mProd } = await admin
+    .from('products')
+    .insert({
+      tenant_id: tenantId,
+      sku: 'AP-2',
+      name: 'QBO SKU',
+      external_ids: { qbo: '101' },
+    })
+    .select('id')
+    .single<{ id: string }>();
+  mappedProductId = mProd?.id ?? '';
 }, 60_000);
 
 afterAll(async () => {
@@ -146,5 +220,70 @@ describe('approveAndPushPurchaseOrder', () => {
     // The PO is past draft now → the core refuses before touching the RPC.
     expect(replay.ok).toBe(false);
     expect(await inTransit()).toBe(afterFirst);
+  });
+
+  it('mapped + connected: pushes to QBO, advances to SENT, persists the entity id', async () => {
+    const poId = await newMappedDraftPo(30, 7);
+    const before = await inTransit(mappedProductId);
+
+    const res = await approveAndPushPurchaseOrder(
+      admin,
+      { tenantId, poId, nowMs: Date.now() },
+      sentDeps,
+    );
+    expect(res).toMatchObject({
+      ok: true,
+      status: 'sent',
+      applied: true,
+      wroteToQbo: true,
+      reference: poDocNumber(poId),
+    });
+
+    const { data: po } = await admin
+      .from('purchase_orders')
+      .select('status, external_po_id, external_reference')
+      .eq('id', poId)
+      .single<{
+        status: string;
+        external_po_id: string | null;
+        external_reference: string | null;
+      }>();
+    expect(po?.status).toBe('sent');
+    expect(po?.external_po_id).toBe(QBO_PO_ID);
+    expect(po?.external_reference).toBe(poDocNumber(poId));
+    // The ordered quantity is still committed as in-transit on the sent path.
+    expect(await inTransit(mappedProductId)).toBe(before + 30);
+  });
+
+  it('mapped but QBO push fails: degrades to EXPORTED, still commits in-transit', async () => {
+    const poId = await newMappedDraftPo(12, 7);
+    const before = await inTransit(mappedProductId);
+
+    const res = await approveAndPushPurchaseOrder(
+      admin,
+      { tenantId, poId, nowMs: Date.now() },
+      pushFailsDeps,
+    );
+    expect(res).toMatchObject({ ok: true, status: 'exported', applied: true, wroteToQbo: false });
+
+    const { data: po } = await admin
+      .from('purchase_orders')
+      .select('status, external_po_id')
+      .eq('id', poId)
+      .single<{ status: string; external_po_id: string | null }>();
+    expect(po?.status).toBe('exported');
+    expect(po?.external_po_id).toBeNull();
+    expect(await inTransit(mappedProductId)).toBe(before + 12);
+  });
+
+  it('mapped but not connected: takes the EXPORTED path (no adapter handle)', async () => {
+    const poId = await newMappedDraftPo(8, 7);
+
+    const res = await approveAndPushPurchaseOrder(
+      admin,
+      { tenantId, poId, nowMs: Date.now() },
+      noConnectionDeps,
+    );
+    expect(res).toMatchObject({ ok: true, status: 'exported', wroteToQbo: false });
   });
 });

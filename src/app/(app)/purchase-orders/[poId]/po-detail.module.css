@@ -57,6 +57,40 @@
   color: var(--color-deep);
 }
 
+/* ----- supplier reliability (on the decision page) ----- */
+
+.reliability {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+.reliabilityMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-6);
+}
+.relCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+.relKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.relSubs {
+  display: flex;
+  gap: var(--spacing-3);
+}
+.relSub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-mid);
+}
+
 /* ----- lines table ----- */
 
 .lines {
