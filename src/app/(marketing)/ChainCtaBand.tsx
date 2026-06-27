@@ -22,7 +22,7 @@ export function ChainCtaBand({
     <section className={styles.band} aria-labelledby="cta-band-headline">
       <div className={styles.visual} aria-hidden="true">
         <Image
-          src="/marketing/TheChainHero4.png"
+          src="/marketing/hero-chain-alt.jpg"
           alt=""
           fill
           sizes="(max-width: 880px) 100vw, 60vw"

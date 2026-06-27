@@ -65,10 +65,10 @@ export default function MarketingHome() {
         <div className={styles.stage} aria-hidden="true">
           <div className={styles.blueprintUnder} data-testid="hero-bg" />
           <Image
-            src="/marketing/TheChainHero1.png"
+            src="/marketing/hero-chain.jpg"
             alt=""
-            width={1200}
-            height={800}
+            width={1600}
+            height={900}
             priority
             className={styles.isoRender}
           />
