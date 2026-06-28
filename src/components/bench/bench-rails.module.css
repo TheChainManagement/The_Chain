@@ -26,6 +26,31 @@
   text-transform: uppercase;
 }
 
+/* Operating-mode badge (W2-0) — under the brand. Mono, hairline-boxed, austere
+   (the bench is sharp-cornered by design, so no radius). */
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+}
+.modeLabel {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-deep);
+}
+.modeHint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+}
+
 .nav {
   display: flex;
   flex-direction: column;
@@ -137,6 +162,9 @@
     border-right: 0;
     border-bottom: 1px solid var(--color-hairline);
     padding: var(--spacing-3) var(--spacing-4);
+  }
+  .mode {
+    display: none;
   }
   .nav {
     flex-direction: row;
