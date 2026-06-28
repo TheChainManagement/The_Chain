@@ -107,6 +107,13 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
 **Deferred to later waves** (unchanged): full role + S&OP layer (Wave 3), barcode hardware
 scanning (Wave 4), Rutter / ERP-native adapters (Waves 5/7), ROI Impact Dashboard (Wave 6).
 
+**Deferred but TRACKED (MG: "do not lose it"):** the ledger **header/line split**
+(`stock_movement_events` + `stock_movement_lines`) lands with the **Manufacturing / Produce wave**
+(or a lot-traceability deep build, whichever is first), because that is the first flow needing an
+atomic multi-line or lot/serial event. Held as a 🔴 ticket in `_reviews/_tickets.md`; rationale +
+migration path in `WAVE2_W2-0_MODE_SPINE_DESIGN.md` §10. The W2-0 columns are shaped now so the
+split is additive later, not a rewrite.
+
 **Carry-over gap (not a feature, but live-customer-critical):** password reset / auth recovery
 still does not exist. Slot it in early.
 

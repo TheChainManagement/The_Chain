@@ -1,4 +1,20 @@
 
+## Wave 2 — DEFERRED BY DESIGN, DO NOT LOSE (2026-06-28)
+- **🔴 Ledger header/line split (`stock_movement_events` + `stock_movement_lines`).** MG
+  approved deferring this from the W2-0 spine but explicitly said "do NOT lose it." Today's
+  single-row `stock_movements` (one product / one location / one signed qty) cannot atomically
+  carry a multi-line event or split a line across lots/serials. **TRIGGER to build = the first
+  event that needs ATOMIC multi-line or lot/serial sub-lines = the Manufacturing / Produce wave
+  (or a lot-traceability deep build if that lands first).** NOT needed for W2-2 storeroom (kit =
+  N `issue_out` rows sharing one `demand_ref_id`), W2-3 procurement (POs already use
+  purchase_orders + lines), or W2-4 transfers (two-row model). **Pull forward only on an
+  early-warning sign:** a multi-line atomic reversible pick list, or food FEFO lot-picking
+  arriving early. **HOW (additive, not a rewrite):** create events+lines; backfill 1:1 (the W2-0
+  `demand_ref_*` / `reason_code` / `source` columns LIFT to the header, product/location/qty drop
+  to the line); keep a backward-compat VIEW in the old single-row shape so reads migrate
+  incrementally. Only cost of waiting = backfill grows with row count (bounded, O(rows)). Full
+  rationale: `docs/WAVE2_W2-0_MODE_SPINE_DESIGN.md` §10.
+
 ## Block 3 bulk ops — remaining (2026-06-03)
 Delivered: row selection + select-all + bulk archive (RLS-gated). From the Codex
 "bulk operations not delivered" finding.
