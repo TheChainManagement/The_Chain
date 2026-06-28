@@ -1,5 +1,12 @@
 
 ## Wave 2 — DEFERRED BY DESIGN, DO NOT LOSE (2026-06-28)
+- **Normalize UoM on the ingest write paths (W2-1b follow-up).** Manual product forms now write
+  curated codes, but CSV import (`commit.ts`/`durable-commit.ts` product writers) and QBO sync
+  (`sync-core.ts`/`incremental-core.ts`) still persist whatever free-text the source provides. The
+  DISPLAY + edit layer normalizes via `resolveUomCode`/`uomLabel` (so surfaces stay consistent), but
+  the stored column is still semantically mixed. Optional hygiene: run `resolveUomCode` in the
+  product import/sync writers to store the canonical code when it resolves. Codex-flagged 2026-06-28;
+  display normalization shipped, write-side normalization deferred (behavior-changing on ingest).
 - **Durable writer for the product-supplier link lane (W2-1a).** The links import runs sync-only
   (the action forces `product_supplier` off the durable path; `durable-commit.ts` throws
   defensively). Fine today — link files are small (one row per pair). If a customer ever bulk-loads

@@ -38,7 +38,19 @@ the create/update actions stay free-form (no enum). Legacy values display as-is 
   (can't sign in to reach the product form). The RTL test renders the real component and is the
   behavioral proof; the picker compiles into all three forms in the production build.
 
+## Codex round-1 (gate) — applied before push
+
+`moretech-codex-review` (gpt-5.4, full); review + dispositions in
+`_reviews/2026-06-28_feature_w2-1b_uom_dropdown_2.md`. Fixed in-slice:
+- **Legacy round-trip + display normalization:** added unit `aliases` + a `resolveUomCode` resolver,
+  so legacy free-text (`each`, `Box`, `kilogram`, case variants) snaps to the curated unit when
+  editing and displays as the friendly label everywhere — not just the detail page.
+- **List/detail consistency:** `InventoryLedger` now renders `uomLabel` (was raw), matching detail.
+- Tests extended (alias resolution + legacy→curated picker round-trip); 10/10.
+Deferred (ticketed): normalize UoM on the CSV/QBO ingest write paths (display layer handles it now;
+write-side normalization is behavior-changing on import). Accepted: screenshot + E2E form-persist are
+auth-blocked (RTL stands in).
+
 ## Next
 
-MG checkpoint → `moretech-codex-review` → push (no hosted migration — schema unchanged). Then W2-1c
-(supplier address + contact-person).
+Push (no hosted migration — schema unchanged). Then W2-1c (supplier address + contact-person).

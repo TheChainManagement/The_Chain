@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { InventoryListRow } from '@/lib/inventory/queries';
+import { uomLabel } from '@/lib/uom/units';
 import { bulkArchiveProducts } from './actions';
 import styles from './inventory.module.css';
 
@@ -122,7 +123,9 @@ export function InventoryLedger({ rows }: { rows: InventoryListRow[] }): React.R
             </Link>
             <span className={styles.cellName}>
               {row.name}
-              {row.unitOfMeasure ? <span className={styles.uom}>{row.unitOfMeasure}</span> : null}
+              {row.unitOfMeasure ? (
+                <span className={styles.uom}>{uomLabel(row.unitOfMeasure)}</span>
+              ) : null}
             </span>
             <span className={styles.cellNum}>
               <StatNumber value={fmtQty(row.onHand)} />

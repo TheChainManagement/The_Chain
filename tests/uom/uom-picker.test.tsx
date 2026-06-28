@@ -42,6 +42,14 @@ describe('UomPicker', () => {
     expect(hiddenValue(container)).toBe('ea');
   });
 
+  it('snaps a legacy free-text default onto the curated unit (each → Each)', () => {
+    const { container } = render(<UomPicker defaultValue="each" />);
+    // resolves to the curated code, not the Other escape hatch
+    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('ea');
+    expect(screen.queryByLabelText('Custom unit of measure')).toBeNull();
+    expect(hiddenValue(container)).toBe('ea');
+  });
+
   it('opens "Other" with the custom value prefilled for a legacy/custom default', () => {
     const { container } = render(<UomPicker defaultValue="spool" />);
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('__other__');

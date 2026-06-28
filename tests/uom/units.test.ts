@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isKnownUom, UOM_OPTIONS, uomLabel, uomOptionGroups } from '@/lib/uom/units';
+import {
+  isKnownUom,
+  resolveUomCode,
+  UOM_OPTIONS,
+  uomLabel,
+  uomOptionGroups,
+} from '@/lib/uom/units';
 
 describe('unit-of-measure reference (W2-1b)', () => {
   it('has unique, non-empty codes and labels', () => {
@@ -12,17 +18,29 @@ describe('unit-of-measure reference (W2-1b)', () => {
     }
   });
 
-  it('labels a known code, passes through custom/legacy values, and blanks empty', () => {
+  it('resolves codes, aliases, and legacy free-text (case/space-insensitive)', () => {
+    expect(resolveUomCode('ea')).toBe('ea'); // code
+    expect(resolveUomCode('each')).toBe('ea'); // alias
+    expect(resolveUomCode('  EACH ')).toBe('ea'); // trimmed + case-folded
+    expect(resolveUomCode('Box')).toBe('bx');
+    expect(resolveUomCode('kilogram')).toBe('kg');
+    expect(resolveUomCode('spool')).toBeNull(); // bespoke
+    expect(resolveUomCode(null)).toBeNull();
+  });
+
+  it('labels a known code OR legacy alias, passes through bespoke, blanks empty', () => {
     expect(uomLabel('ea')).toBe('Each');
-    expect(uomLabel('kg')).toBe('Kilogram');
-    expect(uomLabel('spool')).toBe('spool'); // custom value displays as-is
+    expect(uomLabel('each')).toBe('Each'); // legacy free-text normalizes for display
+    expect(uomLabel('KG')).toBe('Kilogram');
+    expect(uomLabel('spool')).toBe('spool'); // bespoke value displays as-is
     expect(uomLabel('')).toBe('');
     expect(uomLabel(null)).toBe('');
     expect(uomLabel(undefined)).toBe('');
   });
 
-  it('knows curated codes from custom ones', () => {
+  it('knows curated codes + aliases apart from bespoke ones', () => {
     expect(isKnownUom('ea')).toBe(true);
+    expect(isKnownUom('each')).toBe(true); // alias
     expect(isKnownUom('spool')).toBe(false);
     expect(isKnownUom('')).toBe(false);
     expect(isKnownUom(null)).toBe(false);

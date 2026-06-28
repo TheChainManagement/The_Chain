@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode, useState } from 'react';
-import { isKnownUom, uomOptionGroups } from '@/lib/uom/units';
+import { resolveUomCode, uomOptionGroups } from '@/lib/uom/units';
 import styles from './UomPicker.module.css';
 
 /**
@@ -25,9 +25,11 @@ export function UomPicker({
   defaultValue?: string;
   className?: string;
 }): ReactNode {
-  const known = isKnownUom(defaultValue);
-  const [selected, setSelected] = useState(defaultValue === '' ? '' : known ? defaultValue : OTHER);
-  const [custom, setCustom] = useState(known || defaultValue === '' ? '' : defaultValue);
+  // Resolve a default (code, alias, or legacy free-text) to a curated code so an
+  // existing "each" record snaps to "Each", not the Other field.
+  const matched = resolveUomCode(defaultValue);
+  const [selected, setSelected] = useState(defaultValue === '' ? '' : (matched ?? OTHER));
+  const [custom, setCustom] = useState(matched || defaultValue === '' ? '' : defaultValue);
 
   const effective = (selected === OTHER ? custom : selected).trim();
 
