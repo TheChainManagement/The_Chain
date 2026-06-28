@@ -1,6 +1,6 @@
 import 'server-only';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
-import { DEFAULT_MODE, getProfile } from './profiles';
+import { getProfile } from './profiles';
 import type { OperatingMode, OperatingProfile } from './types';
 
 /**
@@ -8,8 +8,9 @@ import type { OperatingMode, OperatingProfile } from './types';
  * through the service-role admin client, always scoped to a tenant_id the caller
  * was already verified to belong to (BenchGate membership check). operating_mode
  * is non-sensitive, but tenants-row RLS varies by role, so the admin read keeps
- * the layout uniform for every role. Defaults to the baseline mode on a missing
- * row; a real read error is surfaced, never masked as the default.
+ * the layout uniform for every role. Both a read error AND a missing row throw:
+ * BenchGate already verified membership, so an absent tenant row is corruption,
+ * not a benign default — surfacing it beats silently rendering the wrong mode.
  */
 export async function loadOperatingMode(tenantId: string): Promise<OperatingMode> {
   const admin = createSupabaseAdmin();
@@ -19,7 +20,8 @@ export async function loadOperatingMode(tenantId: string): Promise<OperatingMode
     .eq('id', tenantId)
     .maybeSingle<{ operating_mode: OperatingMode }>();
   if (error) throw new Error(`loadOperatingMode failed: ${error.message}`);
-  return data?.operating_mode ?? DEFAULT_MODE;
+  if (!data) throw new Error(`loadOperatingMode: no tenant row for ${tenantId}`);
+  return data.operating_mode;
 }
 
 /** Load a tenant's resolved operating profile (mode key → declarative profile). */

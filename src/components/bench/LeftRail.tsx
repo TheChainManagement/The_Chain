@@ -5,40 +5,27 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { signOut } from '@/app/(auth)/actions';
 import { ChainGlyph } from '@/components/brand/ChainGlyph';
-import { getProfile } from '@/lib/modes/profiles';
-import type { NavHref, OperatingMode } from '@/lib/modes/types';
+import { NAV_ITEMS } from '@/lib/modes/nav';
+import type { OperatingProfile } from '@/lib/modes/types';
 import styles from './bench-rails.module.css';
 
 /**
  * LeftRail — bench navigation. Client component for the active-route highlight
  * (the single cobalt selected state for the rail region). Sign-out posts the
- * server action. W2-0: the tenant's operating mode fits nav labels (and, later,
- * which items show) and surfaces a mode badge under the brand.
+ * server action. W2-0: the layout resolves the tenant's operating profile and
+ * passes it in; the rail fits nav labels (and, later, which items show) and
+ * surfaces a mode badge under the brand.
  */
-
-const NAV: readonly { href: NavHref; label: string }[] = [
-  { href: '/today', label: 'Today' },
-  { href: '/inventory', label: 'Inventory' },
-  { href: '/forecasts', label: 'Forecasts' },
-  { href: '/suppliers', label: 'Suppliers' },
-  { href: '/purchase-orders', label: 'Purchase Orders' },
-  { href: '/import', label: 'Import' },
-  { href: '/integrations', label: 'Integrations' },
-  { href: '/reorder', label: 'Reorder' },
-  { href: '/flow', label: 'Flow' },
-  { href: '/settings', label: 'Settings' },
-] as const;
 
 export function LeftRail({
   userEmail,
-  mode,
+  profile,
 }: {
   userEmail: string;
-  mode: OperatingMode;
+  profile: OperatingProfile;
 }): ReactNode {
   const pathname = usePathname();
-  const profile = getProfile(mode);
-  const items = NAV.filter((item) => !profile.hiddenNav.includes(item.href)).map((item) => ({
+  const items = NAV_ITEMS.filter((item) => !profile.hiddenNav.includes(item.href)).map((item) => ({
     href: item.href,
     label: profile.navLabels[item.href] ?? item.label,
   }));

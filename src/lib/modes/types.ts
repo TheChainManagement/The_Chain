@@ -1,3 +1,5 @@
+import type { NavHref } from './nav';
+
 /**
  * Operating-mode spine (W2-0). A "mode" is an inventory-FLOW archetype, not an
  * industry — many industries collapse to one flow. See
@@ -15,18 +17,18 @@ export type OperatingMode = 'distribution' | 'storeroom' | 'food';
  */
 export type DemandArchetype = 'sell' | 'issue' | 'produce';
 
-/** Nav hrefs the rail can relabel/hide per mode. Keep in sync with LeftRail's NAV. */
-export type NavHref =
-  | '/today'
-  | '/inventory'
-  | '/forecasts'
-  | '/suppliers'
-  | '/purchase-orders'
-  | '/import'
-  | '/integrations'
-  | '/reorder'
-  | '/flow'
-  | '/settings';
+/**
+ * Reserved per-mode extension seam (design §3.5 / §5). Mode-specific structural
+ * behavior the spine wires for but does NOT implement yet: food lot/expiry/FEFO,
+ * manufacturing BOM/WIP, clinical regulated custody. Declared per mode now
+ * (food → expiration); the ADAPTERS that act on it are built with those modes.
+ */
+export interface ModeExtensions {
+  /** Food/clinical: stock is lot/expiry tracked and picks honor FEFO. */
+  readonly expiration?: boolean;
+  /** Manufacturing: stock is produced by consuming a BOM (transformation). */
+  readonly billOfMaterials?: boolean;
+}
 
 /**
  * An operating profile: the declarative config a tenant's mode resolves to.
@@ -50,4 +52,11 @@ export interface OperatingProfile {
   navLabels: Partial<Record<NavHref, string>>;
   /** Nav hrefs hidden in this mode. Empty until mode-specific surfaces ship (W2-2+). */
   hiddenNav: readonly NavHref[];
+  /**
+   * Reserved structural seam (food lot/expiry, manufacturing BOM, ...). Declared
+   * per mode (food → expiration); `null` when a mode has no structural extension.
+   * The per-mode material-flow ADAPTERS that READ this land in W2-2, where they
+   * are implemented and tested rather than declared dead now.
+   */
+  extensions: ModeExtensions | null;
 }

@@ -34,10 +34,22 @@ issue-out (`issue_out`/`issue_return` enum + the `demand_ref` envelope + `locati
 - `biome check src` — clean.
 - `check:craft` — PASS (token discipline + trust hierarchy intact).
 - `next build` — clean (exit 0).
-- Unit + RTL: `tests/modes/profiles.test.ts` (6) + `tests/modes/left-rail.test.tsx` (3) = **9/9**.
-  The RTL test is the memorable artifact: it renders the REAL `LeftRail` for all three modes and
-  asserts the badge text + the relabeled inventory link, so the visible delta can't silently regress.
-- Full unit suite: 607 passed.
+- Unit + RTL: `tests/modes/{profiles,resolver,left-rail}.test.*` = **13/13** (registry, resolver
+  branch coverage [success / read-error-throws / missing-row-throws], and the RTL memorable test
+  rendering the REAL `LeftRail` across all three modes — badge + relabeled inventory link).
+- Full unit suite: 607 passed (the 47 integration failures are the pre-existing local-auth issue
+  above, not this change).
+
+## Codex round-1 (gate) — applied before push
+
+`moretech-codex-review` (gpt-5.4, full) run over `origin/main...HEAD`; review + my dispositions in
+`_reviews/2026-06-28_feature_w2-0_mode_spine_2.md`. Fixed in-slice: resolver fails loud on a missing
+tenant row; the layout uses the single `loadOperatingProfile` resolver and passes the profile to the
+rail (no client re-resolve, no dead code); `NavHref` de-duplicated to one canonical `nav.ts`; a
+reserved `extensions` seam added (food → expiration); resolver branch tests; two doc contradictions
+reconciled (WAVE2_SCOPE movement-type claim; the §10 W2-0-vs-W2-2 migration mislabel). Deferred with
+reason: the issue_out/demand_ref columns (W2-2, not dead-shipped now) and the heavier profile fields
+(flowEvents/policyDefaults — W2-2 where their adapters live).
 
 ## Known-environmental (NOT caused by this change)
 

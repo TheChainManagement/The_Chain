@@ -95,8 +95,11 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
   owning the numbers. Plus the product-to-supplier link import lane (cost/lead/MOQ) so a full
   catalog loads from spreadsheets.
 - **W2-2: Storeroom operations.** Issue material out (tagged to a work order / crew / cost
-  center), manual stock adjustments, and cycle counts. The movement types already exist in the
-  schema. Pulls in a minimal role slice (who can issue/adjust) from the original Wave 3.
+  center), manual stock adjustments, and cycle counts. **Correction (2026-06-28):** `adjustment`
+  and `cycle_count` movement types exist, but **issue-out does NOT** — the enum is `sale, receipt,
+  transfer_in, transfer_out, adjustment, cycle_count`. W2-2 ADDS `issue_out` / `issue_return` plus
+  the demand-reference envelope and `location_kind`, per `WAVE2_W2-0_MODE_SPINE_DESIGN.md` §10.
+  Pulls in a minimal role slice (who can issue/adjust) from the original Wave 3.
 - **W2-3: Procurement workflow.** RFQ to vendors, capture the prices they return, a requisition
   that is approved and then becomes a PO. Useful in both modes. The deepest build; comes after
   the data model is right.

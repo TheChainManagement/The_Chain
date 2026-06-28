@@ -21,6 +21,7 @@ const PROFILES: Record<OperatingMode, OperatingProfile> = {
     // Distribution is the Wave-1 baseline — default nav labels, nothing hidden.
     navLabels: {},
     hiddenNav: [],
+    extensions: null,
   },
   storeroom: {
     key: 'storeroom',
@@ -31,6 +32,7 @@ const PROFILES: Record<OperatingMode, OperatingProfile> = {
     demandNoun: 'issues',
     navLabels: { '/inventory': 'Storeroom' },
     hiddenNav: [],
+    extensions: null,
   },
   food: {
     key: 'food',
@@ -41,6 +43,8 @@ const PROFILES: Record<OperatingMode, OperatingProfile> = {
     demandNoun: 'usage',
     navLabels: { '/inventory': 'Stock' },
     hiddenNav: [],
+    // Reserved: food's lot/expiry/FEFO behavior is built in a later wave.
+    extensions: { expiration: true },
   },
 };
 

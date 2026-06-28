@@ -5,7 +5,7 @@ import { LeftRail } from '@/components/bench/LeftRail';
 import { RightRail } from '@/components/bench/RightRail';
 import { hasAppAccess } from '@/lib/billing/plans';
 import { loadSubscription } from '@/lib/billing/subscription';
-import { loadOperatingMode } from '@/lib/modes/resolver';
+import { loadOperatingProfile } from '@/lib/modes/resolver';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from './bench.module.css';
 
@@ -67,13 +67,13 @@ async function BenchGate({ children }: { children: ReactNode }) {
     redirect('/choose-plan');
   }
 
-  // W2-0: resolve the tenant's operating mode so the rail can fit nav +
-  // terminology to its industry. The engine stays mode-agnostic.
-  const operatingMode = await loadOperatingMode(tenantId);
+  // W2-0: resolve the tenant's operating profile once, here, so the rail can fit
+  // nav + terminology to its industry. The engine stays mode-agnostic.
+  const profile = await loadOperatingProfile(tenantId);
 
   return (
     <>
-      <LeftRail userEmail={user.email ?? ''} mode={operatingMode} />
+      <LeftRail userEmail={user.email ?? ''} profile={profile} />
       <main className={styles.surface}>{children}</main>
       <RightRail />
       <div className={styles.throughput} aria-hidden="true">

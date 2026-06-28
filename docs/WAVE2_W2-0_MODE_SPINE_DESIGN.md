@@ -197,14 +197,21 @@ point of doing the spine on paper before any W2-1 code.
 
 ---
 
-## 10. W2-0 minimal migration spec (2026-06-28 schema audit + condensation)
+## 10. Storeroom (W2-2) migration spec (2026-06-28 schema audit + condensation)
+
+**Scope correction (2026-06-28):** the W2-0 SPINE shipped as just the `operating_mode` enum +
+`tenants.operating_mode` column (§5) — that is all the spine needs. The migration below
+(issue movement types + the demand-reference envelope + `location_kind`) belongs to **W2-2
+storeroom operations**, NOT W2-0: those columns are dead until issue-out is built, and §9's build
+order sequences storeroom as a later step. Keeping them here (not shipped in the W2-0 slice) avoids
+dead schema. This section is the W2-2 spec.
 
 A second Perplexity pass audited the Wave-1 schema and proposed a column set. It validated the
-direction (add Issue movement types + a demand-reference envelope now so storeroom issue is the
-first instance of the polymorphic pattern, not a dead-end work-order special case). We CONDENSE its
+direction (add Issue movement types + a demand-reference envelope so storeroom issue is the first
+instance of the polymorphic pattern, not a dead-end work-order special case). We CONDENSE its
 column list to the minimal non-throwaway set.
 
-### Add now (the entire W2-0 migration)
+### Add with W2-2 (the storeroom migration)
 - **enum:** add `issue_out` and `issue_return` to `stock_movement_type`. `issue_out` = stock leaves
   a stocked location, relieved to a consuming object; `issue_return` = unused material comes back.
   Generalizes later to project / patient-case / par issue unchanged.
