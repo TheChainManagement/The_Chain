@@ -12,7 +12,12 @@ export const metadata = { title: 'Import · The Chain' };
  * Products, suppliers, and sales/movements each share the same kind-driven flow.
  */
 export default function ImportPage(): ReactNode {
-  const specs = [getKindSpec('product'), getKindSpec('supplier'), getKindSpec('stock_movement')];
+  const specs = [
+    getKindSpec('product'),
+    getKindSpec('supplier'),
+    getKindSpec('product_supplier'),
+    getKindSpec('stock_movement'),
+  ];
 
   return (
     <div className={pageStyles.stack}>

@@ -25,6 +25,7 @@ const POLL_MAX = 600;
 const DESTINATION: Record<ImportableKind, { href: string; label: string }> = {
   product: { href: '/inventory', label: 'View catalog' },
   supplier: { href: '/suppliers', label: 'View suppliers' },
+  product_supplier: { href: '/suppliers', label: 'View suppliers' },
   stock_movement: { href: '/inventory', label: 'View catalog' },
 };
 

@@ -149,6 +149,10 @@ async function prepareWrites(
       return prepareSuppliers(admin, tenantId, items);
     case 'stock_movement':
       return prepareMovements(admin, tenantId, items);
+    case 'product_supplier':
+      // Links run synchronously (W2-1a) — the import action guards this kind off
+      // the durable path. Reaching here means that guard regressed.
+      throw new Error('Product-supplier link import is not supported on the durable path.');
   }
 }
 

@@ -31,12 +31,14 @@ import { importWorkflow } from '@/workflows/import';
 const WRITE_ROLES_BY_KIND: Record<ImportableKind, ReadonlySet<string>> = {
   product: new Set(['owner', 'manager', 'planner']),
   supplier: new Set(['owner', 'manager', 'planner']),
+  product_supplier: new Set(['owner', 'manager', 'planner']),
   stock_movement: new Set(['owner', 'manager', 'warehouse']),
 };
 
 const REVALIDATE_BY_KIND: Record<ImportableKind, string> = {
   product: '/inventory',
   supplier: '/suppliers',
+  product_supplier: '/suppliers',
   stock_movement: '/inventory',
 };
 
@@ -54,7 +56,12 @@ export type ImportProgress =
   | { status: 'failed'; error: string }
   | { status: 'unknown' };
 
-const KIND_VALUES = new Set<ImportableKind>(['product', 'supplier', 'stock_movement']);
+const KIND_VALUES = new Set<ImportableKind>([
+  'product',
+  'supplier',
+  'product_supplier',
+  'stock_movement',
+]);
 
 function asKind(value: unknown): ImportableKind | null {
   return typeof value === 'string' && KIND_VALUES.has(value as ImportableKind)
@@ -81,7 +88,9 @@ export async function runImport(input: {
   }
 
   try {
-    if (estimateDataRows(input.csvText) > DURABLE_THRESHOLD) {
+    // Product-supplier links always run synchronously: link files are small (one
+    // row per pair) and the durable writer doesn't cover this kind yet (W2-1a).
+    if (input.kind !== 'product_supplier' && estimateDataRows(input.csvText) > DURABLE_THRESHOLD) {
       return await startDurableImport({ ...input, tenantId });
     }
 

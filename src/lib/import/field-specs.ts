@@ -17,7 +17,10 @@
 
 import type { EntityKind } from '@/lib/source-adapter';
 
-export type ImportableKind = Extract<EntityKind, 'product' | 'supplier' | 'stock_movement'>;
+export type ImportableKind = Extract<
+  EntityKind,
+  'product' | 'supplier' | 'product_supplier' | 'stock_movement'
+>;
 
 export type FieldType = 'string' | 'number' | 'integer' | 'enum';
 
@@ -144,6 +147,58 @@ const SUPPLIER_FIELDS: readonly CanonicalFieldSpec[] = [
   },
 ];
 
+const PRODUCT_SUPPLIER_FIELDS: readonly CanonicalFieldSpec[] = [
+  {
+    key: 'productExternalId',
+    label: 'SKU',
+    required: true,
+    type: 'string',
+    isNaturalKey: true,
+    // A SKU recurs across each of its supplier links, so we don't dedup on it
+    // alone; the (tenant, product, supplier) PK makes the upsert idempotent.
+    rowUnique: false,
+    aliases: ['sku', 'item', 'itemnumber', 'productcode', 'product', 'partnumber'],
+    hint: 'Must match a SKU already in your catalog.',
+  },
+  {
+    key: 'supplierExternalId',
+    label: 'Supplier',
+    required: true,
+    type: 'string',
+    aliases: ['supplier', 'vendor', 'suppliername', 'vendorname', 'company'],
+    hint: 'Must match a supplier already on file. Matched case-insensitively.',
+  },
+  {
+    key: 'unitCost',
+    label: 'Unit cost',
+    required: false,
+    type: 'number',
+    aliases: ['cost', 'unitcost', 'price', 'unitprice', 'buyprice'],
+  },
+  {
+    key: 'leadTimeDays',
+    label: 'Lead time (days)',
+    required: false,
+    type: 'integer',
+    aliases: ['leadtime', 'leadtimedays', 'leaddays', 'lead', 'days'],
+  },
+  {
+    key: 'moq',
+    label: 'MOQ',
+    required: false,
+    type: 'integer',
+    aliases: ['moq', 'minorderqty', 'minimumorderquantity', 'minqty', 'minimumqty'],
+  },
+  {
+    key: 'supplierSku',
+    label: 'Supplier SKU',
+    required: false,
+    type: 'string',
+    aliases: ['suppliersku', 'vendorsku', 'supplierpart', 'vendorpart', 'supplierpartnumber'],
+    hint: "The supplier's own part number for this item.",
+  },
+];
+
 const STOCK_MOVEMENT_FIELDS: readonly CanonicalFieldSpec[] = [
   {
     key: 'productExternalId',
@@ -192,6 +247,12 @@ export const KIND_SPECS: Record<ImportableKind, KindSpec> = {
     label: 'Suppliers',
     blurb: 'Each row becomes a supplier with default terms.',
     fields: SUPPLIER_FIELDS,
+  },
+  product_supplier: {
+    kind: 'product_supplier',
+    label: 'Supplier pricing',
+    blurb: 'Each row links a SKU to a supplier with cost, lead time, and MOQ.',
+    fields: PRODUCT_SUPPLIER_FIELDS,
   },
   stock_movement: {
     kind: 'stock_movement',

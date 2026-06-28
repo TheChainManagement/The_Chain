@@ -10,7 +10,7 @@ import { mapRows } from '@/lib/import/transform';
  * DB. The authenticated write path is covered by commit-writers.test.ts.
  */
 
-function map(kind: 'supplier' | 'stock_movement', csv: string) {
+function map(kind: 'supplier' | 'stock_movement' | 'product_supplier', csv: string) {
   const spec = getKindSpec(kind);
   const parsed = parseCsv(csv);
   return mapRows(parsed.rows, spec, autoMap(parsed.headers, spec));
@@ -59,5 +59,48 @@ describe('mapRows — stock_movement', () => {
     expect(a.quantity).toBe(-5);
     expect(a.type).toBe('sale');
     expect(res.errors[0]?.code).toBe('missing_required');
+  });
+});
+
+describe('mapRows — product_supplier (links)', () => {
+  it('auto-wires the columns and coerces cost / lead time / moq', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost,Lead Time,MOQ,Supplier SKU\nWID-1,Atlas Supply,4.50,7,24,AT-9\n',
+    );
+    expect(res.errors).toHaveLength(0);
+    const a = res.payloads[0]?.attributes as {
+      productExternalId: string;
+      supplierExternalId: string;
+      unitCost: number;
+      leadTimeDays: number;
+      moq: number;
+      supplierSku: string;
+    };
+    expect(a.productExternalId).toBe('WID-1');
+    expect(a.supplierExternalId).toBe('Atlas Supply');
+    expect(a.unitCost).toBe(4.5);
+    expect(a.leadTimeDays).toBe(7);
+    expect(a.moq).toBe(24);
+    expect(a.supplierSku).toBe('AT-9');
+  });
+
+  it('does NOT dedup the recurring SKU — one product can link many suppliers', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost\nWID-1,Atlas Supply,4.50\nWID-1,Borden Co,4.10\n',
+    );
+    expect(res.payloads).toHaveLength(2); // same SKU, two supplier links, both survive
+    expect(res.errors).toHaveLength(0);
+  });
+
+  it('flags a missing supplier and a non-integer MOQ', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost,MOQ\nWID-1,,4.50,10\nWID-2,Atlas Supply,4.50,2.5\n',
+    );
+    const codes = res.errors.map((e) => e.code).sort();
+    expect(codes).toEqual(['invalid_integer', 'missing_required']);
+    expect(res.payloads).toHaveLength(0);
   });
 });

@@ -38,7 +38,7 @@ export type CsvSources = Partial<Record<ImportableKind, CsvSource>>;
 const CSV_CAPABILITIES: AdapterCapabilities = {
   readProducts: true,
   readSuppliers: true,
-  readProductSuppliers: false,
+  readProductSuppliers: true,
   readInventory: false,
   readPurchaseOrders: false,
   readStockMovements: true,
@@ -49,6 +49,7 @@ const CSV_CAPABILITIES: AdapterCapabilities = {
 const IMPORTABLE_KINDS: ReadonlySet<EntityKind> = new Set<EntityKind>([
   'product',
   'supplier',
+  'product_supplier',
   'stock_movement',
 ]);
 

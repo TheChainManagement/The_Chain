@@ -158,6 +158,8 @@ function writeForKind(
       return writeProducts(tenantClient, tenantId, items);
     case 'supplier':
       return writeSuppliers(tenantClient, items);
+    case 'product_supplier':
+      return writeProductSupplierLinks(tenantClient, items);
     case 'stock_movement':
       return writeStockMovements(tenantClient, admin, tenantId, items);
   }
@@ -285,6 +287,113 @@ async function writeSuppliers(
   }
   const count = typeof data === 'number' ? data : items.length;
   return { ok: true, count, skipped: 0, rowErrors: [] };
+}
+
+async function writeProductSupplierLinks(
+  tenantClient: SupabaseClient,
+  items: CanonicalPayload[],
+): Promise<WriteResult> {
+  if (items.length === 0) return { ok: true, count: 0, skipped: 0, rowErrors: [] };
+
+  // Resolve SKU → product_id (case-sensitive) and supplier name → supplier_id
+  // (case-insensitive). Either unresolved is a per-row failure, not fatal.
+  const skus = [
+    ...new Set(items.map((i) => (i.attributes as { productExternalId: string }).productExternalId)),
+  ];
+  const { data: prods, error: prodErr } = await tenantClient
+    .from('products')
+    .select('id, sku')
+    .in('sku', skus)
+    .returns<{ id: string; sku: string }[]>();
+  if (prodErr) {
+    return {
+      ok: false,
+      error: `Import failed: ${prodErr.message}`,
+      count: 0,
+      skipped: 0,
+      rowErrors: [],
+    };
+  }
+  const skuToId = new Map((prods ?? []).map((p) => [p.sku, p.id]));
+
+  // Suppliers are few per tenant, and the name match must fold case (the unique
+  // index is on lower(name)), so load the roster and map by lower(name).
+  const { data: sups, error: supErr } = await tenantClient
+    .from('suppliers')
+    .select('id, name')
+    .returns<{ id: string; name: string }[]>();
+  if (supErr) {
+    return {
+      ok: false,
+      error: `Import failed: ${supErr.message}`,
+      count: 0,
+      skipped: 0,
+      rowErrors: [],
+    };
+  }
+  const nameToId = new Map((sups ?? []).map((s) => [s.name.toLowerCase(), s.id]));
+
+  const rowErrors: PullResultError[] = [];
+  const rows: ProductSupplierRow[] = [];
+  for (const item of items) {
+    const a = item.attributes as {
+      productExternalId: string;
+      supplierExternalId: string;
+      supplierSku?: string;
+      unitCost?: number;
+      leadTimeDays?: number;
+      moq?: number;
+    };
+    const productId = skuToId.get(a.productExternalId);
+    if (!productId) {
+      rowErrors.push({
+        externalId: a.productExternalId,
+        row: item.sourceRow,
+        code: 'unknown_sku',
+        message: `No SKU "${a.productExternalId}" in your catalog. Import that product first.`,
+      });
+      continue;
+    }
+    const supplierId = nameToId.get(a.supplierExternalId.toLowerCase());
+    if (!supplierId) {
+      rowErrors.push({
+        externalId: a.supplierExternalId,
+        row: item.sourceRow,
+        code: 'unknown_supplier',
+        message: `No supplier "${a.supplierExternalId}" on file. Import that supplier first.`,
+      });
+      continue;
+    }
+    rows.push({
+      product_id: productId,
+      supplier_id: supplierId,
+      supplier_sku: a.supplierSku ?? null,
+      unit_cost: a.unitCost ?? null,
+      lead_time_days: a.leadTimeDays ?? null,
+      moq: a.moq ?? null,
+    });
+  }
+
+  if (rows.length === 0) return { ok: true, count: 0, skipped: 0, rowErrors };
+
+  // SECURITY INVOKER RPC: idempotent upsert on the (tenant, product, supplier) PK
+  // + auto-promote a primary where none exists. RLS inside it enforces the
+  // owner|manager|planner gate (resolution above already used the RLS client).
+  const { data, error } = await tenantClient.rpc('import_product_supplier_links', { p_rows: rows });
+  if (error) {
+    return { ok: false, error: mapLinkWriteError(error.message), count: 0, skipped: 0, rowErrors };
+  }
+  const count = typeof data === 'number' ? data : rows.length;
+  return { ok: true, count, skipped: 0, rowErrors };
+}
+
+interface ProductSupplierRow {
+  product_id: string;
+  supplier_id: string;
+  supplier_sku: string | null;
+  unit_cost: number | null;
+  lead_time_days: number | null;
+  moq: number | null;
 }
 
 async function writeStockMovements(
@@ -439,6 +548,13 @@ function mapSupplierWriteError(message: string): string {
 function mapMovementWriteError(message: string): string {
   if (/row-level security|permission|policy/i.test(message)) {
     return 'You do not have permission to import sales and movements.';
+  }
+  return `Import failed: ${message}`;
+}
+
+function mapLinkWriteError(message: string): string {
+  if (/row-level security|permission|policy/i.test(message)) {
+    return 'You do not have permission to import supplier pricing.';
   }
   return `Import failed: ${message}`;
 }

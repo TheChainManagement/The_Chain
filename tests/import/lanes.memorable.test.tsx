@@ -6,16 +6,21 @@ import { ImportWorkbench } from '@/app/(app)/import/ImportWorkbench';
 import { getKindSpec } from '@/lib/import/field-specs';
 
 /**
- * Wave 5.2 memorable-element artifact: the three ingestion lanes. Renders the
- * workbench and asserts the lanes render, the active one carries its lit cobalt
- * rail, and selecting a lane moves the active state (which re-keys the flow).
- * The Server Action is mocked so the upload step mounts without pulling the
- * server-only supabase client into jsdom.
+ * Memorable-element artifact: the ingestion lanes. Renders the workbench and
+ * asserts the lanes render, the active one carries its lit cobalt rail, and
+ * selecting a lane moves the active state (which re-keys the flow). The Server
+ * Action is mocked so the upload step mounts without pulling the server-only
+ * supabase client into jsdom. W2-1a adds the "Supplier pricing" link lane.
  */
 
 vi.mock('@/app/(app)/import/actions', () => ({ runImport: vi.fn() }));
 
-const specs = [getKindSpec('product'), getKindSpec('supplier'), getKindSpec('stock_movement')];
+const specs = [
+  getKindSpec('product'),
+  getKindSpec('supplier'),
+  getKindSpec('product_supplier'),
+  getKindSpec('stock_movement'),
+];
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -25,11 +30,11 @@ beforeAll(() => {
   };
 });
 
-describe('ImportWorkbench — the three ingestion lanes', () => {
-  it('renders three lanes with the first selected and its cobalt rail present', () => {
+describe('ImportWorkbench — the ingestion lanes', () => {
+  it('renders four lanes with the first selected and its cobalt rail present', () => {
     const { container } = render(<ImportWorkbench specs={specs} />);
     const tabs = container.querySelectorAll('[role="tab"]');
-    expect(tabs).toHaveLength(3);
+    expect(tabs).toHaveLength(4);
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true');
     // the lit rail (the memorable cobalt signal) lives on the active lane
     expect(
@@ -37,15 +42,15 @@ describe('ImportWorkbench — the three ingestion lanes', () => {
     ).not.toBeNull();
   });
 
-  it('moves the active lane on click (re-keying the flow)', async () => {
+  it('moves the active lane on click — including the new Supplier pricing lane', async () => {
     render(<ImportWorkbench specs={specs} />);
     const products = screen.getByRole('tab', { name: /Products/ });
-    const suppliers = screen.getByRole('tab', { name: /Suppliers/ });
-    expect(suppliers.getAttribute('aria-selected')).toBe('false');
+    const pricing = screen.getByRole('tab', { name: /Supplier pricing/ });
+    expect(pricing.getAttribute('aria-selected')).toBe('false');
 
-    await userEvent.click(suppliers);
+    await userEvent.click(pricing);
 
-    expect(suppliers.getAttribute('aria-selected')).toBe('true');
+    expect(pricing.getAttribute('aria-selected')).toBe('true');
     expect(products.getAttribute('aria-selected')).toBe('false');
   });
 });

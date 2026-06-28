@@ -89,6 +89,7 @@ afterAll(async () => {
     await admin.from('sync_runs').delete().eq('tenant_id', t);
     await admin.from('source_connections').delete().eq('tenant_id', t);
     await admin.from('stock_movements').delete().eq('tenant_id', t);
+    await admin.from('product_suppliers').delete().eq('tenant_id', t);
     await admin.from('products').delete().eq('tenant_id', t);
     await admin.from('suppliers').delete().eq('tenant_id', t);
     await admin.from('locations').delete().eq('tenant_id', t);
@@ -194,5 +195,61 @@ describe('runCsvImport — stock movements', () => {
     expect(res.summary.imported).toBe(0);
     expect(res.summary.skipped).toBe(2); // both valid rows already on file
     expect(await tableCount('stock_movements', A.tenantId)).toBe(before); // no double-post
+  });
+});
+
+describe('runCsvImport — product-supplier links', () => {
+  const PRODUCTS = 'SKU,Name\nLNK-1,Link widget\nLNK-2,Link gadget\n';
+  const SUPPLIERS = 'Name,Status\nCobalt Parts,active\nDelta Supply,active\n';
+  // LNK-1 gets two suppliers (no primary yet → cheapest Delta auto-promoted);
+  // LNK-2 gets one. One row points at an unknown SKU, one at an unknown supplier.
+  const LINKS =
+    'SKU,Supplier,Cost,Lead Time,MOQ\nLNK-1,Cobalt Parts,5.00,7,10\nLNK-1,Delta Supply,4.00,9,5\nLNK-2,Cobalt Parts,3.00,3,1\nNOPE-9,Cobalt Parts,1.00,1,1\nLNK-2,Ghost Vendor,2.00,1,1\n';
+
+  it('seeds catalog + suppliers first', async () => {
+    expect((await run(A, 'product', PRODUCTS, 'lnk-prod')).ok).toBe(true);
+    expect((await run(A, 'supplier', SUPPLIERS, 'lnk-sup')).ok).toBe(true);
+  });
+
+  it('links cost/lead/moq, auto-promotes the cheapest primary, logs unknown refs', async () => {
+    const res = await run(A, 'product_supplier', LINKS, 'lnk-1');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.summary.imported).toBe(3); // 3 resolvable links
+    expect(res.summary.failed).toBe(2); // unknown SKU + unknown supplier
+    expect(await tableCount('product_suppliers', A.tenantId)).toBe(3);
+
+    // LNK-1 had no primary → the cheaper supplier (Delta, 4.00) is promoted.
+    const { data: p } = await admin
+      .from('products')
+      .select('id')
+      .eq('tenant_id', A.tenantId)
+      .eq('sku', 'LNK-1')
+      .single<{ id: string }>();
+    const { data: prim } = await admin
+      .from('product_suppliers')
+      .select('unit_cost')
+      .eq('tenant_id', A.tenantId)
+      .eq('product_id', p?.id ?? '')
+      .eq('is_primary', true)
+      .single<{ unit_cost: string }>();
+    expect(Number(prim?.unit_cost)).toBe(4); // Delta (cheaper) is primary, not Cobalt
+
+    const { data: fails } = await admin
+      .from('sync_failures')
+      .select('error_code')
+      .eq('sync_run_id', res.summary.syncRunId)
+      .returns<{ error_code: string }[]>();
+    expect((fails ?? []).map((f) => f.error_code).sort()).toEqual([
+      'unknown_sku',
+      'unknown_supplier',
+    ]);
+  });
+
+  it('is idempotent: re-import adds no rows and keeps the primary', async () => {
+    const before = await tableCount('product_suppliers', A.tenantId);
+    const res = await run(A, 'product_supplier', LINKS, 'lnk-2');
+    expect(res.ok).toBe(true);
+    expect(await tableCount('product_suppliers', A.tenantId)).toBe(before);
   });
 });
