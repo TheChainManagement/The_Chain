@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Chain — Operator-Grade Supply Chain Forecasting</title>
+  
+  <!-- Font loading: Mona Sans and IBM Plex from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Brand Palette (Locked) */
+      --drafting-paper: #F5F7FA;
+      --working-bench: #FFFFFF;
+      --slate-ink: #11161C;
+      --slate-secondary: #54616F;
+      --hairline-grey: #D8DDE3;
+      
+      /* Cobalt Accent (Precious) */
+      --cobalt-precious: #0942B5;
+      --cobalt-hover: #1B5BD9;
+      
+      /* Semantics */
+      --flow-green: #1A8C5C;
+      --amber-warning: #BE7C0E;
+      --stop-red: #B5142B;
+      
+      /* System Easings & Timings */
+      --ease-cine: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --duration-cine: 1100ms;
+      --duration-base: 320ms;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--drafting-paper);
+      color: var(--slate-ink);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Background texture simulating drafting grid */
+    .grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(var(--hairline-grey) 1px, transparent 1px),
+        linear-gradient(90deg, var(--hairline-grey) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ---------- Navigation ---------- */
+    .nav {
+      position: relative;
+      z-index: 10;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(20px, 6vw, 100px);
+      border-bottom: 1px solid var(--hairline-grey);
+      background-color: rgba(245, 247, 250, 0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    /* Custom drawing of the 3-link cobalt chain mark logo */
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    
+    .logo-mark__link {
+      width: 22px;
+      height: 11px;
+      border: 3.5px solid var(--cobalt-precious);
+      border-radius: 6px;
+      position: relative;
+    }
+    
+    .logo-mark__link:nth-child(2) {
+      margin-left: -6px;
+      transform: rotate(35deg);
+      z-index: 2;
+    }
+
+    .logo-mark__link:nth-child(3) {
+      margin-left: -6px;
+    }
+
+    .logo-text {
+      font-family: 'Mona Sans', sans-serif;
+      font-weight: 800;
+      font-stretch: 80%;
+      font-variation-settings: "wdth" 80, "wght" 800;
+      font-size: 20px;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      color: var(--slate-ink);
+    }
+
+    .nav__links {
+      display: flex;
+      align-items: center;
+      gap: clamp(16px, 3vw, 40px);
+    }
+
+    .nav__link {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--slate-secondary);
+      text-decoration: none;
+      transition: color var(--duration-base);
+    }
+
+    .nav__link:hover {
+      color: var(--slate-ink);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      border-radius: 3px;
+      transition: all var(--duration-base) var(--ease-cine);
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .btn--primary {
+      background-color: var(--cobalt-precious);
+      color: var(--working-bench);
+    }
+
+    .btn--primary:hover {
+      background-color: var(--cobalt-hover);
+      box-shadow: 0 8px 24px rgba(9, 66, 181, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn--secondary {
+      background-color: var(--working-bench);
+      color: var(--slate-ink);
+      border-color: var(--hairline-grey);
+    }
+
+    .btn--secondary:hover {
+      border-color: var(--slate-secondary);
+      background-color: var(--drafting-paper);
+    }
+
+    /* ---------- Hero Layout ---------- */
+    .hero {
+      position: relative;
+      z-index: 1;
+      padding: clamp(40px, 6vw, 100px) clamp(20px, 6vw, 100px);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 60px;
+      align-items: center;
+      max-width: 1440px;
+      margin: 0 auto;
+      min-height: calc(100vh - 90px);
+    }
+
+    .hero__left {
+      position: relative;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--cobalt-precious);
+      margin-bottom: 24px;
+      background: rgba(9, 66, 181, 0.05);
+      padding: 6px 12px;
+      border-radius: 2px;
+      border: 1px solid rgba(9, 66, 181, 0.1);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--cobalt-precious);
+    }
+
+    .hero h1 {
+      font-family: 'Mona Sans', sans-serif;
+      font-stretch: 75%;
+      font-weight: 800;
+      font-variation-settings: "wdth" 75, "wght" 800;
+      font-size: clamp(40px, 4.8vw, 76px);
+      line-height: 0.95;
+      text-transform: uppercase;
+      letter-spacing: -0.03em;
+      color: var(--slate-ink);
+      margin-bottom: 28px;
+    }
+
+    .hero h1 span.accent {
+      color: var(--cobalt-precious);
+    }
+
+    .hero__sub {
+      font-size: clamp(16px, 1.2vw, 20px);
+      line-height: 1.6;
+      color: var(--slate-secondary);
+      max-width: 48ch;
+      margin-bottom: 36px;
+    }
+
+    .hero__ctas {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    /* ---------- Interactive PO Chain Widget ---------- */
+    .chain-widget-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--slate-secondary);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      max-width: 620px;
+    }
+
+    .chain-widget-label .value {
+      color: var(--cobalt-precious);
+      font-weight: 700;
+    }
+
+    .po-chain {
+      background-color: var(--working-bench);
+      border: 1px solid var(--hairline-grey);
+      border-radius: 4px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 620px;
+      box-shadow: 0 4px 18px rgba(17, 22, 28, 0.03);
+      position: relative;
+    }
+
+    .po-link {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      cursor: pointer;
+      position: relative;
+      flex: 1;
+    }
+
+    .po-link__label {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--slate-secondary);
+      transition: color var(--duration-base);
+    }
+
+    .po-link__status {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--slate-secondary);
+      transition: color var(--duration-base);
+    }
+
+    /* Active States representing Cobalt Flowing Through */
+    .po-link.active .po-link__label {
+      color: var(--slate-ink);
+    }
+
+    .po-link.active .po-link__status {
+      color: var(--cobalt-precious);
+      font-weight: 600;
+    }
+
+    .po-link.current-step::after {
+      content: "";
+      position: absolute;
+      bottom: -16px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: var(--cobalt-precious);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .po-arrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      color: var(--hairline-grey);
+      padding: 0 10px;
+      user-select: none;
+      transition: color var(--duration-base);
+    }
+
+    .po-arrow.active {
+      color: var(--cobalt-precious);
+    }
+
+    /* ---------- Hero Right (Visual) ---------- */
+    .hero__right {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hero__image-frame {
+      width: 100%;
+      max-width: 550px;
+      aspect-ratio: 1/1;
+      background-color: var(--working-bench);
+      border: 1px solid var(--hairline-grey);
+      border-radius: 4px;
+      padding: clamp(16px, 3vw, 32px);
+      box-shadow: 0 20px 48px -12px rgba(17, 22, 28, 0.08);
+      position: relative;
+      overflow: hidden;
+      transition: transform var(--duration-base) var(--ease-cine);
+    }
+
+    .hero__image-frame:hover {
+      transform: translateY(-4px);
+    }
+
+    .hero__image-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 2px;
+      background-color: var(--drafting-paper);
+    }
+
+    /* Technical blueprint markings on frame */
+    .technical-marker {
+      position: absolute;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      color: var(--slate-secondary);
+      opacity: 0.6;
+    }
+
+    .marker-top-left { top: 8px; left: 8px; }
+    .marker-bottom-right { bottom: 8px; right: 8px; }
+
+    /* ---------- Proof Section ---------- */
+    .proof-section {
+      background-color: var(--working-bench);
+      border-top: 1px solid var(--hairline-grey);
+      padding: clamp(60px, 8vw, 100px) clamp(20px, 6vw, 100px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .proof-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .proof__left h2 {
+      font-family: 'Mona Sans', sans-serif;
+      font-stretch: 75%;
+      font-weight: 800;
+      font-variation-settings: "wdth" 75, "wght" 800;
+      font-size: clamp(32px, 3.5vw, 48px);
+      line-height: 1.05;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      margin-bottom: 24px;
+    }
+
+    .proof__left p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--slate-secondary);
+      margin-bottom: 20px;
+    }
+
+    .proof__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .proof__card {
+      background-color: var(--drafting-paper);
+      border: 1px solid var(--hairline-grey);
+      border-radius: 4px;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .proof__card-img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      border-radius: 2px;
+      object-fit: cover;
+      margin-bottom: 12px;
+      border: 1px solid var(--hairline-grey);
+      background-color: var(--working-bench);
+    }
+
+    .proof__card h4 {
+      font-family: 'Mona Sans', sans-serif;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .proof__card p {
+      font-size: 12px;
+      color: var(--slate-secondary);
+      line-height: 1.4;
+    }
+
+    /* ---------- Responsive Breakpoints ---------- */
+    @media (max-width: 991px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 50px;
+        padding-top: 40px;
+      }
+      
+      .hero__right {
+        order: -1;
+      }
+
+      .proof-inner {
+        grid-template-columns: 1fr;
+        gap: 50px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .hero__ctas {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .po-chain {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+      }
+
+      .po-arrow {
+        display: none;
+      }
+
+      .po-link.current-step::after {
+        bottom: 0;
+        left: -12px;
+        top: 0;
+        width: 3px;
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="grid-overlay"></div>
+
+  <!-- Navigation Bar -->
+  <nav class="nav">
+    <a href="#" class="logo-container">
+      <div class="logo-mark">
+        <div class="logo-mark__link"></div>
+        <div class="logo-mark__link"></div>
+        <div class="logo-mark__link"></div>
+      </div>
+      <span class="logo-text">The Chain</span>
+    </a>
+    
+    <div class="nav__links">
+      <a href="#" class="nav__link">Forecasting</a>
+      <a href="#" class="nav__link">Reorders</a>
+      <a href="#" class="nav__link">Supplier Trust</a>
+      <a href="#" class="btn btn--secondary">Sign In</a>
+      <a href="#" class="btn btn--primary">Sync QuickBooks</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <main class="hero">
+    
+    <div class="hero__left">
+      <div class="eyebrow">QuickBooks Connected · AI-Driven</div>
+      
+      <h1>
+        Inventory you <span class="accent">can prove.</span><br>
+        Reorders you <span class="accent">can defend.</span>
+      </h1>
+      
+      <p class="hero__sub">
+        Forecasting-first, operator-grade supply chain software built directly for small-to-mid B2B distributors. Stop guessing on spreadsheets and protect your margin.
+      </p>
+      
+      <div class="hero__ctas">
+        <a href="#" class="btn btn--primary" style="padding: 16px 32px; font-size: 15px;">Sync QuickBooks</a>
+        <a href="#" class="btn btn--secondary" style="padding: 16px 32px; font-size: 15px;">Request Operator Demo</a>
+      </div>
+      
+      <!-- Interactive PO Chain Device -->
+      <div class="chain-widget-label">
+        <span>Active Purchase Order Lifecycle</span>
+        <span class="value" id="activeStepVal">PO-26090 // ORDERED</span>
+      </div>
+      
+      <div class="po-chain" id="poChain">
+        <div class="po-link active current-step" data-step="1" data-id="PO-26088" data-status="VERIFIED" data-label="SUPPLIER">
+          <span class="po-link__label">Supplier</span>
+          <span class="po-link__status">Verified</span>
+        </div>
+        <div class="po-arrow active">→</div>
+        
+        <div class="po-link active" data-step="2" data-id="PO-26090" data-status="QBO SYNCED" data-label="ORDERED">
+          <span class="po-link__label">Ordered</span>
+          <span class="po-link__status">QBO Sync</span>
+        </div>
+        <div class="po-arrow active">→</div>
+        
+        <div class="po-link active" data-step="3" data-id="PO-26092" data-status="ETA TRACKING" data-label="IN-TRANSIT">
+          <span class="po-link__label">In-Transit</span>
+          <span class="po-link__status">ETA Tracked</span>
+        </div>
+        <div class="po-arrow active">→</div>
+        
+        <div class="po-link" data-step="4" data-id="PO-26093" data-status="DOCK RESERVED" data-label="RECEIVED">
+          <span class="po-link__label">Received</span>
+          <span class="po-link__status">Pending doc</span>
+        </div>
+        <div class="po-arrow">→</div>
+        
+        <div class="po-link" data-step="5" data-id="PO-26095" data-status="ALLOCATED" data-label="ON-HAND">
+          <span class="po-link__label">On-Hand</span>
+          <span class="po-link__status">Prove count</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="hero__right">
+      <div class="hero__image-frame">
+        <div class="technical-marker marker-top-left">SYS.MARK // 03</div>
+        <div class="technical-marker marker-bottom-right">SCALE 1:1 // COBALT</div>
+        <img src="../_assets/imagery/chain-sculpture-hero.png" alt="A premium abstract sculpture of interlocking cobalt and slate chain links on a drawing desk" />
+      </div>
+    </div>
+    
+  </main>
+
+  <!-- Proof Section (Featuring the supporting macro imagery) -->
+  <section class="proof-section">
+    <div class="proof-inner">
+      <div class="proof__left">
+        <div class="eyebrow" style="color: var(--slate-secondary); background: transparent; border: none; padding: 0;">Precision Details</div>
+        <h2>Every link, mathematically verified.</h2>
+        <p>
+          We parse your QuickBooks ledger to map every supplier lead time, calculate safety stocks down to the unit, and automatically monitor incoming shipments. No placeholders, no sync lag.
+        </p>
+        <p style="font-size: 15px; color: var(--slate-secondary);">
+          By isolating supplier latency from demand volatility, The Chain ensures your reorder points are based on hard mathematical proofs that keep capital clean.
+        </p>
+      </div>
+      
+      <div class="proof__grid">
+        <div class="proof__card">
+          <img class="proof__card-img" src="../_assets/imagery/chain-sculpture-macro.png" alt="Single cobalt link detail" />
+          <h4>Single-Link Auditing</h4>
+          <p>Trace any reorder suggestion back to a specific supplier's historical shipment records.</p>
+        </div>
+        <div class="proof__card">
+          <img class="proof__card-img" src="../_assets/imagery/chain-sculpture-detail.png" alt="Interlocking links detail" />
+          <h4>Tight QuickBooks Sync</h4>
+          <p>Bidirectional ledgers lock automatically, keeping your purchase logs aligned with physical stock levels.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive PO Chain Script -->
+  <script>
+    const links = document.querySelectorAll('.po-link');
+    const arrows = document.querySelectorAll('.po-arrow');
+    const statusVal = document.getElementById('activeStepVal');
+
+    links.forEach((link, idx) => {
+      link.addEventListener('click', () => {
+        // Remove current step highlight
+        links.forEach(l => l.classList.remove('current-step'));
+        link.classList.add('current-step');
+        
+        const stepNum = parseInt(link.getAttribute('data-step'));
+        const poId = link.getAttribute('data-id');
+        const statusText = link.getAttribute('data-status');
+        const labelText = link.getAttribute('data-label');
+        
+        statusVal.textContent = `${poId} // ${labelText} (${statusText})`;
+        
+        // Update active chain flows
+        links.forEach((l, lIdx) => {
+          if (lIdx < stepNum) {
+            l.classList.add('active');
+          } else {
+            l.classList.remove('active');
+          }
+        });
+
+        arrows.forEach((a, aIdx) => {
+          if (aIdx < stepNum - 1) {
+            a.classList.add('active');
+          } else {
+            a.classList.remove('active');
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
