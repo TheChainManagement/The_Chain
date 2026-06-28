@@ -1,0 +1,7 @@
+/* UomPicker (W2-1b) — stacks the select over the optional custom input. The
+   select + input inherit the host form's input class for visual consistency. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}

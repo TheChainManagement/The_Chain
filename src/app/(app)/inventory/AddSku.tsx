@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import { UomPicker } from '@/components/UomPicker/UomPicker';
 import { createProduct, type ProductActionState } from './actions';
 import styles from './inventory.module.css';
 
@@ -72,16 +73,10 @@ export function AddSku(): React.ReactNode {
             />
           </label>
 
-          <label className={styles.addField}>
+          <div className={styles.addField}>
             <span className={styles.addLabel}>Unit of measure</span>
-            <input
-              name="unit_of_measure"
-              type="text"
-              className={styles.addInput}
-              placeholder="each"
-              autoComplete="off"
-            />
-          </label>
+            <UomPicker className={styles.addInput} />
+          </div>
 
           <label className={styles.addField}>
             <span className={styles.addLabel}>Description</span>

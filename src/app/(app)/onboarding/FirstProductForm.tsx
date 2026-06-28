@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import { UomPicker } from '@/components/UomPicker/UomPicker';
 import { createFirstProduct, type StepActionState } from './actions';
 import styles from './onboarding.module.css';
 
@@ -58,10 +59,10 @@ export function FirstProductForm(): ReactNode {
           required
         />
       </label>
-      <label className={styles.field}>
+      <div className={styles.field}>
         <span className={styles.label}>Unit of measure (optional)</span>
-        <input name="unit_of_measure" type="text" className={styles.input} placeholder="each" />
-      </label>
+        <UomPicker className={styles.input} />
+      </div>
 
       {state?.ok === false ? (
         <p className={styles.error} role="alert">

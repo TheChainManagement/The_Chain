@@ -15,6 +15,7 @@ import {
 import { dosTone, loadProductPolicies, type ProductPolicy, riskTone } from '@/lib/policy/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
+import { uomLabel } from '@/lib/uom/units';
 import styles from './detail.module.css';
 import { SkuActions } from './SkuActions';
 import { SupplierLinks } from './SupplierLinks';
@@ -370,7 +371,7 @@ function IdentityPanel({ product }: { product: ProductDetail }): ReactNode {
     <Panel prefix="Identity" title="Details">
       <dl className={styles.idList}>
         <IdentityRow label="SKU" value={product.sku} mono />
-        <IdentityRow label="Unit of measure" value={product.unitOfMeasure ?? '—'} />
+        <IdentityRow label="Unit of measure" value={uomLabel(product.unitOfMeasure) || '—'} />
         <IdentityRow label="Description" value={product.description ?? '—'} />
         {attrs.map(([k, v]) => (
           <IdentityRow key={k} label={k} value={String(v)} />

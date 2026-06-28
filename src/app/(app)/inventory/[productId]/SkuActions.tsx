@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import { UomPicker } from '@/components/UomPicker/UomPicker';
 import type { ProductStatus } from '@/lib/inventory/transform';
 import { archiveProduct, type ProductActionState, updateProduct } from '../actions';
 import formStyles from '../inventory.module.css';
@@ -123,16 +124,10 @@ export function SkuActions({
             />
           </label>
 
-          <label className={formStyles.addField}>
+          <div className={formStyles.addField}>
             <span className={formStyles.addLabel}>Unit of measure</span>
-            <input
-              name="unit_of_measure"
-              type="text"
-              className={formStyles.addInput}
-              defaultValue={unitOfMeasure ?? ''}
-              autoComplete="off"
-            />
-          </label>
+            <UomPicker className={formStyles.addInput} defaultValue={unitOfMeasure ?? ''} />
+          </div>
 
           <label className={formStyles.addField}>
             <span className={formStyles.addLabel}>Description</span>
