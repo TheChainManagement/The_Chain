@@ -61,7 +61,12 @@ export default async function OnboardingPage(): Promise<ReactNode> {
   }
   const importSpecs =
     view.path === 'csv'
-      ? [getKindSpec('product'), getKindSpec('supplier'), getKindSpec('stock_movement')]
+      ? [
+          getKindSpec('product'),
+          getKindSpec('supplier'),
+          getKindSpec('product_supplier'),
+          getKindSpec('stock_movement'),
+        ]
       : [];
 
   return (

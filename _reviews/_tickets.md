@@ -1,5 +1,10 @@
 
 ## Wave 2 — DEFERRED BY DESIGN, DO NOT LOSE (2026-06-28)
+- **Durable writer for the product-supplier link lane (W2-1a).** The links import runs sync-only
+  (the action forces `product_supplier` off the durable path; `durable-commit.ts` throws
+  defensively). Fine today — link files are small (one row per pair). If a customer ever bulk-loads
+  a >2000-row link file, add a durable `prepareProductSupplierLinks` mirroring the other kinds.
+  Codex-flagged conscious deferral, 2026-06-28.
 - **🔴 Ledger header/line split (`stock_movement_events` + `stock_movement_lines`).** MG
   approved deferring this from the W2-0 spine but explicitly said "do NOT lose it." Today's
   single-row `stock_movements` (one product / one location / one signed qty) cannot atomically

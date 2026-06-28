@@ -7,9 +7,10 @@ import { ImportWorkbench } from './ImportWorkbench';
 export const metadata = { title: 'Import · The Chain' };
 
 /**
- * Import — CSV ingestion (Block 5). Server Component: hands the three importable
- * specs to the client workbench (pick a lane → upload → map → preview → commit).
- * Products, suppliers, and sales/movements each share the same kind-driven flow.
+ * Import — CSV ingestion (Block 5; W2-1a added the links lane). Server Component:
+ * hands the four importable specs to the client workbench (pick a lane → upload →
+ * map → preview → commit). Products, suppliers, supplier pricing (product↔supplier
+ * links), and sales/movements each share the same kind-driven flow.
  */
 export default function ImportPage(): ReactNode {
   const specs = [

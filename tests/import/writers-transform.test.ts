@@ -88,19 +88,20 @@ describe('mapRows — product_supplier (links)', () => {
   it('does NOT dedup the recurring SKU — one product can link many suppliers', () => {
     const res = map(
       'product_supplier',
-      'SKU,Supplier,Cost\nWID-1,Atlas Supply,4.50\nWID-1,Borden Co,4.10\n',
+      'SKU,Supplier,Cost,Lead Time\nWID-1,Atlas Supply,4.50,7\nWID-1,Borden Co,4.10,9\n',
     );
     expect(res.payloads).toHaveLength(2); // same SKU, two supplier links, both survive
     expect(res.errors).toHaveLength(0);
   });
 
-  it('flags a missing supplier and a non-integer MOQ', () => {
+  it('requires cost + lead time, and flags a non-integer MOQ', () => {
     const res = map(
       'product_supplier',
-      'SKU,Supplier,Cost,MOQ\nWID-1,,4.50,10\nWID-2,Atlas Supply,4.50,2.5\n',
+      // row 1: missing supplier; row 2: missing cost; row 3: fractional MOQ
+      'SKU,Supplier,Cost,Lead Time,MOQ\nWID-1,,4.50,7,10\nWID-2,Atlas Supply,,7,10\nWID-3,Atlas Supply,4.50,7,2.5\n',
     );
     const codes = res.errors.map((e) => e.code).sort();
-    expect(codes).toEqual(['invalid_integer', 'missing_required']);
+    expect(codes).toEqual(['invalid_integer', 'missing_required', 'missing_required']);
     expect(res.payloads).toHaveLength(0);
   });
 });

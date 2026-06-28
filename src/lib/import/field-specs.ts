@@ -171,14 +171,17 @@ const PRODUCT_SUPPLIER_FIELDS: readonly CanonicalFieldSpec[] = [
   {
     key: 'unitCost',
     label: 'Unit cost',
-    required: false,
+    // Required: the engine reads cost basis from a link; a pricing row without it
+    // is useless (FEATURES Block 2 minimum-field set for product_supplier links).
+    required: true,
     type: 'number',
     aliases: ['cost', 'unitcost', 'price', 'unitprice', 'buyprice'],
   },
   {
     key: 'leadTimeDays',
     label: 'Lead time (days)',
-    required: false,
+    // Required: policy safety-stock/ROP need a per-link lead time (FEATURES Block 2).
+    required: true,
     type: 'integer',
     aliases: ['leadtime', 'leadtimedays', 'leaddays', 'lead', 'days'],
   },

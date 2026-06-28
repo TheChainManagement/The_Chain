@@ -14,6 +14,10 @@
 -- product_suppliers RLS owner|manager|planner gate holds, tenant from
 -- jwt_tenant_id(), idempotent upsert on the (tenant, product, supplier) PK.
 --
+-- In-batch dedup: a single INSERT ... ON CONFLICT cannot touch the same conflict
+-- target twice ("cannot affect row a second time"), so duplicate (product,
+-- supplier) pairs in one file are collapsed to their LAST occurrence first.
+--
 -- Auto-primary: a product with NO primary supplier gets its cheapest link promoted
 -- (lowest unit_cost, then supplier_id). The policy/reorder engine reads cost basis
 -- from the primary link, so a bulk import lands ready to forecast without a manual
@@ -29,15 +33,24 @@ as $$
 declare
   v_count integer;
 begin
-  with input as (
+  with raw_input as (
     select
-      (r->>'product_id')::uuid as product_id,
-      (r->>'supplier_id')::uuid as supplier_id,
-      nullif(r->>'supplier_sku', '') as supplier_sku,
-      (r->>'unit_cost')::numeric as unit_cost,
-      (r->>'lead_time_days')::int as lead_time_days,
-      (r->>'moq')::int as moq
-    from jsonb_array_elements(p_rows) as r
+      (r.elem->>'product_id')::uuid as product_id,
+      (r.elem->>'supplier_id')::uuid as supplier_id,
+      nullif(r.elem->>'supplier_sku', '') as supplier_sku,
+      (r.elem->>'unit_cost')::numeric as unit_cost,
+      (r.elem->>'lead_time_days')::int as lead_time_days,
+      (r.elem->>'moq')::int as moq,
+      r.ord as ord
+    from jsonb_array_elements(p_rows) with ordinality as r(elem, ord)
+  ),
+  input as (
+    -- Collapse duplicate (product, supplier) pairs in one file to the LAST row;
+    -- a single INSERT ... ON CONFLICT cannot affect the same row twice.
+    select distinct on (product_id, supplier_id)
+      product_id, supplier_id, supplier_sku, unit_cost, lead_time_days, moq
+    from raw_input
+    order by product_id, supplier_id, ord desc
   ),
   upserted as (
     insert into public.product_suppliers
@@ -90,4 +103,5 @@ $$;
 comment on function public.import_product_supplier_links(jsonb) is
   'W2-1a: batch upsert of product↔supplier links (resolved ids in) on the '
   '(tenant,product,supplier) PK, SECURITY INVOKER (RLS owner|manager|planner). '
-  'Auto-promotes the cheapest link to primary for any product that has none.';
+  'Dedups duplicate pairs in-batch (last wins). Auto-promotes the cheapest link '
+  'to primary for any product that has none.';

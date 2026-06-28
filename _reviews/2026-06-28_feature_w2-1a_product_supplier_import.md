@@ -50,7 +50,8 @@ fourth CSV import lane ("Supplier pricing") loads a full catalog's terms from a 
     primary). ✓
   - Both products end with exactly one primary; `reimport` count steady, link counts steady =
     idempotent. ✓
-  (Script: scratchpad `verify_link_rpc.sql`, run in a rolled-back transaction.)
+  (Committed, re-runnable: `_reviews/2026-06-28_w2-1a_verify_link_rpc.sql`, run in a rolled-back
+  transaction. It also covers in-batch dedup of duplicate pairs — see round-1 below.)
 - **Pure transform tests** (`writers-transform.test.ts`, runnable): column auto-wire + cost/lead/MOQ
   coercion; the recurring SKU is NOT deduped (one product, many supplier links); missing supplier +
   non-integer MOQ flagged. 
@@ -63,6 +64,25 @@ fourth CSV import lane ("Supplier pricing") loads a full catalog's terms from a 
   RPC DB verification above + the pure/UI tests are the locally-verified evidence.
 - Gates: `tsc`, `biome`, `check:craft`, `next build` — all green. Runnable test suites pass.
 
+## Codex round-1 (gate) — applied before push
+
+`moretech-codex-review` (gpt-5.4, full); review + dispositions in
+`_reviews/2026-06-28_feature_w2-1a_product_supplier_import_2.md`. Fixed in-slice:
+- **Critical bug:** duplicate `(SKU, supplier)` rows in one file would hit Postgres "cannot affect
+  row a second time" and fail the whole import. The RPC now dedups in-batch (last wins via
+  `with ordinality` + `distinct on`). Verified with a duplicate-pair case (Atlas at 4.50 then 4.99 →
+  one link at 4.99, no crash, cheapest-primary still correct).
+- **FEATURES contract:** `unitCost` + `leadTimeDays` are now required on the lane (FEATURES Block 2
+  minimum-field set; the engine needs both).
+- **Onboarding:** the links lane is now wired into the inline onboarding CSV path (was 3 lanes).
+- **Reviewable artifact:** the RPC verification is committed (`_reviews/..._verify_link_rpc.sql`),
+  not a phantom scratchpad path.
+- **Stale comment:** import page header now says four lanes.
+
+Deferred (ticketed in `_reviews/_tickets.md`): durable link writer (sync-only is a conscious
+deferral; link files are small). Accepted: internal-whitespace supplier-name normalization is out of
+scope (names are trimmed + lowered).
+
 ## Next
 
-MG checkpoint → `moretech-codex-review` → push + hosted migration. Then W2-1b (UoM dropdown).
+Push + hosted migration. Then W2-1b (UoM dropdown).
