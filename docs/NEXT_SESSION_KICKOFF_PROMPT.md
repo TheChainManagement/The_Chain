@@ -277,3 +277,10 @@ mode-spine doc.
   logged not swallowed. Next action: MG reviews the Codex findings/decisions, then push on MG's
   go. After that: Item 1 (W2-2 storeroom migration), whose ⛔ (issue-out form fields + who can
   issue) needs MG's answers before the UI slice.
+- 2026-07-07 (later): **Item 0 SHIPPED TO PRODUCTION.** Full gate ran: MG review → Codex review
+  (fixes in-slice) → MG push go → fast-forward merge to main (`97bdfe7..f1c18b6`) → Vercel
+  production deploy Ready → routes probed live (200s on /forgot-password + /reset-password; bad
+  confirm link bounces to the expired notice; apex→www redirect preserves the token query). MG
+  configured the Supabase side: redirect allowlist entry + token_hash Reset Password template.
+  Item 1 ⛔ decisions are locked above. **Next action: start Item 1 (W2-2 storeroom migration +
+  enum completion) on a fresh feature branch.**

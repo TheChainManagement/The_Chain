@@ -117,8 +117,12 @@ atomic multi-line or lot/serial event. Held as a 🔴 ticket in `_reviews/_ticke
 migration path in `WAVE2_W2-0_MODE_SPINE_DESIGN.md` §10. The W2-0 columns are shaped now so the
 split is additive later, not a rewrite.
 
-**Carry-over gap (not a feature, but live-customer-critical):** password reset / auth recovery
-still does not exist. Slot it in early.
+**Carry-over gap (not a feature, but live-customer-critical):** ~~password reset / auth recovery
+still does not exist. Slot it in early.~~ **SHIPPED 2026-07-07** — full recovery flow live on
+production (merged to main `f1c18b6`, Vercel deployed, Supabase redirect allowlist + token_hash
+email template configured by MG). Evidence:
+`_reviews/2026-07-07_item0_password_reset_evidence.md`; Codex review + decisions:
+`_reviews/2026-07-07_item0_password_reset.md`.
 
 ---
 
