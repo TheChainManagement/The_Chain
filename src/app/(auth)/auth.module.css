@@ -98,6 +98,14 @@
   margin-top: var(--spacing-1);
 }
 
+.sent {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-mid);
+}
+
 .alt {
   font-family: var(--font-body);
   font-size: 13px;

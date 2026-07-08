@@ -1,6 +1,8 @@
 'use server';
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 /**
@@ -73,4 +75,100 @@ export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServer();
   await supabase.auth.signOut();
   redirect('/signin');
+}
+
+/**
+ * Password reset (Wave 2 kickoff Item 0). Two actions:
+ *   requestPasswordReset — sends the Supabase recovery email. The link lands on
+ *     /api/auth/confirm (verifyOtp / code exchange), which establishes the
+ *     recovery session and forwards to /reset-password.
+ *   updatePassword — runs under the recovery session, sets the new password,
+ *     audit-logs the recovery, and drops the user on /today.
+ */
+
+/** Derive the request origin for the emailed redirect link (proxy-aware). */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3100';
+  const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  return `${proto}://${host}`;
+}
+
+export async function requestPasswordReset(
+  _prev: AuthState,
+  formData: FormData,
+): Promise<AuthState> {
+  const email = String(formData.get('email') ?? '').trim();
+  if (!email) {
+    return { ok: false, error: 'Enter the email you signed up with.' };
+  }
+
+  const supabase = await createSupabaseServer();
+  const origin = await requestOrigin();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/api/auth/confirm?next=/reset-password`,
+  });
+
+  // Never reveal whether an account exists: unknown-email errors still return
+  // ok. Rate limiting is the one failure worth surfacing honestly.
+  if (error && /rate ?limit/i.test(error.message)) {
+    return { ok: false, error: 'Too many reset emails just now. Wait a minute and try again.' };
+  }
+  return { ok: true };
+}
+
+export async function updatePassword(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+
+  if (password.length < 6) {
+    return { ok: false, error: 'Use a password with at least 6 characters.' };
+  }
+  if (password !== confirm) {
+    return { ok: false, error: 'Those passwords do not match. Type the same one twice.' };
+  }
+
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: 'This reset link expired. Request a new one.' };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    const samePassword = /different from the old password/i.test(error.message);
+    return {
+      ok: false,
+      error: samePassword
+        ? 'That is already your password. Pick a new one.'
+        : 'We could not update your password. Please try again.',
+    };
+  }
+
+  // Audit the recovery via the admin client (audit_log is system-write only).
+  // Best-effort: an audit hiccup must never leave the user locked out.
+  try {
+    const admin = createSupabaseAdmin();
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('active_tenant_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (profile?.active_tenant_id) {
+      await admin.from('audit_log').insert({
+        tenant_id: profile.active_tenant_id,
+        actor_user_id: user.id,
+        entity_type: 'auth',
+        entity_id: null,
+        action: 'auth.password_reset',
+        after: { method: 'email_recovery' },
+      });
+    }
+  } catch (auditError) {
+    console.error('password reset audit write failed', auditError);
+  }
+
+  redirect('/today');
 }

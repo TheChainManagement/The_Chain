@@ -25,6 +25,10 @@ export default function SignInPage() {
           <Link href="/signup" className={styles.altLink}>
             Create one
           </Link>
+          . Forgot your password?{' '}
+          <Link href="/forgot-password" className={styles.altLink}>
+            Reset it
+          </Link>
           .
         </p>
       </div>
