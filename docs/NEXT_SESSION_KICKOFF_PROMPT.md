@@ -252,9 +252,12 @@ mode-spine doc.
   /api/auth/confirm (token_hash + PKCE code, open-redirect guard), /reset-password update form,
   auth.password_reset audit row, forgot link on /signin. Verified end to end against the real
   Supabase auth backend with a throwaway user (created, recovered, new password sign-in OK,
-  deleted). 15 new tests; suite 713/713; tsc/biome/craft clean. Evidence:
-  `_reviews/2026-07-07_item0_password_reset.md` (includes the two production deploy notes:
-  Supabase redirect-URL allowlist entry + recommended token_hash email template). Next action:
-  MG reviews Item 0, then Codex code review, then push on MG's go. After that: Item 1 (W2-2
-  storeroom migration), whose ⛔ (issue-out form fields + who can issue) needs MG's answers
-  before the UI slice.
+  deleted). 19 tests; suite 717/717; tsc/biome/craft clean. Build evidence:
+  `_reviews/2026-07-07_item0_password_reset_evidence.md`; Codex review + decisions:
+  `_reviews/2026-07-07_item0_password_reset.md`. Production deploy notes (in the evidence file):
+  Supabase redirect-URL allowlist entry + recommended token_hash email template + optional
+  `NEXT_PUBLIC_SITE_URL`. Codex round-1 fixes applied in-slice: confirm route is recovery-only,
+  origin derived from a trusted URL (not the spoofable Host header), audit insert/profile errors
+  logged not swallowed. Next action: MG reviews the Codex findings/decisions, then push on MG's
+  go. After that: Item 1 (W2-2 storeroom migration), whose ⛔ (issue-out form fields + who can
+  issue) needs MG's answers before the UI slice.

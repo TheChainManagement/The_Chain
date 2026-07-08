@@ -86,8 +86,20 @@ export async function signOut(): Promise<void> {
  *     audit-logs the recovery, and drops the user on /today.
  */
 
-/** Derive the request origin for the emailed redirect link (proxy-aware). */
+/**
+ * Origin for the emailed reset link. Prefer a trusted, configured source over
+ * the request's Host header, which a client can spoof to point recovery emails
+ * at an attacker origin. Order: explicit NEXT_PUBLIC_SITE_URL, then the
+ * Vercel-injected production URL (same source forecastEnv trusts), then the
+ * request headers for local dev. Supabase's redirect-URL allowlist is the final
+ * backstop — it rejects any redirectTo not on the list — but deriving the origin
+ * from a trusted source keeps the link correct in the first place.
+ */
 async function requestOrigin(): Promise<string> {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (configured) {
+    return configured.startsWith('http') ? configured.replace(/\/$/, '') : `https://${configured}`;
+  }
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost:3100';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
@@ -148,16 +160,20 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
   }
 
   // Audit the recovery via the admin client (audit_log is system-write only).
-  // Best-effort: an audit hiccup must never leave the user locked out.
+  // Best-effort: an audit hiccup must never leave the user locked out, but a
+  // failed insert or profile lookup is logged (not swallowed) so a broken audit
+  // path is observable rather than silently optional.
   try {
     const admin = createSupabaseAdmin();
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('active_tenant_id')
       .eq('user_id', user.id)
       .maybeSingle();
-    if (profile?.active_tenant_id) {
-      await admin.from('audit_log').insert({
+    if (profileError) {
+      console.error('password reset audit: profile lookup failed', profileError);
+    } else if (profile?.active_tenant_id) {
+      const { error: insertError } = await admin.from('audit_log').insert({
         tenant_id: profile.active_tenant_id,
         actor_user_id: user.id,
         entity_type: 'auth',
@@ -165,6 +181,9 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
         action: 'auth.password_reset',
         after: { method: 'email_recovery' },
       });
+      if (insertError) {
+        console.error('password reset audit: insert failed', insertError);
+      }
     }
   } catch (auditError) {
     console.error('password reset audit write failed', auditError);

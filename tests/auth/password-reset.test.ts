@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   exchangeCodeForSession: vi.fn(async (_code: string): Promise<AuthResult> => ({ error: null })),
   auditInsert: vi.fn(async (_row: unknown): Promise<AuthResult> => ({ error: null })),
   profile: { active_tenant_id: 't1' } as { active_tenant_id: string | null } | null,
+  profileError: null as { message: string } | null,
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
   }),
@@ -42,7 +43,9 @@ vi.mock('@/lib/supabase/admin', () => ({
       table === 'profiles'
         ? {
             select: () => ({
-              eq: () => ({ maybeSingle: async () => ({ data: h.profile, error: null }) }),
+              eq: () => ({
+                maybeSingle: async () => ({ data: h.profile, error: h.profileError }),
+              }),
             }),
           }
         : { insert: h.auditInsert },
@@ -65,6 +68,7 @@ function form(fields: Record<string, string>): FormData {
 beforeEach(() => {
   h.user = { id: 'u1', email: 'mg@example.com' };
   h.profile = { active_tenant_id: 't1' };
+  h.profileError = null;
   h.resetPasswordForEmail.mockClear();
   h.resetPasswordForEmail.mockResolvedValue({ error: null });
   h.updateUser.mockClear();
@@ -74,7 +78,13 @@ beforeEach(() => {
   h.exchangeCodeForSession.mockClear();
   h.exchangeCodeForSession.mockResolvedValue({ error: null });
   h.auditInsert.mockClear();
+  h.auditInsert.mockResolvedValue({ error: null });
   h.redirect.mockClear();
+  // requestOrigin prefers a configured URL over the (spoofable) Host header;
+  // clear both so the header-fallback assertions are deterministic. The
+  // precedence test sets NEXT_PUBLIC_SITE_URL explicitly.
+  delete process.env.NEXT_PUBLIC_SITE_URL;
+  delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
 });
 
 describe('requestPasswordReset', () => {
@@ -89,6 +99,14 @@ describe('requestPasswordReset', () => {
     expect(state).toEqual({ ok: true });
     expect(h.resetPasswordForEmail).toHaveBeenCalledWith('mg@example.com', {
       redirectTo: 'https://thechain.test/api/auth/confirm?next=/reset-password',
+    });
+  });
+
+  it('builds the link from a configured URL over the (spoofable) Host header', async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://thechainmanagement.com';
+    await requestPasswordReset(null, form({ email: 'mg@example.com' }));
+    expect(h.resetPasswordForEmail).toHaveBeenCalledWith('mg@example.com', {
+      redirectTo: 'https://thechainmanagement.com/api/auth/confirm?next=/reset-password',
     });
   });
 
@@ -150,6 +168,22 @@ describe('updatePassword', () => {
     expect(h.auditInsert).not.toHaveBeenCalled();
   });
 
+  it('still completes the reset when the audit insert fails', async () => {
+    h.auditInsert.mockResolvedValue({ error: { message: 'audit_log insert denied' } });
+    await expect(
+      updatePassword(null, form({ password: 'secret1', confirm: 'secret1' })),
+    ).rejects.toThrow('REDIRECT:/today');
+    expect(h.auditInsert).toHaveBeenCalled();
+  });
+
+  it('still completes the reset when the profile lookup fails', async () => {
+    h.profileError = { message: 'profiles read failed' };
+    await expect(
+      updatePassword(null, form({ password: 'secret1', confirm: 'secret1' })),
+    ).rejects.toThrow('REDIRECT:/today');
+    expect(h.auditInsert).not.toHaveBeenCalled();
+  });
+
   it('maps a Supabase update failure to a friendly error', async () => {
     h.updateUser.mockResolvedValue({
       error: { message: 'New password should be different from the old password.' },
@@ -168,6 +202,14 @@ describe('GET /api/auth/confirm', () => {
     const res = await confirmGet(req('token_hash=th1&type=recovery&next=/reset-password') as never);
     expect(h.verifyOtp).toHaveBeenCalledWith({ type: 'recovery', token_hash: 'th1' });
     expect(res.headers.get('location')).toBe('https://thechain.test/reset-password');
+  });
+
+  it('rejects a non-recovery token type (reset endpoint is recovery-only)', async () => {
+    const res = await confirmGet(req('token_hash=th1&type=signup&next=/reset-password') as never);
+    expect(h.verifyOtp).not.toHaveBeenCalled();
+    expect(res.headers.get('location')).toBe(
+      'https://thechain.test/forgot-password?error=expired',
+    );
   });
 
   it('exchanges a PKCE code link', async () => {
