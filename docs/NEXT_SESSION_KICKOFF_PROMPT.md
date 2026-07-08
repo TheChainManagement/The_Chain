@@ -247,6 +247,22 @@ mode-spine doc.
 
 - 2026-07-06: File created from the audit. Nothing below Item 0 started. Next action:
   Item 0 (password reset) or MG picks.
+- 2026-07-07: **Item 1 (W2-2 storeroom) ⛔ decisions LOCKED with MG** (resolve the "MG DECIDES
+  before building the UI slice" gate). Build the issue-out slice to these:
+  1. **Who can issue = owner + manager + warehouse.** App-layer allowlist in the issue-out Server
+     Action (same pattern as reorder/PO actions: verify `tenant_role` ∈ set, then call the
+     SECURITY DEFINER posting RPC as system). Planner is OUT (replenishment planning ≠ physical
+     issue). Only owner is UI-exposed today; this wires the gate for Wave 3 roles.
+  2. **Demand reference = user picks the TYPE.** A dropdown (Work order / Crew / Cost center)
+     writing `demand_ref_type`, plus the free-text `demand_ref_id`. This ENRICHES the migration
+     spec §10 default (which hardcoded `demand_ref_type='work_order'`): allow all three values.
+     Update the CHECK/app validation to accept the three types (still: issue_out requires
+     demand_ref_type + demand_ref_id + negative qty; issue_return the same ref + positive qty).
+  3. **Optional form fields = reason code + note.** Reason-code dropdown
+     (maintenance / repair / scrap / other) → existing `reason_code` column; plus an optional
+     free-text note. Required baseline stays SKU + location + quantity + demand ref.
+  Everything else in Item 1 (enum adds issue_out/issue_return/return_to_vendor/customer_return,
+  location_kind, cycle-count-close posting through the kernel) is unchanged from the doc above.
 - 2026-07-07: **Item 0 BUILT on `feature/item0-password-reset` (local, not pushed) — at the
   MG-review gate.** Full flow: /forgot-password request form (enumeration-safe),
   /api/auth/confirm (token_hash + PKCE code, open-redirect guard), /reset-password update form,
