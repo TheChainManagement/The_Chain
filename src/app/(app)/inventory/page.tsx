@@ -5,6 +5,7 @@ import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { listInventory, productIdsForSupplier } from '@/lib/inventory/queries';
 import { normalizeStatusFilter, sanitizeSearch } from '@/lib/inventory/transform';
+import { loadOperatingProfile } from '@/lib/modes/resolver';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
 import { AddSku } from './AddSku';
@@ -33,6 +34,13 @@ export default async function InventoryPage({
   const supabase = await createSupabaseServer();
   const supplierOptions = await listSupplierOptions(supabase);
 
+  // W2-2: the operator surface follows the mode spine — issue-archetype
+  // tenants (storeroom, food) get the issue-out affordance on this ledger.
+  const { data: claims } = await supabase.auth.getClaims();
+  const tenantId = claims?.claims?.tenant_id as string | undefined;
+  const profile = tenantId ? await loadOperatingProfile(tenantId) : null;
+  const showIssue = profile?.archetype === 'issue';
+
   // Supplier filter resolves to a product-id set the list query intersects with.
   const productIds = supplierId ? await productIdsForSupplier(supabase, supplierId) : null;
   const rows = await listInventory(supabase, { search, status, productIds });
@@ -41,9 +49,12 @@ export default async function InventoryPage({
     <div className={pageStyles.stack}>
       <PageHeader
         eyebrow="Catalog · on-hand by SKU"
-        title="Inventory"
+        title={profile?.navLabels['/inventory'] ?? 'Inventory'}
         actions={
           <div className={pageStyles.headerActions}>
+            <Link href="/inventory/cycle-counts" className={pageStyles.headerLink}>
+              Cycle counts
+            </Link>
             <Link href="/inventory/classification" className={pageStyles.headerLink}>
               Classification
             </Link>
@@ -71,7 +82,7 @@ export default async function InventoryPage({
           }
         />
       ) : (
-        <InventoryLedger rows={rows} />
+        <InventoryLedger rows={rows} showIssue={showIssue} />
       )}
     </div>
   );

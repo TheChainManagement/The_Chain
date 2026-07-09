@@ -284,3 +284,16 @@ mode-spine doc.
   configured the Supabase side: redirect allowlist entry + token_hash Reset Password template.
   Item 1 ⛔ decisions are locked above. **Next action: start Item 1 (W2-2 storeroom migration +
   enum completion) on a fresh feature branch.**
+- 2026-07-07 (night): **Item 1 (W2-2 storeroom) BUILT on `feature/item1-w2-2-storeroom`
+  (local, not pushed) — at the MG-review gate.** Two migrations (enum completion:
+  issue_out/issue_return/return_to_vendor/customer_return; §10 columns + CHECKs +
+  demand-ref index; inventory_op_events idempotency ledger with RLS + audit; three atomic
+  posting RPCs: issue / adjustment / cycle-count close). Demand is now mode-routed
+  (storeroom forecasts + classifies from issue_out) via src/lib/modes/demand.ts. Surfaces:
+  Issue selected (bulk bar, issue-archetype modes) + Adjust + /inventory/cycle-counts count
+  sheet whose close posts variances through the RPC. Live-verified end to end on a seeded
+  storeroom tenant (scripts/seed-storeroom-demo.mjs): WO-tagged issues, damage adjustment,
+  count close reconciling drift, all in audit. 17 new tests; suite 734/734; tsc/biome/craft
+  clean. Evidence: `_reviews/2026-07-07_item1_w2_2_storeroom_evidence.md` (includes 3 review
+  flags + the prod-migration-state deploy checklist item). Next action: MG walkthrough +
+  review, then Codex review, then push/merge with prod migrations on MG's go.

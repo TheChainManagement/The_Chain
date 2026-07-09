@@ -10,6 +10,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { eligibilityLabel } from '@/lib/forecast/routing';
 import { type SeriesPoint, toWeeklySeries } from '@/lib/forecast/series';
+import { demandTypesForMode } from '@/lib/modes/demand';
+import type { OperatingMode } from '@/lib/modes/types';
 
 /** DB method enum → operator label. (sba IS Croston-SBA — see batch-core.) */
 const METHOD_LABEL: Record<string, string> = {
@@ -239,9 +241,10 @@ export async function listForecastedSkus(
 }
 
 /**
- * Page through ALL trailing-year sale movements (past the PostgREST 1000-row
+ * Page through ALL trailing-year demand movements (past the PostgREST 1000-row
  * cap) — the chart must show the SAME series the batch trained on, so a
- * high-volume SKU never renders truncated history (Codex 2c round-1).
+ * high-volume SKU never renders truncated history (Codex 2c round-1). W2-2:
+ * demand types are mode-routed (sale vs issue_out), matching the batch read.
  */
 async function loadAllSales(
   supabase: SupabaseClient,
@@ -250,13 +253,25 @@ async function loadAllSales(
 ): Promise<Array<{ quantity: number; occurredAt: string }>> {
   const since = new Date(nowMs - 364 * 24 * 60 * 60 * 1000).toISOString();
   const PAGE = 1000;
+  // RLS scopes the tenants read to the caller's memberships; the row for the
+  // ACTIVE tenant is the one whose id matches the JWT claim.
+  const { data: claims } = await supabase.auth.getClaims();
+  const activeTenant = claims?.claims?.tenant_id as string | undefined;
+  const { data: tenant } = activeTenant
+    ? await supabase
+        .from('tenants')
+        .select('operating_mode')
+        .eq('id', activeTenant)
+        .maybeSingle<{ operating_mode: OperatingMode }>()
+    : { data: null };
+  const demandTypes = demandTypesForMode(tenant?.operating_mode ?? null);
   const out: Array<{ quantity: number; occurredAt: string }> = [];
   for (let from = 0; ; from += PAGE) {
     const { data } = await supabase
       .from('stock_movements')
       .select('quantity, occurred_at')
       .eq('product_id', productId)
-      .eq('type', 'sale')
+      .in('type', [...demandTypes])
       .gte('occurred_at', since)
       .order('occurred_at')
       .range(from, from + PAGE - 1)

@@ -14,6 +14,8 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { demandTypesForMode } from '@/lib/modes/demand';
+import type { OperatingMode } from '@/lib/modes/types';
 import {
   type AbcClass,
   assignAbc,
@@ -147,11 +149,18 @@ export async function classifyTenant(
   const costs = unitCostMap(supplierCosts ?? []);
 
   const sinceMs = Date.now() - DEMAND_WEEKS * 7 * 24 * 60 * 60 * 1000;
+  // W2-2: demand is mode-routed (sales vs storeroom issues); |qty| bucketing.
+  const { data: tenant } = await admin
+    .from('tenants')
+    .select('operating_mode')
+    .eq('id', tenantId)
+    .maybeSingle<{ operating_mode: OperatingMode }>();
+  const demandTypes = demandTypesForMode(tenant?.operating_mode ?? null);
   const { data: movements } = await admin
     .from('stock_movements')
     .select('product_id, quantity, occurred_at')
     .eq('tenant_id', tenantId)
-    .eq('type', 'sale')
+    .in('type', [...demandTypes])
     .gte('occurred_at', new Date(sinceMs).toISOString())
     .returns<MovementRow[]>();
 

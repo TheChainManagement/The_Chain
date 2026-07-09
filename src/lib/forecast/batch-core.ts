@@ -53,6 +53,8 @@ import {
   trimmedMean,
 } from '@/lib/forecast/series';
 import { planShards, type ShardPlan } from '@/lib/forecast/shard';
+import { demandTypesForMode } from '@/lib/modes/demand';
+import type { OperatingMode } from '@/lib/modes/types';
 import { FatalError, RetryableError } from '@/lib/source-adapter';
 
 /** Map the routing vocabulary onto the `forecast_method` enum. Croston-SBA IS
@@ -590,6 +592,15 @@ async function loadSaleMovements(
   nowMs: number,
 ): Promise<Map<string, Movement[]>> {
   const since = new Date(nowMs - DEMAND_WEEKS * 7 * 24 * 60 * 60 * 1000).toISOString();
+  // W2-2: demand is mode-routed — sales for distribution, issue_out for a
+  // storeroom. Bucketing is Math.abs, so the issue rows' negative sign never
+  // reaches the math.
+  const { data: tenant } = await admin
+    .from('tenants')
+    .select('operating_mode')
+    .eq('id', tenantId)
+    .maybeSingle<{ operating_mode: OperatingMode }>();
+  const demandTypes = demandTypesForMode(tenant?.operating_mode ?? null);
   const rows = await pageAll<{
     product_id: string;
     quantity: number | string;
@@ -599,7 +610,7 @@ async function loadSaleMovements(
       .from('stock_movements')
       .select('product_id, quantity, occurred_at')
       .eq('tenant_id', tenantId)
-      .eq('type', 'sale')
+      .in('type', [...demandTypes])
       .gte('occurred_at', since)
       .in('product_id', productIds)
       .order('occurred_at')

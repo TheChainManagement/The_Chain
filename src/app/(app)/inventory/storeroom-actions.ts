@@ -1,0 +1,137 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { ensurePrimaryLocation } from '@/lib/import/commit';
+import { isDemandRefType } from '@/lib/storeroom/constants';
+import { postAdjustment, postIssue } from '@/lib/storeroom/post';
+import { createSupabaseAdmin } from '@/lib/supabase/admin';
+import { createSupabaseServer } from '@/lib/supabase/server';
+
+/**
+ * Storeroom operator actions (W2-2): issue material out (single or bulk = one
+ * consuming object, N lines) and manual stock adjustment. Direct-callable from
+ * the ledger client island (bulkArchiveProducts pattern).
+ *
+ * Gate: owner / manager / warehouse (MG-locked; planner plans replenishment,
+ * it does not move material). The posting RPCs run under the service-role
+ * client like every movement writer, so this app-layer gate is the authority —
+ * same shape as the PO receive action.
+ */
+
+const OPERATOR_ROLES = new Set(['owner', 'manager', 'warehouse']);
+const PERMISSION_MESSAGE = 'You do not have permission to move stock.';
+
+interface OperatorClaims {
+  tenantId: string;
+  userId: string;
+}
+
+async function resolveOperator(): Promise<OperatorClaims | null> {
+  const supabase = await createSupabaseServer();
+  const { data } = await supabase.auth.getClaims();
+  const tenantId = data?.claims?.tenant_id as string | undefined;
+  const role = data?.claims?.tenant_role as string | undefined;
+  const userId = data?.claims?.sub as string | undefined;
+  if (!tenantId || !userId || !role || !OPERATOR_ROLES.has(role)) return null;
+  return { tenantId, userId };
+}
+
+export type IssueActionState =
+  | { ok: true; lines: number; totalQty: number }
+  | { ok: false; error: string };
+
+export async function issueStock(input: {
+  movement: 'issue_out' | 'issue_return';
+  demandRefType: string;
+  demandRefId: string;
+  reasonCode?: string;
+  note?: string;
+  lines: { productId: string; qty: number }[];
+  idempotencyKey: string;
+}): Promise<IssueActionState> {
+  const operator = await resolveOperator();
+  if (!operator) return { ok: false, error: PERMISSION_MESSAGE };
+
+  if (input.movement !== 'issue_out' && input.movement !== 'issue_return') {
+    return { ok: false, error: 'That movement type is not an issue.' };
+  }
+  if (!isDemandRefType(input.demandRefType)) {
+    return { ok: false, error: 'Pick what the material is issued to.' };
+  }
+  const refId = (input.demandRefId ?? '').trim();
+  if (!refId) {
+    return { ok: false, error: 'Enter the work order, crew, or cost center reference.' };
+  }
+  const lines = (input.lines ?? []).filter((l) => l.productId);
+  if (lines.length === 0) {
+    return { ok: false, error: 'Add at least one item to issue.' };
+  }
+  if (lines.some((l) => !Number.isFinite(l.qty) || l.qty <= 0)) {
+    return { ok: false, error: 'Quantities must be greater than zero.' };
+  }
+  if (!input.idempotencyKey) {
+    return { ok: false, error: 'Could not record the issue. Refresh and try again.' };
+  }
+
+  const admin = createSupabaseAdmin();
+  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  const result = await postIssue(admin, {
+    tenantId: operator.tenantId,
+    locationId,
+    movement: input.movement,
+    demandRefType: input.demandRefType,
+    demandRefId: refId,
+    reasonCode: input.reasonCode || null,
+    note: input.note || null,
+    lines,
+    actorUserId: operator.userId,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath('/inventory');
+  for (const l of lines) revalidatePath(`/inventory/${l.productId}`);
+  return { ok: true, lines: result.lines, totalQty: result.totalQty };
+}
+
+export type AdjustActionState = { ok: true; onHand: number | null } | { ok: false; error: string };
+
+export async function adjustStock(input: {
+  productId: string;
+  delta: number;
+  reasonCode: string;
+  note?: string;
+  idempotencyKey: string;
+}): Promise<AdjustActionState> {
+  const operator = await resolveOperator();
+  if (!operator) return { ok: false, error: PERMISSION_MESSAGE };
+
+  if (!input.productId) return { ok: false, error: 'Missing product reference.' };
+  if (!Number.isFinite(input.delta) || input.delta === 0) {
+    return { ok: false, error: 'Enter a non-zero adjustment.' };
+  }
+  if (!(input.reasonCode ?? '').trim()) {
+    return { ok: false, error: 'Pick a reason for the adjustment.' };
+  }
+  if (!input.idempotencyKey) {
+    return { ok: false, error: 'Could not record the adjustment. Refresh and try again.' };
+  }
+
+  const admin = createSupabaseAdmin();
+  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  const result = await postAdjustment(admin, {
+    tenantId: operator.tenantId,
+    locationId,
+    productId: input.productId,
+    delta: input.delta,
+    reasonCode: input.reasonCode.trim(),
+    note: input.note || null,
+    actorUserId: operator.userId,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath('/inventory');
+  revalidatePath(`/inventory/${input.productId}`);
+  return { ok: true, onHand: result.onHand };
+}

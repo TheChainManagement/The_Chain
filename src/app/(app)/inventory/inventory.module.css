@@ -499,3 +499,228 @@
   border-color: var(--color-signal);
   box-shadow: inset 0 0 0 1px var(--color-signal);
 }
+
+/* ----- W2-2 operator surface (issue / adjust panel under the bulk bar) ----- */
+
+.opPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-top: 2px solid var(--color-signal);
+}
+
+.opShared {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-4);
+}
+
+.opLines {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-hairline);
+}
+
+.opLineHead,
+.opLine {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 90px 110px 90px;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-4);
+}
+
+.opLineHead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.opLine + .opLine {
+  border-top: 1px solid var(--color-hairline);
+}
+
+.opSku {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-deep);
+}
+
+.opName {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opNum {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: right;
+  color: var(--color-deep);
+}
+
+.opQtyInput {
+  height: 32px;
+  text-align: right;
+}
+
+.opAfter {
+  color: var(--color-dim);
+}
+
+.opAfterLive {
+  color: var(--color-signal);
+  font-weight: 600;
+}
+
+.opPreview {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-deep);
+  line-height: 38px;
+}
+
+.opActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+/* ----- W2-2 cycle counts ----- */
+
+.countStart {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.countHead,
+.countRow {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 120px 140px 140px;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: 0 var(--spacing-5);
+  height: 44px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+
+.countHead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.countRow + .countRow {
+  border-top: 1px solid var(--color-hairline);
+}
+
+.countStatus {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.countEntry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px auto;
+  gap: var(--spacing-4);
+  align-items: end;
+  padding: var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-top: 2px solid var(--color-signal);
+}
+
+.countEntrySubmit {
+  display: flex;
+  align-items: flex-end;
+}
+
+.countSaved {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-flow);
+}
+
+.countEntry .formError {
+  grid-column: 1 / -1;
+}
+
+.countLineHead,
+.countLineRow {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 100px 100px 100px;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-2) var(--spacing-5);
+}
+
+.countLineHead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.countLineRow {
+  min-height: 40px;
+}
+
+.countLineRow + .countLineRow {
+  border-top: 1px solid var(--color-hairline);
+}
+
+.varianceZero {
+  color: var(--color-dim);
+}
+
+.variancePlus {
+  color: var(--color-flow);
+  font-weight: 600;
+}
+
+.varianceMinus {
+  color: var(--color-stop);
+  font-weight: 600;
+}
+
+.countCloseWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.countReceipt {
+  margin: 0;
+  padding: var(--spacing-4) var(--spacing-5);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-left: 3px solid var(--color-flow);
+}
