@@ -297,3 +297,16 @@ mode-spine doc.
   clean. Evidence: `_reviews/2026-07-07_item1_w2_2_storeroom_evidence.md` (includes 3 review
   flags + the prod-migration-state deploy checklist item). Next action: MG walkthrough +
   review, then Codex review, then push/merge with prod migrations on MG's go.
+- 2026-07-08 (end of night): **Item 1 through the FULL gate except merge.** MG walkthrough
+  round 1 (2 findings fixed: count-sheet SKU autocomplete, legible audit rows) + Codex
+  round-1 (count-close idempotency ordering bug fixed, action-boundary tests added, renames,
+  doc sync). Branch `feature/item1-w2-2-storeroom` PUSHED (3 commits, `e7098b1` tip). Suite
+  755/755. **MERGE IS PENDING and gated on a prod finding: production Supabase is missing 4
+  migrations** (verified against the real schema, not the record): block11b_approve_receive_stock
+  + alerts_engine (skipped by the June 28 deploy — PROD RECEIVE IS BROKEN until applied; the
+  deployed app calls the 5-arg receive RPC that does not exist there) + the two W2-2
+  migrations. **NEXT ACTION: on MG's go, apply the 4 migrations to prod (order: block11b,
+  alerts_engine, w2_2a, w2_2b), re-run the schema probes, fast-forward merge to main, probe
+  the deploy.** MG declined to run it tonight; nothing merged, main untouched. After that:
+  Item 2 (W2-2.5 inventory-core hardening), whose ⛔s (fractional stock on conversion
+  remainders; held stock in valuation; hold/release UI vs engine-only) need MG before build.
