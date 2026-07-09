@@ -301,6 +301,19 @@ describe('close_cycle_count_session', () => {
     expect(lvl[0].last_counted_at).not.toBeNull();
   });
 
+  it('replays the SAME key as a no-op even after the session completed', async () => {
+    // Codex round-1: the first close completes the session, so a same-key retry
+    // must not trip over the terminal status — it replays as out_applied=false.
+    const before = await onHand();
+    const { rows } = await client.query(
+      `select * from close_cycle_count_session($1, $2, $3, 'count-key-1')`,
+      [T, sessionId, U],
+    );
+    expect(rows[0].out_applied).toBe(false);
+    expect(Number(rows[0].out_movements)).toBe(0);
+    expect(await onHand()).toBe(before);
+  });
+
   it('refuses to close twice or to close a session with nothing counted', async () => {
     await expectDbError(
       `select * from close_cycle_count_session($1, $2, $3, 'count-key-2')`,

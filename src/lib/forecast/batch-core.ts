@@ -179,7 +179,7 @@ export async function refreshCategoryBenchmarks(
   );
   if (products.length === 0) return 0;
 
-  const movementsByProduct = await loadSaleMovements(
+  const movementsByProduct = await loadDemandMovements(
     admin,
     tenantId,
     products.map((p) => p.id),
@@ -282,7 +282,7 @@ export async function runForecastChunk(
         .eq('run_id', params.runId)
         .in('product_id', ids)
         .returns<{ product_id: string }[]>(),
-      loadSaleMovements(admin, params.tenantId, ids, params.nowMs),
+      loadDemandMovements(admin, params.tenantId, ids, params.nowMs),
       loadClassifications(admin, params.tenantId, ids),
       loadBenchmarks(admin, params.tenantId),
       loadPriorStates(admin, params.tenantId, ids, params.runId),
@@ -585,7 +585,7 @@ export async function appendBatchLog(
 
 // ---------------------------------------------------------------- reads
 
-async function loadSaleMovements(
+async function loadDemandMovements(
   admin: SupabaseClient,
   tenantId: string,
   productIds: string[],

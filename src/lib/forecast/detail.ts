@@ -93,7 +93,7 @@ export async function loadForecastDetail(
         computed_at: string;
         horizon_days: number;
       }>(),
-    loadAllSales(supabase, productId, nowMs),
+    loadAllDemandHistory(supabase, productId, nowMs),
   ]);
 
   const history = toWeeklySeries(movements, nowMs);
@@ -246,7 +246,7 @@ export async function listForecastedSkus(
  * high-volume SKU never renders truncated history (Codex 2c round-1). W2-2:
  * demand types are mode-routed (sale vs issue_out), matching the batch read.
  */
-async function loadAllSales(
+async function loadAllDemandHistory(
   supabase: SupabaseClient,
   productId: string,
   nowMs: number,

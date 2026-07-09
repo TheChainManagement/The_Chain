@@ -1,4 +1,24 @@
 
+## W2-2 storeroom — deferred (2026-07-08)
+- **Returns UI (`issue_return` / `return_to_vendor` / `customer_return`).** Enum + sign
+  CHECKs shipped; `issue_return` is fully wired through `post_issue_movements`. Surfaces
+  lag by design (kickoff Item 1: "UI can lag; the ledger vocabulary should be complete").
+  Natural home: W2-3 procurement (vendor returns reference POs) + a distribution slice
+  (customer returns).
+- **Count-sheet design question (MG, walkthrough round 1):** he wants to think through a
+  real inventory list for counting (pre-populated count sheets, count-by-area) vs the
+  shipped SKU autocomplete (datalist, SKU + name only — blind count preserved). Revisit
+  with W2-4 multi-location or a count deep build. Autocomplete capped at 2000 options;
+  bigger catalogs still take typed entry.
+- **E2E audit-read test** — "issue/adjust/count → rows appear in the audit VIEWER" is
+  covered by pure transform tests (`tests/audit/event-detail.test.ts`) + live browser
+  verification; a seeded end-to-end read through the viewer route joins the standing
+  action-layer/seeded-auth harness ticket.
+- **Prod migration reconciliation at merge:** linked remote shows `20260628140000` (W2-1a)
+  unrecorded. Verify + apply W2-1a and the two W2-2 migrations
+  (`20260707200000`/`20260707200100`) to prod BEFORE merging this branch to auto-deploying
+  main.
+
 ## Wave 2 — DEFERRED BY DESIGN, DO NOT LOSE (2026-06-28)
 - **Normalize UoM on the ingest write paths (W2-1b follow-up).** Manual product forms now write
   curated codes, but CSV import (`commit.ts`/`durable-commit.ts` product writers) and QBO sync

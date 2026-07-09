@@ -286,10 +286,11 @@ begin
   where tenant_id = p_tenant and id = p_session
   for update;
   if not found then raise exception 'session_not_found'; end if;
-  if v_session.status not in ('open', 'in_progress') then
-    raise exception 'session_terminal';
-  end if;
 
+  -- Idempotency claim BEFORE the terminal check (Codex round-1): the first
+  -- close completes the session, so a same-key retry MUST replay as a no-op,
+  -- not trip over the now-terminal status. A raise below rolls the claim back,
+  -- so a failed close never burns the key.
   insert into public.inventory_op_events
     (tenant_id, kind, actor_user_id, idempotency_key)
   values (p_tenant, 'cycle_count_close', p_actor, p_idempotency_key)
@@ -297,6 +298,10 @@ begin
   if not found then
     return query select false, 0, 0, 0::numeric;
     return;
+  end if;
+
+  if v_session.status not in ('open', 'in_progress') then
+    raise exception 'session_terminal';
   end if;
 
   for v_line in

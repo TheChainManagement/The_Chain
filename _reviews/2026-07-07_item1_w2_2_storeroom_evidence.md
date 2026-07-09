@@ -130,7 +130,26 @@ MG ran the walkthrough himself (issue, adjust, count all worked live). Two findi
    (Count session / Count line / Operator event). Pure transform + 5 unit tests
    (`tests/audit/event-detail.test.ts`). Suite 739/739 after both fixes.
 
+## Codex round-1 (2026-07-08) — full weight; fixes applied in-slice
+
+Review + decisions: `_reviews/2026-07-08_item1_w2_2_storeroom.md`. Fixed in-slice:
+- **Count-close idempotency bug (Codex's best catch):** the RPC checked terminal status
+  before the idempotency claim, so a same-key retry after a successful close errored
+  instead of replaying as a no-op. Claim now happens first (a raise still rolls it back);
+  new replay-after-close test.
+- **Action boundary now tested** (15 cases): the owner/manager/warehouse gate incl.
+  planner/finance/viewer rejected before any write, validation, actor threading, RPC
+  mapping. Converted the standing deferral into done for this slice.
+- **Renames:** loadSaleMovements → loadDemandMovements; loadAllSales →
+  loadAllDemandHistory (the names claimed sale-only, the behavior is mode-routed).
+- **SYSTEM_DESIGN.md updated** to the real schema (10-type enum, demand-ref envelope,
+  inventory_op_events + posting-RPC contract); **_tickets.md** gained the W2-2 deferred
+  block.
+Accepted (recorded in the decisions): screenshot-artifact harness (standing ticket; MG ran
+the walkthrough personally this slice), prod migration reconciliation as a merge-gate
+task, E2E audit-read test (ticketed). Suite 755/755 after fixes.
+
 ## Next
 
-MG re-checks the two fixes (refresh /flow/audit-log + open a count sheet) → Codex review
-→ push on MG's go → prod migrations at merge time.
+Codex round-1 complete, fixes in. Push/merge on MG's go, which includes the prod migration
+reconciliation (W2-1a + the two W2-2 migrations) before main auto-deploys.
