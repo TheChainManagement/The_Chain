@@ -322,3 +322,11 @@
     gap: 2px;
   }
 }
+
+/* W2-2: the one-line "what" on movement rows (type, signed qty, ref).
+   Deep vs the mid entity label so the payload reads first. */
+.detail {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+}

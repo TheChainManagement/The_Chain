@@ -112,7 +112,25 @@ routing + unit tests).
   main, verify prod carries W2-1a + these two migrations (apply via linked `db push` or
   MCP) — deploy checklist item, not a code gap.
 
+## MG walkthrough round 1 (2026-07-08) — two findings, both fixed in-slice
+
+MG ran the walkthrough himself (issue, adjust, count all worked live). Two findings:
+
+1. **Count sheet had no SKU reference** — he had to leave the sheet to look up SKUs.
+   Fix: the SKU field now autocompletes from the active catalog (datalist, SKU + name,
+   capped at 2000). Deliberately never shows on-hand: a blind count stays blind. The
+   bigger design question (pre-populated count sheets, count-by-area) is MG's to think
+   on; parked for W2-4 / the count deep build.
+2. **His count variance was invisible in the audit log.** Investigated: the rows were
+   all there (RLS query as his user proved it) — the VIEWER rendered them as bare
+   "Created Stock movement" headlines, so nothing identified itself as his count.
+   Fix: audit rows now carry a one-line detail derived from the after snapshot
+   ("count variance -2 · count_variance", "issue out -4 · work order WO-10482",
+   "session completed"), rendered in the headline; W2-2 tables got proper labels
+   (Count session / Count line / Operator event). Pure transform + 5 unit tests
+   (`tests/audit/event-detail.test.ts`). Suite 739/739 after both fixes.
+
 ## Next
 
-MG review (walkthrough is one command: `node scripts/seed-storeroom-demo.mjs`, then sign
-in) → Codex review → push on MG's go → prod migrations at merge time.
+MG re-checks the two fixes (refresh /flow/audit-log + open a count sheet) → Codex review
+→ push on MG's go → prod migrations at merge time.

@@ -105,10 +105,74 @@ export const ENTITY_LABEL: Record<string, string> = {
   onboarding_state: 'Onboarding',
   alerts: 'Alert',
   insights: 'Insight',
+  cycle_count_sessions: 'Count session',
+  cycle_count_lines: 'Count line',
+  inventory_op_events: 'Operator event',
 };
 
 export function entityLabel(entityType: string): string {
   return ENTITY_LABEL[entityType] ?? humanize(entityType);
+}
+
+/**
+ * Movement-type → operator phrasing for the audit headline (W2-2 MG-review
+ * fix: a count variance rendered as a bare "Created Stock movement" and was
+ * invisible in the trail). Falls back to the raw type for anything unmapped.
+ */
+const MOVEMENT_PHRASE: Record<string, string> = {
+  sale: 'sale',
+  receipt: 'receipt',
+  transfer_in: 'transfer in',
+  transfer_out: 'transfer out',
+  adjustment: 'adjustment',
+  cycle_count: 'count variance',
+  issue_out: 'issue out',
+  issue_return: 'issue return',
+  return_to_vendor: 'vendor return',
+  customer_return: 'customer return',
+};
+
+const DEMAND_REF_PHRASE: Record<string, string> = {
+  work_order: 'work order',
+  crew: 'crew',
+  cost_center: 'cost center',
+};
+
+function numish(v: unknown): string | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 2 }) : null;
+}
+
+/**
+ * One human line saying WHAT the row was, derived from the after snapshot, so
+ * the operator reads the trail without expanding diffs. Covers the entity
+ * types whose identity matters at a glance; everything else returns null and
+ * renders headline-only, as before.
+ *   stock_movements      → "count variance -2 · count_variance",
+ *                          "issue out -4 · work order WO-10482"
+ *   cycle_count_sessions → "session completed" on the status flip
+ */
+export function eventDetail(entityType: string, after: Json): string | null {
+  if (!after) return null;
+  if (entityType === 'stock_movements') {
+    const type = typeof after.type === 'string' ? after.type : null;
+    if (!type) return null;
+    const qty = numish(after.quantity);
+    const phrase = MOVEMENT_PHRASE[type] ?? type;
+    let line = qty === null ? phrase : `${phrase} ${Number(after.quantity) > 0 ? '+' : ''}${qty}`;
+    const refType = typeof after.demand_ref_type === 'string' ? after.demand_ref_type : null;
+    const refId = typeof after.demand_ref_id === 'string' ? after.demand_ref_id : null;
+    if (refType && refId) {
+      line += ` · ${DEMAND_REF_PHRASE[refType] ?? refType} ${refId}`;
+    } else if (typeof after.reason_code === 'string' && after.reason_code) {
+      line += ` · ${after.reason_code}`;
+    }
+    return line;
+  }
+  if (entityType === 'cycle_count_sessions' && after.status === 'completed') {
+    return 'session completed';
+  }
+  return null;
 }
 
 /**

@@ -11,7 +11,16 @@ import { type CountLineState, saveCountLine } from '../actions';
  * next. On save the Server Action revalidates the session page, the line
  * appears in the sheet below, and the form resets to the SKU field so a
  * physical count keeps its rhythm.
+ *
+ * The SKU field autocompletes from the catalog (MG-review fix: he had to leave
+ * the sheet to look SKUs up). Deliberately SKU + name ONLY, never on-hand: a
+ * blind count stays blind.
  */
+
+export interface CountSkuOption {
+  sku: string;
+  name: string;
+}
 
 function SubmitButton(): React.ReactNode {
   const { pending } = useFormStatus();
@@ -22,7 +31,13 @@ function SubmitButton(): React.ReactNode {
   );
 }
 
-export function CountEntry({ sessionId }: { sessionId: string }): React.ReactNode {
+export function CountEntry({
+  sessionId,
+  skuOptions,
+}: {
+  sessionId: string;
+  skuOptions: CountSkuOption[];
+}): React.ReactNode {
   const [state, formAction] = useActionState<CountLineState, FormData>(saveCountLine, null);
   const formRef = useRef<HTMLFormElement>(null);
   const skuRef = useRef<HTMLInputElement>(null);
@@ -44,10 +59,18 @@ export function CountEntry({ sessionId }: { sessionId: string }): React.ReactNod
           name="sku"
           type="text"
           className={styles.addInput}
-          placeholder="RBH-4471"
+          placeholder="Type to search the catalog"
           autoComplete="off"
+          list="count-sku-options"
           required
         />
+        <datalist id="count-sku-options">
+          {skuOptions.map((o) => (
+            <option key={o.sku} value={o.sku}>
+              {o.name}
+            </option>
+          ))}
+        </datalist>
       </label>
       <label className={styles.addField}>
         <span className={styles.addLabel}>Counted quantity</span>

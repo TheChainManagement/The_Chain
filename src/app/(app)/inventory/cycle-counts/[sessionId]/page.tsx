@@ -7,7 +7,7 @@ import { Panel } from '@/components/Panel/Panel';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from '../../inventory.module.css';
 import { CloseCount } from './CloseCount';
-import { CountEntry } from './CountEntry';
+import { CountEntry, type CountSkuOption } from './CountEntry';
 
 export const metadata = { title: 'Count session · The Chain' };
 
@@ -50,6 +50,17 @@ export default async function CountSessionPage({
     .maybeSingle<SessionRow>();
   if (!session) notFound();
 
+  // The count sheet's autocomplete: SKU + name only (blind count; no on-hand).
+  // Capped at 2000 options; bigger catalogs still take typed entry.
+  const { data: skuRows } = await supabase
+    .from('products')
+    .select('sku, name')
+    .eq('status', 'active')
+    .order('sku')
+    .limit(2000)
+    .returns<CountSkuOption[]>();
+  const skuOptions = skuRows ?? [];
+
   const { data } = await supabase
     .from('cycle_count_lines')
     .select('product_id, expected_qty, counted_qty, variance, products(sku, name)')
@@ -75,7 +86,7 @@ export default async function CountSessionPage({
         }
       />
 
-      {open ? <CountEntry sessionId={sessionId} /> : null}
+      {open ? <CountEntry sessionId={sessionId} skuOptions={skuOptions} /> : null}
 
       {lines.length === 0 ? (
         <Panel

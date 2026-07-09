@@ -18,6 +18,7 @@ import {
   actionVerb,
   diffFields,
   entityLabel,
+  eventDetail,
   type FieldDiff,
   isSameUtcDay,
   type RetentionTier,
@@ -36,6 +37,8 @@ export interface AuditEventView {
   actorUserId: string | null;
   isToday: boolean;
   fields: FieldDiff[];
+  /** One human line saying WHAT the row was (movement type, qty, ref) — W2-2. */
+  detail: string | null;
 }
 
 interface RawAuditRow {
@@ -119,6 +122,7 @@ function toEventView(
     actorUserId: row.actor_user_id,
     isToday: isSameUtcDay(row.occurred_at, nowMs),
     fields: diffFields(row.before, row.after, verb),
+    detail: eventDetail(row.entity_type, row.after),
   };
 }
 

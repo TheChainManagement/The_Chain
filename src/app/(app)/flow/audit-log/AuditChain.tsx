@@ -110,6 +110,7 @@ export function AuditChain({
                         {e.verb}
                       </span>{' '}
                       <span className={styles.entity}>{e.entityLabel}</span>
+                      {e.detail ? <span className={styles.detail}> · {e.detail}</span> : null}
                     </span>
                     <span className={styles.meta}>
                       {e.actor}

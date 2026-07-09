@@ -30,6 +30,7 @@ const events: AuditEventView[] = [
     actor: 'You',
     actorUserId: 'user-1',
     isToday: true,
+    detail: null,
     fields: [
       { key: 'on_hand', before: '5', after: '12', kind: 'changed' },
       { key: 'in_transit', before: '0', after: '8', kind: 'changed' },
@@ -46,6 +47,7 @@ const events: AuditEventView[] = [
     actor: 'Teammate',
     actorUserId: 'user-2',
     isToday: false,
+    detail: null,
     fields: [{ key: 'status', before: null, after: 'draft', kind: 'added' }],
   },
   {
@@ -59,6 +61,7 @@ const events: AuditEventView[] = [
     actor: 'System',
     actorUserId: null,
     isToday: false,
+    detail: null,
     fields: [],
   },
 ];
