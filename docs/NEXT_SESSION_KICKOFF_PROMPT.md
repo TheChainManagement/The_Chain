@@ -325,3 +325,27 @@ mode-spine doc.
      available-to-promise math (position = on_hand - on_hold + in_transit - allocated).
   3. **Hold/release ships WITH UI in W2-2.5** — engine and UI together, not engine-only.
   Build opened on `feature/item2-w2-2-5-core-hardening` off main `9d50726`.
+- 2026-07-09 (end of night): **Item 2 (W2-2.5) BUILT END TO END, at the MG checkpoint.**
+  Branch `feature/item2-w2-2-5-core-hardening`, 2 commits (`97d82f0` feat + `1ec5e81`
+  Codex round-1 fixes), LOCAL ONLY — MG deferred the push decision to next session.
+  Shipped in the slice: 3 migrations (w2_2_5a hold/release enum; w2_2_5b core — the
+  post_stock_movement() POSTING KERNEL, record_stock_movements() balance-neutral
+  ingestion door, purchase_uom + factor, avg_unit_cost + provenance, on_hold, valuation
+  views, every RPC reposted through the kernel, member RLS writes dropped on
+  inventory_levels/stock_movements; w2_2_5c import-link RPC), netPosition() single ATP
+  helper, UoM end to end (link form / import lane / receive conversion rail with
+  FRACTIONAL flag), ValuationStrip + valuation CSV export, hold/release UI. Suite
+  809/809, tsc/biome/craft clean, Codex round-1 run + fixes landed
+  (`_reviews/2026-07-09_item2_w2_2_5.md` with Decisions;
+  evidence `_reviews/2026-07-09_item2_w2_2_5_evidence.md`). Live-verified on the
+  storeroom demo tenant (mg-store@local.test / StoreroomDemo1 — BLT-M12-50 carries a
+  posted cost and 5 held units, staged for the walkthrough).
+  **NEXT ACTION — the first decisions of the next session, MG's words:**
+  1. Push the branch to origin? (then/or walkthrough first)
+  2. Wave-2 feature-contract home: kickoff doc as contract vs backfill FEATURES.md.
+  3. Confirm or veto: in_transit commitment stays a kernel-surface function
+     (apply_po_approval) rather than posting through post_stock_movement.
+  Then the merge gate on MG's go: apply the 3 W2-2.5 migrations to prod IN ORDER
+  (a → b → c, the FINAL files), re-probe the prod SCHEMA (not the record), ff-merge,
+  probe the deploy. Also still unconfirmed: the Stripe live-card acceptance (asked
+  2026-07-09, no answer yet).
