@@ -4,8 +4,11 @@
 -- The anchor-point migration for the modular platform: UoM conversion (2a),
 -- moving-average cost + valuation (2b), the stock-status/on-hold dimension
 -- (2c), and the inventory POSTING KERNEL (2d) — one SQL function that every
--- balance mutation flows through from here on. W2-3 procurement, logistics,
--- and maintenance attach to stock ONLY through this kernel.
+-- LEDGER-BACKED balance mutation (on_hand, on_hold, avg cost) flows through
+-- from here on; in_transit moves only in the kernel-surface pair defined
+-- below (apply_po_approval commits it, the kernel receipt drains it). W2-3
+-- procurement, logistics, and maintenance attach to stock ONLY through this
+-- kernel.
 --
 -- MG-locked decisions (kickoff Status, 2026-07-09):
 --   * Fractional stock quantities ALLOWED on conversion remainders; the
@@ -209,9 +212,11 @@ comment on function post_stock_movement(uuid, uuid, uuid, text, numeric, text, t
   'THE inventory posting kernel (W2-2.5): validates the type contract, writes '
   'the ledger row, and moves the balance atomically under the level row lock — '
   'including the moving-average cost update on costed receipts and the on_hold '
-  'bucket on hold/release. Every balance mutation flows through here; future '
-  'modules (W2-3 procurement, logistics, maintenance) touch stock ONLY via '
-  'this function. Callers own orchestration (idempotency, status).';
+  'bucket on hold/release. Every LEDGER-BACKED balance mutation (on_hand, '
+  'on_hold, avg cost) flows through here; in_transit moves only in the '
+  'kernel-surface pair apply_po_approval (commit) / receipt with '
+  'p_affects_in_transit (drain). Future modules touch stock ONLY via this '
+  'function. Callers own orchestration (idempotency, status).';
 
 -- ============================================================
 -- 2d — record_stock_movements: the append-only ingestion entry

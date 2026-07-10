@@ -152,7 +152,7 @@ export interface PolicyInputs {
   moq: number | null;
   /** Days of demand one order should cover (the practical EOQ stand-in). */
   coverageDays: number;
-  /** Net stock position: on_hand + in_transit − allocated. Null when unknown. */
+  /** Net stock position: on_hand − on_hold + in_transit − allocated (netPosition). Null when unknown. */
   position: number | null;
 }
 

@@ -464,3 +464,6 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   is comparable across columns today; a dedicated compare strip is a nicety.
 - **Hero visual** — MG pulled the chain render for a clean opening; revisit the hero
   imagery "further down" (the optimized renders are held in `public/marketing/`).
+
+- [ ] W2-2.5 (Codex 2026-07-09): browser-level Playwright page-flow test for /inventory hold/release + PO receive conversion rail (jsdom RTL exists; page-level flow does not). Pairs with the standing Lighthouse-on-Preview ticket.
+- [ ] W2-2.5 (Codex 2026-07-09): MG decision — Wave-2 feature contract home: kickoff doc vs FEATURES.md backfill.

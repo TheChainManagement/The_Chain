@@ -26,6 +26,11 @@ decisions (recorded in `docs/NEXT_SESSION_KICKOFF_PROMPT.md` Status).
   - **2d THE POSTING KERNEL: `post_stock_movement()`** — validates the type
     contract, writes the ledger row, moves the balance (incl. moving-average
     on costed receipts + the hold bucket) atomically under the level row lock.
+    Precise contract (Codex round-1): every LEDGER-BACKED balance (on_hand,
+    on_hold, avg cost) posts through the kernel; `in_transit` is the one
+    non-ledger balance and moves only inside the kernel-surface pair
+    `apply_po_approval` (commit) / kernel receipt with `affects_in_transit`
+    (drain).
   - **`record_stock_movements()`** — the kernel's set-based, balance-NEUTRAL
     ingestion door for CSV/QBO historical movements (idempotent on the dedup
     key).
