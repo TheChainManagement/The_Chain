@@ -94,6 +94,39 @@ describe('mapRows — product_supplier (links)', () => {
     expect(res.errors).toHaveLength(0);
   });
 
+  it('auto-wires the purchase unit + conversion factor and keeps both attributes', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Units Per Case\nWID-1,Atlas Supply,54.00,7,case,12\n',
+    );
+    expect(res.errors).toHaveLength(0);
+    const a = res.payloads[0]?.attributes as {
+      purchaseUom: string;
+      purchaseToStockFactor: number;
+    };
+    expect(a.purchaseUom).toBe('case');
+    expect(a.purchaseToStockFactor).toBe(12);
+  });
+
+  it('accepts a fractional conversion factor', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Conversion Factor\nWID-1,Atlas Supply,4.50,7,kg,0.5\n',
+    );
+    expect(res.errors).toHaveLength(0);
+    const a = res.payloads[0]?.attributes as { purchaseToStockFactor: number };
+    expect(a.purchaseToStockFactor).toBe(0.5);
+  });
+
+  it('flags a non-numeric conversion factor', () => {
+    const res = map(
+      'product_supplier',
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Conversion Factor\nWID-1,Atlas Supply,4.50,7,case,twelve\n',
+    );
+    expect(res.payloads).toHaveLength(0);
+    expect(res.errors[0]?.code).toBe('invalid_number');
+  });
+
   it('requires cost + lead time, and flags a non-integer MOQ', () => {
     const res = map(
       'product_supplier',

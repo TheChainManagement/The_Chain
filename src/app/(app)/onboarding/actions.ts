@@ -111,7 +111,12 @@ export async function createFirstProduct(
   if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
   if (!role || !PRIVILEGED.has(role)) return { ok: false, error: PERMISSION_MESSAGE };
 
-  const { error } = await supabase.rpc('onboarding_seed_first_product', {
+  // W2-2.5: the seed posts the opening on-hand through the posting kernel, so
+  // the RPC runs under the service-role client (the role gate above is the
+  // authorization) and takes the verified tenant explicitly.
+  const admin = createSupabaseAdmin();
+  const { error } = await admin.rpc('onboarding_seed_first_product', {
+    p_tenant: tenantId,
     p_sku: sku,
     p_name: name,
     p_unit_of_measure: unitOfMeasure,

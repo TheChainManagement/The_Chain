@@ -268,6 +268,8 @@ export interface LinkInput {
   unitCost?: string;
   leadTimeDays?: string;
   moq?: string;
+  purchaseUom?: string;
+  purchaseToStockFactor?: string;
 }
 
 /** Parsed-number check: 'blank' | 'bad' | a finite number. */
@@ -301,7 +303,30 @@ export function validateLinkInput(input: LinkInput): ValidationResult {
       return { ok: false, error: `${label} must be a whole number of 0 or more.` };
     }
   }
+
+  // Purchase-unit conversion (W2-2.5): 1 purchase unit = factor stock units.
+  // The factor is a ratio, so fractions are fine; zero and below are not.
+  const factor = checkNumber(input.purchaseToStockFactor);
+  if (factor === 'bad' || (typeof factor === 'number' && factor <= 0)) {
+    return { ok: false, error: 'Units per purchase unit must be a number greater than 0.' };
+  }
+  const hasUom = Boolean(input.purchaseUom?.trim());
+  const hasFactor = typeof factor === 'number';
+  if (hasUom !== hasFactor) {
+    return {
+      ok: false,
+      error: 'Set both the purchase unit and its conversion factor, or neither.',
+    };
+  }
   return { ok: true };
+}
+
+/**
+ * Render a purchase-to-stock factor without trailing zeros (numeric(14,4) rows
+ * arrive as "12.0000"; the operator should read "12", and "0.5" stays "0.5").
+ */
+export function formatPurchaseFactor(factor: number): string {
+  return String(Number(factor.toFixed(4)));
 }
 
 export const PERMISSION_MESSAGE =

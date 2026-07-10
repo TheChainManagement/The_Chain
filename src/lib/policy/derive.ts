@@ -13,7 +13,7 @@
  *                    default
  *   service level  ← the existing policy row's saved value (the operator's
  *                    default survives recomputes), else the schema default 0.97
- *   position       ← inventory_levels (on_hand + in_transit − allocated);
+ *   position       ← inventory_levels (on_hand − on_hold + in_transit − allocated);
  *                    a product with no levels rows gets one policy row at the
  *                    tenant's first location with DOS/risk null (no on-hand
  *                    data is a fact, not a zero)
@@ -23,6 +23,7 @@
  * admin client (authorized at the action/cron gate, same as the batch).
  */
 
+import { netPosition } from '@/lib/inventory/position';
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
@@ -71,6 +72,7 @@ interface LevelRow {
   product_id: string;
   location_id: string;
   on_hand: number | string;
+  on_hold: number | string;
   allocated: number | string;
   in_transit: number | string;
 }
@@ -126,7 +128,7 @@ export async function derivePoliciesForRun(
       .returns<SupplierLinkRow[]>(),
     admin
       .from('inventory_levels')
-      .select('product_id, location_id, on_hand, allocated, in_transit')
+      .select('product_id, location_id, on_hand, on_hold, allocated, in_transit')
       .eq('tenant_id', params.tenantId)
       .in('product_id', productIds)
       .returns<LevelRow[]>(),
@@ -224,7 +226,7 @@ export async function derivePoliciesForRun(
       productLevels.length > 0
         ? productLevels.map((l) => ({
             locationId: l.location_id,
-            position: Number(l.on_hand) + Number(l.in_transit) - Number(l.allocated),
+            position: netPosition(l),
           }))
         : fallbackLocation
           ? [{ locationId: fallbackLocation, position: null }]

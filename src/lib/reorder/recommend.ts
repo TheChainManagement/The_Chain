@@ -15,7 +15,7 @@ export interface PolicyState {
   productId: string;
   locationId: string;
   supplierId: string | null;
-  /** Net stock: on_hand + in_transit − allocated. */
+  /** Net stock: on_hand − on_hold + in_transit − allocated. */
   position: number;
   reorderPoint: number;
   recommendedOrderQty: number;

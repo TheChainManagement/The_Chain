@@ -47,6 +47,11 @@ export const productSupplierAttributes = z.object({
   leadTimeDays: z.number().int().nonnegative().optional(),
   moq: z.number().int().nonnegative().optional(),
   isPrimary: z.boolean().default(false),
+  /** Unit this supplier sells in (W2-2.5); absent = same as the stock unit. */
+  purchaseUom: z.string().optional(),
+  /** 1 purchase unit = this many stock units. Fractional allowed, must be > 0.
+   * Both-or-neither with purchaseUom is enforced by the writer (bad_conversion). */
+  purchaseToStockFactor: z.number().optional(),
 });
 export type ProductSupplierAttributes = z.infer<typeof productSupplierAttributes>;
 

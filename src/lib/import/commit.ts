@@ -6,10 +6,14 @@
  * functions, one extra orchestration caller, no rewrite.
  *
  * Split of authority:
- *   - Master-data rows (products, suppliers, stock movements) write through the
- *     caller's RLS client, so the tenant + per-kind role gate is enforced at the
- *     data layer (products/suppliers: owner|manager|planner; movements:
- *     owner|manager|warehouse).
+ *   - Master-data rows (products, suppliers) write through the caller's RLS
+ *     client, so the tenant + role gate is enforced at the data layer
+ *     (owner|manager|planner).
+ *   - Stock movements (W2-2.5) enter through the posting kernel's ingestion
+ *     door (`record_stock_movements`, service-role): append-only,
+ *     balance-neutral, idempotent. The per-kind role gate in the import action
+ *     (movements: owner|manager|warehouse) is the authorization — member RLS
+ *     writes on the ledger are gone.
  *   - Bookkeeping (sync_runs, sync_failures) and one-time provisioning (the
  *     default "Primary" location) are "system" actions: members are select-only
  *     on those tables, so they write through the service-role admin client with
@@ -26,6 +30,7 @@
 
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { recordStockMovements } from '@/lib/inventory/post-movement';
 import type { CanonicalPayload, PullResultError } from '@/lib/source-adapter';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { CsvSourceAdapter } from './csv-adapter';
@@ -343,6 +348,8 @@ async function writeProductSupplierLinks(
       unitCost?: number;
       leadTimeDays?: number;
       moq?: number;
+      purchaseUom?: string;
+      purchaseToStockFactor?: number;
     };
     const productId = skuToId.get(a.productExternalId);
     if (!productId) {
@@ -364,6 +371,24 @@ async function writeProductSupplierLinks(
       });
       continue;
     }
+    // Purchase-unit conversion (W2-2.5): both-or-neither, factor strictly > 0
+    // (fractional allowed). Same rule the link form enforces; per-row, not fatal.
+    const purchaseUom = a.purchaseUom?.trim() || undefined;
+    const factor = a.purchaseToStockFactor;
+    if (
+      (purchaseUom === undefined) !== (factor === undefined) ||
+      (factor !== undefined && !(Number.isFinite(factor) && factor > 0))
+    ) {
+      rowErrors.push({
+        externalId: a.productExternalId,
+        row: item.sourceRow,
+        code: 'bad_conversion',
+        message:
+          `Link for "${a.productExternalId}" needs both a purchase unit and a ` +
+          'conversion factor greater than 0, or neither.',
+      });
+      continue;
+    }
     rows.push({
       product_id: productId,
       supplier_id: supplierId,
@@ -371,6 +396,8 @@ async function writeProductSupplierLinks(
       unit_cost: a.unitCost ?? null,
       lead_time_days: a.leadTimeDays ?? null,
       moq: a.moq ?? null,
+      purchase_uom: purchaseUom ?? null,
+      purchase_to_stock_factor: factor ?? null,
     });
   }
 
@@ -394,6 +421,8 @@ interface ProductSupplierRow {
   unit_cost: number | null;
   lead_time_days: number | null;
   moq: number | null;
+  purchase_uom: string | null;
+  purchase_to_stock_factor: number | null;
 }
 
 async function writeStockMovements(
@@ -477,29 +506,22 @@ async function writeStockMovements(
   const locationId = await ensurePrimaryLocation(admin, tenantId);
   const located = rows.map((r) => ({ ...r, location_id: locationId }));
 
-  const { data, error } = await tenantClient
-    .from('stock_movements')
-    .upsert(located, {
-      onConflict: 'tenant_id,source,source_ref,occurred_at',
-      ignoreDuplicates: true,
-    })
-    .select('id')
-    .returns<{ id: string }[]>();
+  // W2-2.5: historical movements enter through the kernel's ingestion door
+  // (record_stock_movements — append-only, balance-neutral, idempotent on the
+  // same natural key this upsert used). The member insert policy is gone; the
+  // per-kind role gate in the import action is the authorization.
+  const result = await recordStockMovements(admin, tenantId, located);
 
-  if (error) {
-    // RLS rejection (wrong role) lands here as a policy-violation error; with
-    // ignoreDuplicates an all-duplicate re-upload is NOT an error (empty data),
-    // so we trust the error object rather than an empty result.
+  if (!result.ok) {
     return {
       ok: false,
-      error: mapMovementWriteError(error.message),
+      error: mapMovementWriteError(result.error),
       count: 0,
       skipped: 0,
       rowErrors,
     };
   }
-  const inserted = data?.length ?? 0;
-  return { ok: true, count: inserted, skipped: rows.length - inserted, rowErrors };
+  return { ok: true, count: result.inserted, skipped: rows.length - result.inserted, rowErrors };
 }
 
 interface StockMovementRow {

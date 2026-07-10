@@ -10,6 +10,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { netPosition } from '@/lib/inventory/position';
 import {
   chooseLeadTime,
   type DemandStats,
@@ -81,7 +82,7 @@ export interface WhatIfInputs {
   demand: DemandStats;
   /** Saved policy parameter — the sliders' starting position. */
   serviceLevel: number;
-  /** Net position (on_hand + in_transit − allocated); null when unknown. */
+  /** Net position (on_hand − on_hold + in_transit − allocated); null when unknown. */
   position: number | null;
   suppliers: WhatIfSupplierOption[];
   /** The supplier the saved policy is based on (primary). */
@@ -147,11 +148,12 @@ export async function loadWhatIfInputs(
       >(),
     supabase
       .from('inventory_levels')
-      .select('on_hand, allocated, in_transit')
+      .select('on_hand, on_hold, allocated, in_transit')
       .eq('product_id', productId)
       .eq('location_id', policy.location_id)
       .maybeSingle<{
         on_hand: number | string;
+        on_hold: number | string;
         allocated: number | string;
         in_transit: number | string;
       }>(),
@@ -221,9 +223,7 @@ export async function loadWhatIfInputs(
     locationName: policy.locations?.name ?? '—',
     demand,
     serviceLevel: Number(policy.service_level),
-    position: level
-      ? Number(level.on_hand) + Number(level.in_transit) - Number(level.allocated)
-      : null,
+    position: level ? netPosition(level) : null,
     suppliers,
     primarySupplierId: suppliers.find((s) => s.isPrimary)?.supplierId ?? null,
     coverageDays,

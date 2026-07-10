@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
+import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { InventoryListRow } from '@/lib/inventory/queries';
 import {
   ADJUSTMENT_REASONS,
@@ -10,7 +11,7 @@ import {
   ISSUE_REASONS,
 } from '@/lib/storeroom/constants';
 import styles from './inventory.module.css';
-import { adjustStock, issueStock } from './storeroom-actions';
+import { adjustStock, holdStock, issueStock } from './storeroom-actions';
 
 /**
  * OperatorPanel (W2-2) — the issue-out / adjustment surface that opens under
@@ -23,7 +24,13 @@ import { adjustStock, issueStock } from './storeroom-actions';
 
 const fmtQty = (n: number): string => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-export type OperatorMode = 'issue' | 'adjust';
+export type OperatorMode = 'issue' | 'adjust' | 'hold';
+
+/** Hold reason vocabulary (W2-2.5). Release always posts the fixed 'release' code. */
+const HOLD_REASONS = [
+  { value: 'qc_hold', label: 'Quality hold' },
+  { value: 'damage_hold', label: 'Damage hold' },
+] as const;
 
 export function OperatorPanel({
   mode,
@@ -36,11 +43,13 @@ export function OperatorPanel({
   onDone: () => void;
   onCancel: () => void;
 }): React.ReactNode {
-  return mode === 'issue' ? (
-    <IssueForm rows={rows} onDone={onDone} onCancel={onCancel} />
-  ) : (
-    <AdjustForm row={rows[0]} onDone={onDone} onCancel={onCancel} />
-  );
+  if (mode === 'issue') {
+    return <IssueForm rows={rows} onDone={onDone} onCancel={onCancel} />;
+  }
+  if (mode === 'hold') {
+    return <HoldForm row={rows[0]} onDone={onDone} onCancel={onCancel} />;
+  }
+  return <AdjustForm row={rows[0]} onDone={onDone} onCancel={onCancel} />;
 }
 
 function IssueForm({
@@ -326,6 +335,159 @@ function AdjustForm({
         </ActionButton>
         <ActionButton onClick={submit} loading={isPending}>
           Apply adjustment
+        </ActionButton>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * HoldForm (W2-2.5) — move stock into or out of the held sub-bucket. Held units
+ * stay on the shelf and in valuation but leave available-to-promise. The panel
+ * stays open after a post and shows the returned level, so the idempotency key
+ * rotates on success (each subsequent post is a new event, not a replay).
+ */
+function HoldForm({
+  row,
+  onDone,
+  onCancel,
+}: {
+  row: InventoryListRow | undefined;
+  onDone: () => void;
+  onCancel: () => void;
+}): React.ReactNode {
+  const [movement, setMovement] = useState<'hold' | 'release'>('hold');
+  const [qtyRaw, setQtyRaw] = useState('');
+  const [reason, setReason] = useState('');
+  const [note, setNote] = useState('');
+  const [posted, setPosted] = useState<{ onHand: number | null; onHold: number | null } | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  // Rotates after every successful post — the panel stays open for the next one.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+
+  if (!row) return null;
+  const qty = Number(qtyRaw);
+  const validQty = Number.isFinite(qty) && qty > 0;
+
+  function submit(): void {
+    if (!row) return;
+    setError(null);
+    if (!validQty) {
+      setError('Enter a quantity greater than zero.');
+      return;
+    }
+    if (movement === 'hold' && !reason) {
+      setError('Pick a reason for the hold.');
+      return;
+    }
+    startTransition(async () => {
+      const result = await holdStock({
+        productId: row.id,
+        movement,
+        qty,
+        reasonCode: movement === 'release' ? 'release' : reason,
+        note: note.trim() || undefined,
+        idempotencyKey,
+      });
+      if (!result.ok) {
+        setError(result.error);
+      } else {
+        setPosted({ onHand: result.onHand, onHold: result.onHold });
+        setQtyRaw('');
+        setIdempotencyKey(crypto.randomUUID());
+      }
+    });
+  }
+
+  return (
+    <section className={styles.opPanel} aria-label="Hold or release stock">
+      <span className={styles.addEyebrow}>
+        Hold / release · {row.sku} — {row.name}
+      </span>
+
+      <div className={styles.opShared}>
+        <div className={styles.addField}>
+          <span className={styles.addLabel}>Direction</span>
+          <fieldset className={styles.segmented}>
+            <legend className={styles.srOnly}>Hold or release</legend>
+            {(['hold', 'release'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={`${styles.segment} ${movement === m ? styles.segmentActive : ''}`}
+                aria-pressed={movement === m}
+                onClick={() => setMovement(m)}
+              >
+                {m === 'hold' ? 'Hold' : 'Release'}
+              </button>
+            ))}
+          </fieldset>
+        </div>
+        <label className={styles.addField}>
+          <span className={styles.addLabel}>Quantity</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            className={styles.addInput}
+            value={qtyRaw}
+            onChange={(e) => setQtyRaw(e.target.value)}
+            placeholder="0"
+            autoComplete="off"
+          />
+        </label>
+        {movement === 'hold' ? (
+          <label className={styles.addField}>
+            <span className={styles.addLabel}>Reason</span>
+            <select
+              className={styles.addInput}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            >
+              <option value="">Pick one</option>
+              {HOLD_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <label className={styles.addField}>
+          <span className={styles.addLabel}>Note</span>
+          <input
+            type="text"
+            className={styles.addInput}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional"
+            autoComplete="off"
+          />
+        </label>
+      </div>
+
+      {posted ? (
+        <p className={styles.opHoldReadout} role="status" aria-label="Level after posting">
+          On hand <StatNumber value={posted.onHand == null ? null : fmtQty(posted.onHand)} /> · Held{' '}
+          <StatNumber value={posted.onHold == null ? null : fmtQty(posted.onHold)} />
+        </p>
+      ) : null}
+
+      {error ? (
+        <p className={styles.formError} role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className={styles.opActions}>
+        <ActionButton variant="secondary" onClick={posted ? onDone : onCancel} disabled={isPending}>
+          {posted ? 'Done' : 'Cancel'}
+        </ActionButton>
+        <ActionButton onClick={submit} loading={isPending}>
+          {movement === 'hold' ? 'Hold stock' : 'Release stock'}
         </ActionButton>
       </div>
     </section>

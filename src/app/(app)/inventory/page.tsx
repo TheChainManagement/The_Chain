@@ -5,12 +5,14 @@ import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { listInventory, productIdsForSupplier } from '@/lib/inventory/queries';
 import { normalizeStatusFilter, sanitizeSearch } from '@/lib/inventory/transform';
+import { getValuationSummary } from '@/lib/inventory/valuation';
 import { loadOperatingProfile } from '@/lib/modes/resolver';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
 import { AddSku } from './AddSku';
 import { InventoryControls } from './InventoryControls';
 import { InventoryLedger } from './InventoryLedger';
+import { ValuationStrip } from './ValuationStrip';
 
 export const metadata = { title: 'Inventory · The Chain' };
 
@@ -43,7 +45,10 @@ export default async function InventoryPage({
 
   // Supplier filter resolves to a product-id set the list query intersects with.
   const productIds = supplierId ? await productIdsForSupplier(supabase, supplierId) : null;
-  const rows = await listInventory(supabase, { search, status, productIds });
+  const [rows, valuation] = await Promise.all([
+    listInventory(supabase, { search, status, productIds }),
+    getValuationSummary(supabase),
+  ]);
 
   return (
     <div className={pageStyles.stack}>
@@ -62,6 +67,10 @@ export default async function InventoryPage({
           </div>
         }
       />
+
+      {valuation && (valuation.totalValue != null || valuation.uncostedSkus > 0) ? (
+        <ValuationStrip summary={valuation} />
+      ) : null}
 
       <InventoryControls
         search={search}

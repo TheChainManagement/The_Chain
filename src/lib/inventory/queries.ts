@@ -56,7 +56,7 @@ export async function listInventory(
   let query = supabase
     .from('inventory_list_v')
     .select(
-      'id, sku, name, status, unit_of_measure, on_hand, allocated, in_transit, abc_class, xyz_class',
+      'id, sku, name, status, unit_of_measure, on_hand, on_hold, allocated, in_transit, total_value, abc_class, xyz_class',
     )
     .order('sku', { ascending: true });
 
@@ -108,9 +108,10 @@ export async function getProductDetail(
     .from('products')
     .select(
       `id, sku, name, description, unit_of_measure, status, attributes, created_at, updated_at,
-       inventory_levels ( location_id, on_hand, allocated, in_transit, last_counted_at,
+       inventory_levels ( location_id, on_hand, on_hold, allocated, in_transit, last_counted_at,
          locations ( name, type ) ),
        product_suppliers ( supplier_id, supplier_sku, unit_cost, lead_time_days, moq, is_primary,
+         purchase_uom, purchase_to_stock_factor,
          suppliers ( name ) ),
        product_classifications ( abc_class, xyz_class, annual_consumption_value, computed_at, location_id )`,
     )

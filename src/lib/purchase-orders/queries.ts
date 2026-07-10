@@ -49,7 +49,8 @@ export async function getPurchaseOrder(
        total, expected_delivery_at, actual_delivery_at, created_at, updated_at,
        suppliers ( name ),
        purchase_order_lines ( line_no, product_id, ordered_qty, received_qty, unit_cost,
-         products ( sku, name ) )`,
+         products ( sku, name, unit_of_measure,
+           product_suppliers ( supplier_id, purchase_uom, purchase_to_stock_factor ) ) )`,
     )
     .eq('id', poId)
     .maybeSingle<RawPurchaseOrderDetail>();

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildReliabilityRibbon,
   formatOpenPoError,
+  formatPurchaseFactor,
   mapSupplierDetail,
   mapSupplierListRow,
   mapSupplierWriteError,
@@ -209,6 +210,52 @@ describe('validateLinkInput', () => {
     expect(
       validateLinkInput({ supplierId: 's', unitCost: '1.25', leadTimeDays: '7', moq: '1' }),
     ).toEqual({ ok: true });
+  });
+  it('rejects a conversion factor without a purchase unit', () => {
+    const res = validateLinkInput({ supplierId: 's', purchaseToStockFactor: '12' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/both.*or neither/i);
+  });
+  it('rejects a purchase unit without a conversion factor', () => {
+    const res = validateLinkInput({ supplierId: 's', purchaseUom: 'case' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/both.*or neither/i);
+  });
+  it('accepts a fractional conversion factor', () => {
+    expect(
+      validateLinkInput({ supplierId: 's', purchaseUom: 'kg', purchaseToStockFactor: '0.5' }),
+    ).toEqual({ ok: true });
+  });
+  it('rejects a zero conversion factor', () => {
+    expect(
+      validateLinkInput({ supplierId: 's', purchaseUom: 'case', purchaseToStockFactor: '0' }).ok,
+    ).toBe(false);
+  });
+  it('rejects a negative conversion factor', () => {
+    expect(
+      validateLinkInput({ supplierId: 's', purchaseUom: 'case', purchaseToStockFactor: '-3' }).ok,
+    ).toBe(false);
+  });
+  it('rejects a non-numeric conversion factor', () => {
+    expect(
+      validateLinkInput({ supplierId: 's', purchaseUom: 'case', purchaseToStockFactor: 'abc' }).ok,
+    ).toBe(false);
+  });
+  it('accepts both purchase fields blank', () => {
+    expect(
+      validateLinkInput({ supplierId: 's', purchaseUom: '', purchaseToStockFactor: '' }),
+    ).toEqual({ ok: true });
+  });
+});
+
+describe('formatPurchaseFactor', () => {
+  it('trims trailing zeros from a numeric(14,4) factor', () => {
+    expect(formatPurchaseFactor(12)).toBe('12');
+    expect(formatPurchaseFactor(Number('12.0000'))).toBe('12');
+  });
+  it('keeps a fractional factor intact', () => {
+    expect(formatPurchaseFactor(0.5)).toBe('0.5');
+    expect(formatPurchaseFactor(2.25)).toBe('2.25');
   });
 });
 

@@ -21,6 +21,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ensurePrimaryLocation } from '@/lib/import/commit';
 import { movementSourceRef, parseOccurredAt } from '@/lib/import/writers-shared';
+import { type HistoricalMovementRow, recordStockMovements } from '@/lib/inventory/post-movement';
 import type {
   CanonicalPayload,
   Cursor,
@@ -402,15 +403,17 @@ async function applyMovementDeltas(
 
   const locationId = await ensurePrimaryLocation(admin, tenantId);
   const rows = staged.map((r) => ({ ...r, location_id: locationId }));
-  // ignoreDuplicates makes a replay-safe re-run insert nothing; the returned rows
-  // are ONLY the newly inserted ones, so the count is the real delta — not the
-  // attempted rows (a re-run reports 0 new movements, not a phantom batch).
-  const { data, error } = await admin
-    .from('stock_movements')
-    .upsert(rows, { onConflict: 'tenant_id,source,source_ref,occurred_at', ignoreDuplicates: true })
-    .select('id');
-  if (error) throw new Error(`movement delta upsert failed: ${error.message}`);
-  summary.movements += data?.length ?? 0;
+  // W2-2.5: deltas enter through the kernel's ingestion door — append-only,
+  // balance-neutral, replay-safe on the dedup key. The returned count is ONLY
+  // the newly inserted rows, so a re-run reports 0 new movements, not a
+  // phantom batch.
+  const written = await recordStockMovements(
+    admin,
+    tenantId,
+    rows as unknown as HistoricalMovementRow[],
+  );
+  if (!written.ok) throw new Error(`movement delta ingest failed: ${written.error}`);
+  summary.movements += written.inserted;
 }
 
 // ---------- conflict logging ----------

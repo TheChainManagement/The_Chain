@@ -132,6 +132,8 @@ describe('mapProductDetail', () => {
             lead_time_days: 7,
             moq: 1,
             is_primary: false,
+            purchase_uom: null,
+            purchase_to_stock_factor: null,
             suppliers: { name: 'Alt' },
           },
           {
@@ -141,6 +143,8 @@ describe('mapProductDetail', () => {
             lead_time_days: 5,
             moq: 1,
             is_primary: true,
+            purchase_uom: 'case',
+            purchase_to_stock_factor: '12.0000',
             suppliers: { name: 'Primary' },
           },
         ],
@@ -148,6 +152,10 @@ describe('mapProductDetail', () => {
     );
     expect(d.suppliers[0]?.isPrimary).toBe(true);
     expect(d.suppliers[0]?.supplierName).toBe('Primary');
+    // W2-2.5: the purchase-unit conversion rides the link (numeric arrives as text).
+    expect(d.suppliers[0]?.purchaseUom).toBe('case');
+    expect(d.suppliers[0]?.purchaseToStockFactor).toBe(12);
+    expect(d.suppliers[1]?.purchaseUom).toBeNull();
   });
 
   it('defaults attributes to an empty object', () => {

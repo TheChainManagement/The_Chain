@@ -16,6 +16,7 @@
  * writable, but generation is a system action authorized at the gate/step).
  */
 
+import { netPosition } from '@/lib/inventory/position';
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { recommendFor } from '@/lib/reorder/recommend';
@@ -47,6 +48,7 @@ interface LevelRow {
   product_id: string;
   location_id: string;
   on_hand: number | string;
+  on_hold: number | string;
   allocated: number | string;
   in_transit: number | string;
 }
@@ -82,7 +84,7 @@ export async function generateReorderRecommendations(
   const [levelsRes, primaryRes, existingRes] = await Promise.all([
     admin
       .from('inventory_levels')
-      .select('product_id, location_id, on_hand, allocated, in_transit')
+      .select('product_id, location_id, on_hand, on_hold, allocated, in_transit')
       .eq('tenant_id', params.tenantId)
       .in('product_id', productIds)
       .returns<LevelRow[]>(),
@@ -110,10 +112,7 @@ export async function generateReorderRecommendations(
 
   const positionByKey = new Map<string, number>();
   for (const l of levels ?? []) {
-    positionByKey.set(
-      `${l.product_id}:${l.location_id}`,
-      Number(l.on_hand) + Number(l.in_transit) - Number(l.allocated),
-    );
+    positionByKey.set(`${l.product_id}:${l.location_id}`, netPosition(l));
   }
   const supplierByProduct = new Map((primary ?? []).map((p) => [p.id, p.primary_supplier_id]));
   const openByKey = new Map((existing ?? []).map((e) => [`${e.product_id}:${e.location_id}`, e]));

@@ -100,9 +100,13 @@ describe('role matrix — viewer', () => {
 });
 
 describe('role matrix — warehouse', () => {
-  it('CAN update inventory_levels but CANNOT update products', async () => {
+  it('CANNOT update inventory_levels directly (W2-2.5 kernel) nor products', async () => {
     await as('warehouse');
-    expect(await updateCount('inventory_levels')).toBeGreaterThan(0);
+    // W2-2.5: the member write policies on inventory_levels are gone — balances
+    // mutate ONLY through the posting kernel (service-role RPC path, authorized
+    // at the action gate). Warehouse keeps its operational power via the
+    // issue/adjust/count/hold actions, not via direct table writes.
+    expect(await updateCount('inventory_levels')).toBe(0);
     expect(await updateCount('products')).toBe(0);
   });
 });

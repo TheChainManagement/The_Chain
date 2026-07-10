@@ -210,12 +210,21 @@ export async function linkSupplier(
   const unitCost = String(formData.get('unit_cost') ?? '');
   const leadTime = String(formData.get('lead_time_days') ?? '');
   const moq = String(formData.get('moq') ?? '');
+  const purchaseUom = String(formData.get('purchase_uom') ?? '').trim();
+  const purchaseFactor = String(formData.get('purchase_to_stock_factor') ?? '');
   const isPrimary = formData.get('is_primary') != null;
 
   if (!productId) {
     return { ok: false, error: 'Missing product reference.' };
   }
-  const valid = validateLinkInput({ supplierId, unitCost, leadTimeDays: leadTime, moq });
+  const valid = validateLinkInput({
+    supplierId,
+    unitCost,
+    leadTimeDays: leadTime,
+    moq,
+    purchaseUom,
+    purchaseToStockFactor: purchaseFactor,
+  });
   if (!valid.ok) {
     return valid;
   }
@@ -232,6 +241,9 @@ export async function linkSupplier(
     p_lead_time_days: parseIntOrNull(leadTime),
     p_moq: parseIntOrNull(moq),
     p_is_primary: isPrimary,
+    // Purchase-unit conversion (W2-2.5): both null = buys in the stock unit.
+    p_purchase_uom: purchaseUom || null,
+    p_purchase_to_stock_factor: parseNumOrNull(purchaseFactor),
   });
 
   if (error) {

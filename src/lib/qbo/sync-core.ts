@@ -38,6 +38,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ensurePrimaryLocation } from '@/lib/import/commit';
 import { movementSourceRef, parseOccurredAt } from '@/lib/import/writers-shared';
+import { type HistoricalMovementRow, recordStockMovements } from '@/lib/inventory/post-movement';
 import type {
   CanonicalPayload,
   Cursor,
@@ -321,18 +322,26 @@ async function syncMovements(
   if (staged.length > 0) {
     const locationId = await ensurePrimaryLocation(admin, tenantId);
     const rows = staged.map((r) => ({ ...r, location_id: locationId }));
-    // ignoreDuplicates makes a re-sync idempotent (re-uploaded movements collide
-    // on the QBO entity ref and are skipped). The return value is "newly inserted
-    // this run", not a headline count — see below.
-    await upsertBatched(admin, syncRunId, 'stock_movement', results, rows, (batch) =>
-      admin
-        .from('stock_movements')
-        .upsert(batch, {
-          onConflict: 'tenant_id,source,source_ref,occurred_at',
-          ignoreDuplicates: true,
-        })
-        .select('id'),
-    );
+    // W2-2.5: batches enter through the kernel's ingestion door — append-only,
+    // balance-neutral, idempotent on the QBO entity ref (a re-sync collides and
+    // is skipped, same dedup key the direct upsert used).
+    for (let offset = 0; offset < rows.length; offset += BATCH) {
+      const batch = rows.slice(offset, offset + BATCH);
+      const written = await recordStockMovements(
+        admin,
+        tenantId,
+        batch as unknown as HistoricalMovementRow[],
+      );
+      if (!written.ok) throw new Error(`stock_movement ingest failed: ${written.error}`);
+      await writeProgress(
+        admin,
+        syncRunId,
+        'stock_movement',
+        results,
+        offset + batch.length,
+        rows.length,
+      );
+    }
   }
 
   // Only genuine problems are errors: schema failures from the adapter + rows we

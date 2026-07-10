@@ -200,6 +200,29 @@ const PRODUCT_SUPPLIER_FIELDS: readonly CanonicalFieldSpec[] = [
     aliases: ['suppliersku', 'vendorsku', 'supplierpart', 'vendorpart', 'supplierpartnumber'],
     hint: "The supplier's own part number for this item.",
   },
+  {
+    key: 'purchaseUom',
+    label: 'Purchase unit',
+    required: false,
+    type: 'string',
+    aliases: ['purchaseuom', 'purchaseunit', 'buyunit', 'caseunit', 'orderunit'],
+    hint: 'Unit this supplier sells in, e.g. case. Needs a conversion factor.',
+  },
+  {
+    key: 'purchaseToStockFactor',
+    label: 'Units per purchase unit',
+    required: false,
+    type: 'number',
+    aliases: [
+      'factor',
+      'conversionfactor',
+      'unitspercase',
+      'unitsperpurchaseunit',
+      'packsize',
+      'casepack',
+    ],
+    hint: 'Stock units per purchase unit, e.g. 12. Fractions allowed.',
+  },
 ];
 
 const STOCK_MOVEMENT_FIELDS: readonly CanonicalFieldSpec[] = [

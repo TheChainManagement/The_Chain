@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { ensurePrimaryLocation } from '@/lib/import/commit';
+import { postStockHold } from '@/lib/inventory/post-movement';
 import { isDemandRefType } from '@/lib/storeroom/constants';
 import { postAdjustment, postIssue } from '@/lib/storeroom/post';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -134,4 +135,53 @@ export async function adjustStock(input: {
   revalidatePath('/inventory');
   revalidatePath(`/inventory/${input.productId}`);
   return { ok: true, onHand: result.onHand };
+}
+
+export type HoldActionState =
+  | { ok: true; onHand: number | null; onHold: number | null }
+  | { ok: false; error: string };
+
+export async function holdStock(input: {
+  productId: string;
+  movement: 'hold' | 'release';
+  qty: number;
+  reasonCode: string;
+  note?: string;
+  idempotencyKey: string;
+}): Promise<HoldActionState> {
+  const operator = await resolveOperator();
+  if (!operator) return { ok: false, error: PERMISSION_MESSAGE };
+
+  if (!input.productId) return { ok: false, error: 'Missing product reference.' };
+  if (input.movement !== 'hold' && input.movement !== 'release') {
+    return { ok: false, error: 'That movement is not a hold or release.' };
+  }
+  if (!Number.isFinite(input.qty) || input.qty <= 0) {
+    return { ok: false, error: 'Enter a quantity greater than zero.' };
+  }
+  if (!(input.reasonCode ?? '').trim()) {
+    return { ok: false, error: 'Pick a reason for the hold.' };
+  }
+  if (!input.idempotencyKey) {
+    return { ok: false, error: 'Could not record the hold. Refresh and try again.' };
+  }
+
+  const admin = createSupabaseAdmin();
+  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  const result = await postStockHold(admin, {
+    tenantId: operator.tenantId,
+    locationId,
+    productId: input.productId,
+    movement: input.movement,
+    qty: input.qty,
+    reasonCode: input.reasonCode.trim(),
+    note: input.note || null,
+    actorUserId: operator.userId,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath('/inventory');
+  revalidatePath(`/inventory/${input.productId}`);
+  return { ok: true, onHand: result.onHand, onHold: result.onHold };
 }

@@ -18,8 +18,12 @@ export interface InventoryListRow {
   status: ProductStatus;
   unitOfMeasure: string | null;
   onHand: number;
+  /** Held sub-bucket of on-hand (W2-2.5): on the shelf, excluded from ATP. */
+  onHold: number;
   allocated: number;
   inTransit: number;
+  /** Valuation from the view (on_hand × avg cost); null off the view path. */
+  totalValue: number | null;
   abcClass: string | null;
   xyzClass: string | null;
 }
@@ -29,8 +33,11 @@ export interface ProductLocationPosition {
   locationName: string | null;
   locationType: string | null;
   onHand: number;
+  /** Held sub-bucket of on_hand (W2-2.5): still owned, not available. */
+  onHold: number;
   allocated: number;
   inTransit: number;
+  /** Available-to-promise: on_hand − on_hold − allocated (in-transit shown separately). */
   available: number;
   lastCountedAt: string | null;
 }
@@ -43,6 +50,10 @@ export interface ProductSupplierLink {
   leadTimeDays: number | null;
   moq: number | null;
   isPrimary: boolean;
+  /** Unit this supplier sells in (W2-2.5); null = same as the stock unit. */
+  purchaseUom: string | null;
+  /** 1 purchase unit = this many stock units; null = 1. */
+  purchaseToStockFactor: number | null;
 }
 
 export interface ProductClassification {
@@ -75,6 +86,7 @@ export interface ProductDetail {
 
 export interface RawLevel {
   on_hand: number | string;
+  on_hold?: number | string | null;
   allocated: number | string;
   in_transit: number | string;
 }
@@ -96,6 +108,7 @@ export interface RawListProduct {
 export interface RawDetailLevel {
   location_id: string;
   on_hand: number | string;
+  on_hold?: number | string;
   allocated: number | string;
   in_transit: number | string;
   last_counted_at: string | null;
@@ -108,6 +121,8 @@ export interface RawDetailSupplier {
   lead_time_days: number | null;
   moq: number | null;
   is_primary: boolean;
+  purchase_uom: string | null;
+  purchase_to_stock_factor: number | string | null;
   suppliers: { name: string | null } | null;
 }
 export interface RawDetailClass {
@@ -155,8 +170,10 @@ export interface RawInventoryViewRow {
   status: ProductStatus;
   unit_of_measure: string | null;
   on_hand: number | string;
+  on_hold: number | string | null;
   allocated: number | string;
   in_transit: number | string;
+  total_value: number | string | null;
   abc_class: string | null;
   xyz_class: string | null;
 }
@@ -169,8 +186,10 @@ export function mapViewRow(r: RawInventoryViewRow): InventoryListRow {
     status: r.status,
     unitOfMeasure: r.unit_of_measure,
     onHand: num(r.on_hand),
+    onHold: num(r.on_hold),
     allocated: num(r.allocated),
     inTransit: num(r.in_transit),
+    totalValue: r.total_value == null ? null : num(r.total_value),
     abcClass: r.abc_class,
     xyzClass: r.xyz_class,
   };
@@ -186,8 +205,11 @@ export function mapListRow(p: RawListProduct): InventoryListRow {
     status: p.status,
     unitOfMeasure: p.unit_of_measure,
     onHand: levels.reduce((s, l) => s + num(l.on_hand), 0),
+    onHold: levels.reduce((s, l) => s + num(l.on_hold), 0),
     allocated: levels.reduce((s, l) => s + num(l.allocated), 0),
     inTransit: levels.reduce((s, l) => s + num(l.in_transit), 0),
+    // Valuation is a view-path concern (avg cost join); the embed path has none.
+    totalValue: null,
     abcClass: cls?.abc_class ?? null,
     xyzClass: cls?.xyz_class ?? null,
   };
@@ -196,15 +218,17 @@ export function mapListRow(p: RawListProduct): InventoryListRow {
 export function mapProductDetail(data: RawDetailProduct): ProductDetail {
   const positions: ProductLocationPosition[] = (data.inventory_levels ?? []).map((l) => {
     const onHand = num(l.on_hand);
+    const onHold = num(l.on_hold);
     const allocated = num(l.allocated);
     return {
       locationId: l.location_id,
       locationName: l.locations?.name ?? null,
       locationType: l.locations?.type ?? null,
       onHand,
+      onHold,
       allocated,
       inTransit: num(l.in_transit),
-      available: onHand - allocated,
+      available: onHand - onHold - allocated,
       lastCountedAt: l.last_counted_at,
     };
   });
@@ -228,6 +252,9 @@ export function mapProductDetail(data: RawDetailProduct): ProductDetail {
       leadTimeDays: s.lead_time_days,
       moq: s.moq,
       isPrimary: s.is_primary,
+      purchaseUom: s.purchase_uom,
+      purchaseToStockFactor:
+        s.purchase_to_stock_factor == null ? null : num(s.purchase_to_stock_factor),
     }))
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 

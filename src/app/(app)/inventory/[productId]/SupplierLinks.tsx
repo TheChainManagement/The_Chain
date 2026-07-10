@@ -6,8 +6,10 @@ import { useFormStatus } from 'react-dom';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { UomPicker } from '@/components/UomPicker/UomPicker';
 import type { ProductSupplierLink } from '@/lib/inventory/queries';
 import type { SupplierOption } from '@/lib/suppliers/queries';
+import { formatPurchaseFactor } from '@/lib/suppliers/transform';
 import {
   type LinkActionState,
   linkSupplier,
@@ -127,6 +129,20 @@ export function SupplierLinks({
                   <span className={styles.supMetaLabel}>MOQ</span>
                   <StatNumber value={s.moq} />
                 </span>
+                {s.purchaseUom ? (
+                  <span className={styles.supMetaItem}>
+                    <span className={styles.supMetaLabel}>Buys</span>
+                    <StatNumber
+                      value={
+                        s.purchaseToStockFactor == null
+                          ? null
+                          : formatPurchaseFactor(s.purchaseToStockFactor)
+                      }
+                      unit={`${s.purchaseUom} ×`}
+                      unitPosition="prefix"
+                    />
+                  </span>
+                ) : null}
                 <span className={styles.supRowActions}>
                   {!s.isPrimary ? (
                     <button
@@ -211,6 +227,27 @@ export function SupplierLinks({
               />
             </label>
           </div>
+
+          <div className={styles.linkRow}>
+            <div className={styles.linkField}>
+              <span className={styles.linkLabel}>Purchase unit</span>
+              <UomPicker name="purchase_uom" className={styles.linkSelect} />
+            </div>
+            <label className={styles.linkField}>
+              <span className={styles.linkLabel}>Units per purchase unit</span>
+              <input
+                name="purchase_to_stock_factor"
+                type="text"
+                inputMode="decimal"
+                className={styles.linkInput}
+                placeholder="12"
+                autoComplete="off"
+              />
+            </label>
+          </div>
+          <p className={styles.linkHint}>
+            Cost is per purchase unit. Leave blank when you buy in the stock unit.
+          </p>
 
           <label className={styles.linkCheck}>
             <input name="is_primary" type="checkbox" />

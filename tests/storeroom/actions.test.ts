@@ -17,6 +17,7 @@ const h = vi.hoisted(() => ({
   } as Record<string, string> | null,
   postIssue: vi.fn(),
   postAdjustment: vi.fn(),
+  postStockHold: vi.fn(),
   closeCycleCount: vi.fn(),
   ensurePrimaryLocation: vi.fn(async () => 'loc1'),
   revalidatePath: vi.fn(),
@@ -33,11 +34,12 @@ vi.mock('@/lib/storeroom/post', () => ({
   postAdjustment: h.postAdjustment,
   closeCycleCount: h.closeCycleCount,
 }));
+vi.mock('@/lib/inventory/post-movement', () => ({ postStockHold: h.postStockHold }));
 vi.mock('@/lib/import/commit', () => ({ ensurePrimaryLocation: h.ensurePrimaryLocation }));
 vi.mock('next/cache', () => ({ revalidatePath: h.revalidatePath }));
 
-import { adjustStock, issueStock } from '@/app/(app)/inventory/storeroom-actions';
 import { closeCountSession } from '@/app/(app)/inventory/cycle-counts/actions';
+import { adjustStock, holdStock, issueStock } from '@/app/(app)/inventory/storeroom-actions';
 
 const issueInput = {
   movement: 'issue_out' as const,
@@ -55,6 +57,8 @@ beforeEach(() => {
   h.postIssue.mockResolvedValue({ ok: true, applied: true, lines: 1, totalQty: 3 });
   h.postAdjustment.mockReset();
   h.postAdjustment.mockResolvedValue({ ok: true, applied: true, onHand: 10 });
+  h.postStockHold.mockReset();
+  h.postStockHold.mockResolvedValue({ ok: true, applied: true, onHand: 10, onHold: 4 });
   h.closeCycleCount.mockReset();
   h.closeCycleCount.mockResolvedValue({
     ok: true,
@@ -110,9 +114,9 @@ describe('issueStock validation', () => {
   it('rejects a blank reference, empty lines, and non-positive quantities', async () => {
     expect((await issueStock({ ...issueInput, demandRefId: '  ' })).ok).toBe(false);
     expect((await issueStock({ ...issueInput, lines: [] })).ok).toBe(false);
-    expect(
-      (await issueStock({ ...issueInput, lines: [{ productId: 'p1', qty: 0 }] })).ok,
-    ).toBe(false);
+    expect((await issueStock({ ...issueInput, lines: [{ productId: 'p1', qty: 0 }] })).ok).toBe(
+      false,
+    );
     expect((await issueStock({ ...issueInput, idempotencyKey: '' })).ok).toBe(false);
     expect(h.postIssue).not.toHaveBeenCalled();
   });
@@ -159,6 +163,86 @@ describe('adjustStock', () => {
     expect((await adjustStock({ ...input, delta: 0 })).ok).toBe(false);
     expect((await adjustStock({ ...input, reasonCode: ' ' })).ok).toBe(false);
     expect(h.postAdjustment).not.toHaveBeenCalled();
+  });
+});
+
+describe('holdStock', () => {
+  const input = {
+    productId: 'p1',
+    movement: 'hold' as const,
+    qty: 4,
+    reasonCode: 'qc_hold',
+    idempotencyKey: 'k4',
+  };
+
+  it.each(['owner', 'manager', 'warehouse'])('allows %s and maps the call', async (role) => {
+    h.claims = { tenant_id: 't1', tenant_role: role, sub: 'u1' };
+    const result = await holdStock(input);
+    expect(result).toEqual({ ok: true, onHand: 10, onHold: 4 });
+    expect(h.postStockHold).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        tenantId: 't1',
+        locationId: 'loc1',
+        productId: 'p1',
+        movement: 'hold',
+        qty: 4,
+        reasonCode: 'qc_hold',
+        actorUserId: 'u1',
+        idempotencyKey: 'k4',
+      }),
+    );
+    expect(h.revalidatePath).toHaveBeenCalledWith('/inventory');
+  });
+
+  it.each(['planner', 'viewer'])('rejects %s before any write', async (role) => {
+    h.claims = { tenant_id: 't1', tenant_role: role, sub: 'u1' };
+    const result = await holdStock(input);
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('permission') });
+    expect(h.postStockHold).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-positive quantity before the RPC', async () => {
+    expect((await holdStock({ ...input, qty: 0 })).ok).toBe(false);
+    expect((await holdStock({ ...input, qty: -2 })).ok).toBe(false);
+    expect((await holdStock({ ...input, qty: Number.NaN })).ok).toBe(false);
+    expect(h.postStockHold).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing reason, a bad movement, and a missing key before the RPC', async () => {
+    expect((await holdStock({ ...input, reasonCode: ' ' })).ok).toBe(false);
+    expect((await holdStock({ ...input, movement: 'issue_out' as unknown as 'hold' })).ok).toBe(
+      false,
+    );
+    expect((await holdStock({ ...input, idempotencyKey: '' })).ok).toBe(false);
+    expect(h.postStockHold).not.toHaveBeenCalled();
+  });
+
+  it('passes a release with its fixed reason through', async () => {
+    h.postStockHold.mockResolvedValue({ ok: true, applied: true, onHand: 10, onHold: 0 });
+    const result = await holdStock({
+      ...input,
+      movement: 'release',
+      reasonCode: 'release',
+    });
+    expect(result).toEqual({ ok: true, onHand: 10, onHold: 0 });
+    expect(h.postStockHold).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ movement: 'release', reasonCode: 'release' }),
+    );
+  });
+
+  it('passes an RPC failure through unchanged', async () => {
+    h.postStockHold.mockResolvedValue({
+      ok: false,
+      error: 'That would release more than is currently held.',
+    });
+    const result = await holdStock(input);
+    expect(result).toEqual({
+      ok: false,
+      error: 'That would release more than is currently held.',
+    });
+    expect(h.revalidatePath).not.toHaveBeenCalled();
   });
 });
 

@@ -9,10 +9,13 @@ import { markPurchaseOrderReceived } from './actions';
 import styles from './po-detail.module.css';
 
 /**
- * Receive control (Block 10). Records the actual delivery date + the quantity
- * received per line; the action writes the supplier_performance row and rolls
- * up the scorecard, which lights the supplier's reliability ribbon. Open
- * disclosure so the page reads as a record first, an action second.
+ * Receive control (Block 10; W2-2.5 conversion rail). Records the actual
+ * delivery date + the quantity received per line IN PURCHASE UoM; the action
+ * writes the supplier_performance row and rolls up the scorecard. Lines with a
+ * purchase→stock factor show the live conversion rail (× factor → stock units)
+ * that lights as the operator types; a non-whole stock result raises the
+ * FRACTIONAL tag (MG 2026-07-09: fractional is allowed, flagged, never
+ * rounded). Open disclosure so the page reads as a record first.
  */
 export function ReceiveControls({
   poId,
@@ -90,11 +93,17 @@ export function ReceiveControls({
       <div className={styles.receiveLines}>
         {lines.map((l) => {
           const outstanding = Math.max(0, l.orderedQty - l.receivedQty);
+          const factor = l.purchaseToStockFactor;
+          const entered = Number(qty[l.lineNo] ?? 0);
+          const stockQty = factor == null ? null : entered * factor;
+          // MG decision 2026-07-09: fractional stock is allowed — the rail
+          // flags a remainder, it never blocks or rounds.
+          const fractional = stockQty != null && Number.isFinite(stockQty) && stockQty % 1 !== 0;
           return (
             <div key={l.lineNo} className={styles.receiveLine}>
               <span className={styles.receiveSku}>{l.sku}</span>
               <span className={styles.receiveOutstanding}>
-                <StatNumber value={outstanding} /> outstanding
+                <StatNumber value={outstanding} unit={l.purchaseUom ?? undefined} /> outstanding
               </span>
               <input
                 type="number"
@@ -103,8 +112,20 @@ export function ReceiveControls({
                 max={outstanding}
                 value={qty[l.lineNo] ?? ''}
                 onChange={(e) => setQty((q) => ({ ...q, [l.lineNo]: e.target.value }))}
-                aria-label={`Received quantity for ${l.sku}`}
+                aria-label={`Received quantity for ${l.sku}${l.purchaseUom ? ` in ${l.purchaseUom}` : ''}`}
               />
+              {factor != null && stockQty != null && Number.isFinite(stockQty) ? (
+                <span
+                  role="status"
+                  className={styles.convRail}
+                  data-live={entered > 0 || undefined}
+                  aria-label={`Converts to ${fmtQty(stockQty)} ${l.stockUom ?? 'stock units'}`}
+                >
+                  × {fmtQty(factor)} → <StatNumber value={fmtQty(stockQty)} />{' '}
+                  {l.stockUom ?? 'stock units'}
+                  {fractional ? <span className={styles.convFraction}>fractional</span> : null}
+                </span>
+              ) : null}
             </div>
           );
         })}
@@ -126,6 +147,11 @@ export function ReceiveControls({
       </div>
     </div>
   );
+}
+
+/** Trim trailing zeros: 12 → "12", 2.50 → "2.5", 0.4536 → "0.4536". */
+function fmtQty(n: number): string {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 4 });
 }
 
 function today(): string {

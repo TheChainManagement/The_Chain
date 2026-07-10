@@ -253,3 +253,79 @@ describe('runCsvImport — product-supplier links', () => {
     expect(await tableCount('product_suppliers', A.tenantId)).toBe(before);
   });
 });
+
+describe('runCsvImport — purchase-unit conversion on links (W2-2.5)', () => {
+  // Reuses the catalog + suppliers seeded by the links describe above.
+
+  it('rejects a purchase unit without a factor as a per-row bad_conversion', async () => {
+    const csv =
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Units Per Case\n' +
+      'LNK-1,Cobalt Parts,54.00,7,case,\n' + // unit without factor → bad_conversion
+      'LNK-2,Cobalt Parts,3.00,3,,\n'; // no conversion at all → fine
+    const res = await run(A, 'product_supplier', csv, 'lnk-uom-1');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.summary.imported).toBe(1);
+    expect(res.summary.failed).toBe(1);
+
+    const { data: fails } = await admin
+      .from('sync_failures')
+      .select('error_code')
+      .eq('sync_run_id', res.summary.syncRunId)
+      .returns<{ error_code: string }[]>();
+    expect(fails?.map((f) => f.error_code)).toEqual(['bad_conversion']);
+  });
+
+  it('rejects a factor without a purchase unit, and a zero factor', async () => {
+    const csv =
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Units Per Case\n' +
+      'LNK-1,Cobalt Parts,54.00,7,,12\n' + // factor without unit
+      'LNK-2,Cobalt Parts,3.00,3,case,0\n'; // zero factor
+    const res = await run(A, 'product_supplier', csv, 'lnk-uom-2');
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.summary.imported).toBe(0);
+    expect(res.summary.failed).toBe(2);
+
+    const { data: fails } = await admin
+      .from('sync_failures')
+      .select('error_code')
+      .eq('sync_run_id', res.summary.syncRunId)
+      .returns<{ error_code: string }[]>();
+    expect(fails?.map((f) => f.error_code)).toEqual(['bad_conversion', 'bad_conversion']);
+  });
+
+  // Requires migration 20260709211000_w2_2_5c_import_link_purchase_uom.sql on the
+  // local stack (extends import_product_supplier_links to read the two new keys).
+  // This session was not allowed to apply migrations — unskip at the merge gate
+  // once `supabase migration up` has run.
+  it('lands purchase_uom + purchase_to_stock_factor on the link row', async () => {
+    const csv =
+      'SKU,Supplier,Cost,Lead Time,Purchase Unit,Units Per Case\n' +
+      'LNK-1,Cobalt Parts,54.00,7,case,12\n';
+    const res = await run(A, 'product_supplier', csv, 'lnk-uom-3');
+    expect(res.ok).toBe(true);
+
+    const { data: p } = await admin
+      .from('products')
+      .select('id')
+      .eq('tenant_id', A.tenantId)
+      .eq('sku', 'LNK-1')
+      .single<{ id: string }>();
+    const { data: sup } = await admin
+      .from('suppliers')
+      .select('id')
+      .eq('tenant_id', A.tenantId)
+      .eq('name', 'Cobalt Parts')
+      .single<{ id: string }>();
+    const { data: link } = await admin
+      .from('product_suppliers')
+      .select('purchase_uom, purchase_to_stock_factor')
+      .eq('tenant_id', A.tenantId)
+      .eq('product_id', p?.id ?? '')
+      .eq('supplier_id', sup?.id ?? '')
+      .single<{ purchase_uom: string | null; purchase_to_stock_factor: string | null }>();
+    expect(link?.purchase_uom).toBe('case');
+    expect(Number(link?.purchase_to_stock_factor)).toBe(12);
+  });
+});

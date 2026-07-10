@@ -1,0 +1,19 @@
+/* ValuationStrip (W2-2.5) — strip + export link row. Token-only. */
+
+.valuationWrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.valuationWrap > :first-child {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .valuationWrap {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

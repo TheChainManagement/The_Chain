@@ -280,6 +280,13 @@
   border-color: var(--color-signal);
   box-shadow: inset 0 0 0 1px var(--color-signal);
 }
+.linkHint {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-dim);
+}
 .linkCheck {
   display: flex;
   align-items: center;

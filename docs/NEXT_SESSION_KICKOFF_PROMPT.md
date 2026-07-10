@@ -310,3 +310,18 @@ mode-spine doc.
   the deploy.** MG declined to run it tonight; nothing merged, main untouched. After that:
   Item 2 (W2-2.5 inventory-core hardening), whose ⛔s (fractional stock on conversion
   remainders; held stock in valuation; hold/release UI vs engine-only) need MG before build.
+- 2026-07-09: **Item 1 SHIPPED TO PRODUCTION.** MG go received. The 4 missing prod migrations
+  applied in order via Supabase MCP (block11b_approve_receive_stock, alerts_engine,
+  w2_2a_movement_enum, w2_2b_storeroom_ops); post-apply schema probes all green (5-arg
+  receive RPC live, old 4-arg dropped; all alerts + storeroom RPCs, both idempotency tables,
+  4 enum values, 5 columns present); security advisor zero new findings. Fast-forward merged
+  `d29b227..9d50726` to main, pushed; Vercel production Ready, www.thechainmanagement.com
+  aliased; smoke probes pass (/, /pricing, /signin 200; webhook GET 405; anonymous /inventory
+  serves the signin gate). PROD RECEIVE FIXED.
+- 2026-07-09 (same session): **Item 2 (W2-2.5) ⛔ decisions LOCKED with MG:**
+  1. **Fractional stock quantities ALLOWED on conversion remainders.** Numeric, no forced
+     rounding; the receive UI flags remainders (the doc's suggested shape, MG confirmed).
+  2. **Held stock COUNTS in valuation** (you still own it), and is EXCLUDED from reorder /
+     available-to-promise math (position = on_hand - on_hold + in_transit - allocated).
+  3. **Hold/release ships WITH UI in W2-2.5** — engine and UI together, not engine-only.
+  Build opened on `feature/item2-w2-2-5-core-hardening` off main `9d50726`.

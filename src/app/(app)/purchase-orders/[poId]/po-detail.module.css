@@ -295,3 +295,31 @@
     display: none;
   }
 }
+
+/* ----- W2-2.5: the conversion rail (purchase UoM → stock UoM) ----- */
+/* Lights from dim to mid as the operator types; the fractional tag is the
+   MG-decided remainder flag — it warns, it never blocks. */
+.convRail {
+  grid-column: 1 / -1;
+  justify-self: end;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+  transition: color var(--duration-quick) var(--ease-spring-soft);
+}
+.convRail[data-live] {
+  color: var(--color-mid);
+}
+.convFraction {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-warn);
+  border: 1px solid currentcolor;
+  padding: 0 var(--spacing-1);
+  margin-left: var(--spacing-1);
+}

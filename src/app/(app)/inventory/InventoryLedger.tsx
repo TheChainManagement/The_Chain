@@ -103,6 +103,16 @@ export function InventoryLedger({
               Adjust
             </button>
           ) : null}
+          {selected.size === 1 ? (
+            <button
+              type="button"
+              className={styles.bulkArchive}
+              disabled={isPending}
+              onClick={() => setPanel(panel === 'hold' ? null : 'hold')}
+            >
+              Hold / release
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.bulkArchive}
@@ -181,6 +191,9 @@ export function InventoryLedger({
             </span>
             <span className={styles.cellNum}>
               <StatNumber value={fmtQty(row.onHand)} />
+              {row.onHold > 0 ? (
+                <span className={styles.heldTag}>· {fmtQty(row.onHold)} held</span>
+              ) : null}
             </span>
             <span className={styles.cellClass}>
               <ClassificationBadge abc={row.abcClass} xyz={row.xyzClass} />

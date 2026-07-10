@@ -73,7 +73,21 @@ export interface RawPurchaseOrderLine {
   ordered_qty: number | string;
   received_qty: number | string;
   unit_cost: number | string | null;
-  products: { sku: string | null; name: string | null } | null;
+  products: {
+    sku: string | null;
+    name: string | null;
+    unit_of_measure: string | null;
+    // Every supplier link for the product rides the embed; the mapper picks
+    // the row matching the PO's supplier (PostgREST can't filter a nested
+    // embed against a parent column).
+    product_suppliers:
+      | {
+          supplier_id: string;
+          purchase_uom: string | null;
+          purchase_to_stock_factor: number | string | null;
+        }[]
+      | null;
+  } | null;
 }
 
 export interface RawPurchaseOrderDetail extends Omit<RawPurchaseOrderRow, 'purchase_order_lines'> {
@@ -86,9 +100,17 @@ export interface PurchaseOrderLine {
   productId: string;
   sku: string;
   name: string;
+  /** In PURCHASE UoM when a conversion factor is set (W2-2.5). */
   orderedQty: number;
   receivedQty: number;
+  /** Per purchase unit when a factor is set. */
   unitCost: number | null;
+  /** The product's canonical stock unit (what the ledger counts). */
+  stockUom: string | null;
+  /** The unit this supplier sells in; null = same as the stock unit. */
+  purchaseUom: string | null;
+  /** 1 purchase unit = this many stock units; null = 1. */
+  purchaseToStockFactor: number | null;
 }
 
 export interface PurchaseOrderDetail extends PurchaseOrderListRow {
@@ -98,15 +120,24 @@ export interface PurchaseOrderDetail extends PurchaseOrderListRow {
 
 export function mapPurchaseOrderDetail(raw: RawPurchaseOrderDetail): PurchaseOrderDetail {
   const lines = (raw.purchase_order_lines ?? [])
-    .map((l) => ({
-      lineNo: l.line_no,
-      productId: l.product_id,
-      sku: l.products?.sku ?? '—',
-      name: l.products?.name ?? '—',
-      orderedQty: Number(l.ordered_qty),
-      receivedQty: Number(l.received_qty),
-      unitCost: l.unit_cost == null ? null : Number(l.unit_cost),
-    }))
+    .map((l) => {
+      const link = (l.products?.product_suppliers ?? []).find(
+        (ps) => ps.supplier_id === raw.supplier_id,
+      );
+      return {
+        lineNo: l.line_no,
+        productId: l.product_id,
+        sku: l.products?.sku ?? '—',
+        name: l.products?.name ?? '—',
+        orderedQty: Number(l.ordered_qty),
+        receivedQty: Number(l.received_qty),
+        unitCost: l.unit_cost == null ? null : Number(l.unit_cost),
+        stockUom: l.products?.unit_of_measure ?? null,
+        purchaseUom: link?.purchase_uom ?? null,
+        purchaseToStockFactor:
+          link?.purchase_to_stock_factor == null ? null : Number(link.purchase_to_stock_factor),
+      };
+    })
     .sort((a, b) => a.lineNo - b.lineNo);
 
   return {

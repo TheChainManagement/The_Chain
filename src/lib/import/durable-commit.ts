@@ -23,6 +23,7 @@
 
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { type HistoricalMovementRow, recordStockMovements } from '@/lib/inventory/post-movement';
 import type { CanonicalPayload, PullResultError } from '@/lib/source-adapter';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { ensurePrimaryLocation, type ImportFailure, type ImportSummary } from './commit';
@@ -311,17 +312,16 @@ async function prepareMovements(
   return {
     rows,
     rowErrors,
+    // W2-2.5: batches enter through the kernel's ingestion door — append-only,
+    // balance-neutral, same dedup key the direct upsert used.
     writeBatch: async (batch) => {
-      const { data, error } = await admin
-        .from('stock_movements')
-        .upsert(batch, {
-          onConflict: 'tenant_id,source,source_ref,occurred_at',
-          ignoreDuplicates: true,
-        })
-        .select('id')
-        .returns<{ id: string }[]>();
-      if (error) throw new Error(`stock_movements upsert failed: ${error.message}`);
-      return data?.length ?? 0;
+      const result = await recordStockMovements(
+        admin,
+        tenantId,
+        batch as unknown as HistoricalMovementRow[],
+      );
+      if (!result.ok) throw new Error(`stock_movements ingest failed: ${result.error}`);
+      return result.inserted;
     },
   };
 }
