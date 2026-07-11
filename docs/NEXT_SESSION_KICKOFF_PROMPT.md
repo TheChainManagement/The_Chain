@@ -349,3 +349,14 @@ mode-spine doc.
   (a → b → c, the FINAL files), re-probe the prod SCHEMA (not the record), ff-merge,
   probe the deploy. Also still unconfirmed: the Stripe live-card acceptance (asked
   2026-07-09, no answer yet).
+- 2026-07-11: **The three deferred decisions ANSWERED by MG:**
+  1. **Branch pushed to origin** (`feature/item2-w2-2-5-core-hardening`, tip `3b1d3de`,
+     now tracking).
+  2. **FEATURES.md is the Wave-2 feature-contract home.** Wave 2 section backfilled into
+     `FEATURES.md` (W2-0, W2-1, Item 0, W2-2, W2-2.5 as-built contracts; W2-3, W2-4
+     forward contracts). This kickoff doc stays the session log, not the contract.
+  3. **in_transit stays a kernel-surface function (`apply_po_approval`) — CONFIRMED for
+     now; MG reserves the right to veto later.** Natural revisit point: W2-3 procurement
+     (the next flow touching in_transit).
+  Remaining before merge: MG walkthrough of Item 2 on the storeroom demo tenant, then
+  the merge gate above on MG's go. Stripe live-card acceptance still unanswered.

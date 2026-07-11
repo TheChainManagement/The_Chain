@@ -1,6 +1,6 @@
 # The Chain — Features
 *Phase 4 artifact. Required by PROCESS.md.*
-*Created: 2026-05-30. Revised: 2026-05-30 (post-Codex Beat 4: Foundation block + wired-for verification suite added, CSV rewritten as SourceAdapter, sales-ingestion criteria, edge cases, Phase 6 visible-craft gate on every block).*
+*Created: 2026-05-30. Revised: 2026-05-30 (post-Codex Beat 4: Foundation block + wired-for verification suite added, CSV rewritten as SourceAdapter, sales-ingestion criteria, edge cases, Phase 6 visible-craft gate on every block). Revised 2026-07-11: Wave 2 section backfilled as the Wave-2 feature-contract home (MG decision).*
 *Re-entered whenever a new feature is added mid-project.*
 
 > One block per Wave 1 feature in PRD scope. Each block is the contract Phase 6 builds against. The Codex review at every Phase 6 push pressure-tests the built feature against its block. Every block names a "What's memorable" element per the visible-craft bar (MG, 2026-05-30): every feature ships with a distinctive moment, not just design-token compliance. **Phase 6 gate: the memorable element must be visible in a preview screenshot or driveable by a Playwright interaction test before the feature passes review.**
@@ -691,6 +691,261 @@
 - [ ] **Memorable element visible in preview screenshot or Playwright interaction test.**
 
 **What's memorable:** The hero IS the marketing hook. The isometric supply-chain model reads as printed onto the drafting bench (mix-blend over a blueprint), the headline stamps in on the Mona Sans width axis, and the live PO chain forms left-to-right with the ignite reaching the **PO** link — the same chain language visitors see in the product. The closing `ChainCtaBand` pays it off with the photoreal cobalt-link macro. (Visible artifact: preview screenshots in `_reviews/2026-06-21_feature_marketing.md`; a Playwright timing capture at 200/1000ms/final is ticketed — Playwright is not yet wired into the project, consistent with the prior connect-screen artifact ticket.)
+
+---
+
+# Wave 2
+
+*Backfilled 2026-07-11 per MG's decision: FEATURES.md is the feature-contract home for
+Wave 2 (the kickoff doc `docs/NEXT_SESSION_KICKOFF_PROMPT.md` stays the session log, not
+the contract). Blocks below are written from `docs/WAVE2_SCOPE.md`,
+`docs/WAVE2_W2-0_MODE_SPINE_DESIGN.md`, the kickoff doc, and the `_reviews/` evidence
+trail. Shipped blocks record the contract the code was verified against; planned blocks
+(W2-3, W2-4) are forward contracts and re-enter the normal Phase 4 checkpoint before
+build.*
+
+**Wave 2 build order:**
+
+- W2-0. Operating-mode spine — **SHIPPED** (main, 2026-06-28)
+- W2-1. Data-model cleanup: UoM dropdown + supplier link import lane — **SHIPPED** (main, 2026-06-28)
+- Item 0. Password reset / auth recovery — **SHIPPED to prod** (`f1c18b6`, 2026-07-07)
+- W2-2. Storeroom operations — **SHIPPED to prod** (`9d50726`, 2026-07-09)
+- W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) — **BUILT, at merge gate** (`feature/item2-w2-2-5-core-hardening`)
+- W2-3. Procurement (RFQ, requisition, PO) — planned, gated on W2-2.5 merge + MG design sign-off
+- W2-4. Multi-location UI — planned
+
+---
+
+## Feature: W2-0 Operating-mode spine
+
+**Why**: `WAVE2_SCOPE.md` §5 decisions 1+2 — one primary mode per tenant
+(`distribution` / `storeroom` / `food`), fitted by US to what the customer IS, never a
+user-facing toggle. The mode defines a distinct material-flow model (what counts as
+demand, how stock moves) over the shared forecast/policy/reorder engine. Load-bearing
+for every later wave; got its own written design (`WAVE2_W2-0_MODE_SPINE_DESIGN.md`)
+before build.
+
+**Dependencies:** Wave 1 complete. Data: `tenants.operating_mode`.
+
+**What shipped (contract as built):**
+1. `tenants.operating_mode` (admin-set, default `distribution`; `food` = architect-for,
+   not fully built).
+2. `src/lib/modes/` registry: mode → archetype (sell / issue / produce), terminology,
+   nav labeling, `demandSource` routing.
+3. Demand reads are mode-routed (completed in W2-2 via `src/lib/modes/demand.ts`):
+   forecast batch, classification, and forecast-detail history all resolve demand
+   movement types from the tenant mode.
+
+**Acceptance criteria (verified in `_reviews/2026-06-28_feature_w2-0_mode_spine*.md`):**
+- [x] A storeroom-mode tenant sees storeroom terminology + nav; distribution unchanged.
+- [x] `produce` archetype fails loud (no silent fallback to sale-demand).
+- [x] Mode is not reachable from any user-facing settings surface.
+
+**What's memorable:** The RTL test renders the REAL `LeftRail` across all three modes —
+the mode badge + relabeled inventory link are the visible proof the product refits
+itself per industry.
+
+---
+
+## Feature: W2-1 Data-model cleanup (UoM dropdown + supplier-link import lane)
+
+**Why**: `WAVE2_SCOPE.md` §4 W2-1 — the data model MG flagged in his operator eval:
+unit-of-measure as a real field, supplier address/contact, lead time presented as an
+item property, user-authored policy with AI suggesting instead of owning, and a
+product-to-supplier link import lane so a full catalog (cost/lead/MOQ) loads from
+spreadsheets.
+
+**Dependencies:** W2-0 (registry), Block 5 CSV import (lanes).
+
+**What shipped (contract as built, 2026-06-28):**
+1. **W2-1b UoM dropdown**: curated unit registry (`src/lib/uom/`, label + abbreviation)
+   with an "Other" escape hatch writing a custom value; legacy/custom defaults reopen
+   "Other" prefilled.
+2. **W2-1a supplier-link import lane**: fourth CSV lane ("Supplier pricing") committing
+   `product_suppliers` rows (cost / lead / MOQ) idempotently.
+
+**Acceptance criteria (verified in `_reviews/2026-06-28_feature_w2-1a*.md` / `w2-1b*.md`):**
+- [x] Selecting a curated code submits it; "Other" reveals + submits the typed value.
+- [x] Import lane commit is idempotent on the tenant + product + supplier key.
+- [x] Integration test `runCsvImport — product-supplier links` green.
+
+**What's memorable:** The lanes memorable test asserts the four import lanes and drives
+the new "Supplier pricing" lane end to end; the UoM picker's RTL test exercises the
+real component's escape-hatch behavior.
+
+---
+
+## Feature: Item 0 — Password reset / auth recovery
+
+**Why**: live-customer-critical carry-over (`WAVE2_SCOPE.md` §4). No customer can be
+onboarded to a product whose accounts cannot be recovered without MG touching the
+database.
+
+**Dependencies:** Wave 1 auth scaffold. Services: Supabase Auth (token_hash recovery
+template + redirect allowlist, configured by MG).
+
+**What shipped (contract as built, prod `f1c18b6`, 2026-07-07):**
+`/forgot-password` enumeration-safe request form → `/api/auth/confirm` (token_hash +
+PKCE, recovery-only, open-redirect guarded, origin from trusted URL not Host header) →
+`/reset-password` update form; `auth.password_reset` audit row; forgot link on
+`/signin`.
+
+**Acceptance criteria (verified live, `_reviews/2026-07-07_item0_password_reset_evidence.md`):**
+- [x] End-to-end recovery on production: request → email link → new password → sign-in.
+- [x] Bad/expired confirm link bounces to the expired notice; apex→www redirect
+      preserves the token query.
+- [x] Audit insert/profile errors logged, not swallowed (Codex round-1).
+
+**What's memorable:** The flow is enumeration-safe and boring on purpose; the craft is
+in the confirm route's guarantees (recovery-only, redirect-guarded), proven by tests.
+
+---
+
+## Feature: W2-2 Storeroom operations
+
+**Why**: `WAVE2_SCOPE.md` §4 W2-2 + mode-spine §10 — the storeroom mode's material
+flow: issue material out tagged to a consuming object, manual adjustments with reasons,
+cycle counts whose variance actually posts to the ledger. Built to MG's three locked ⛔
+decisions (2026-07-07): owner/manager/warehouse can issue; user picks the demand-ref
+TYPE (work order / crew / cost center) + free-text ref; optional reason code
+(maintenance/repair/scrap/other) + note.
+
+**Dependencies:** W2-0 (demand routing), Wave 1 ledger + RLS + audit patterns.
+
+**What shipped (contract as built, prod `9d50726`, 2026-07-09):**
+1. Enum completion: `issue_out`, `issue_return`, `return_to_vendor`, `customer_return`
+   (returns = ledger vocabulary now, UI later).
+2. §10 columns + CHECKs: `demand_ref_type/id`, `reason_code`, `note`,
+   `locations.location_kind`, partial index for "what did WO-X consume".
+3. `inventory_op_events` idempotency ledger + three atomic posting RPCs
+   (`post_issue_movements`, `post_stock_adjustment`, `close_cycle_count_session`) —
+   the posting-kernel prototypes W2-2.5 unifies.
+4. Surfaces: bulk-bar Issue (issue-archetype modes), Adjust, `/inventory/cycle-counts`
+   count sheet with SKU autocomplete; close reconciles each line to on_hand at close
+   under the row lock and posts the delta as a `cycle_count` movement.
+5. Mode-routed demand (`src/lib/modes/demand.ts`): storeroom tenants forecast +
+   classify from `issue_out` (bucketing on |qty|).
+
+**Acceptance criteria (verified in `_reviews/2026-07-07_item1_w2_2_storeroom_evidence.md` + walkthrough/Codex rounds):**
+- [x] MG can issue parts to a free-text work order, adjust with a reason code, close a
+      count whose variance posts to the ledger, and see all of it in the audit log.
+- [x] Issue restricted to owner/manager/warehouse (app-layer allowlist over
+      SECURITY DEFINER RPC).
+- [x] Count-close is idempotent and replay-safe (Codex round-1 ordering fix + tests).
+- [x] Suite 755/755 at push; prod schema probes green post-migration.
+
+**What's memorable:** The cycle-count sheet: counting drifted stock and watching the
+close reconcile it — variance posts as real ledger movements, `last_counted_at` stamps,
+and the audit trail reads legibly (walkthrough round-1 polish).
+
+---
+
+## Feature: W2-2.5 Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold)
+
+**Why**: kickoff-doc audit (2026-07-06) — four core gaps blocking the
+"cross-industry inventory anchor" claim: no UoM conversion model, no inventory
+valuation, no return flows (closed in W2-2), no stock-status dimension. Plus the
+architectural mandate: **formalize the inventory posting kernel** — no module ever
+writes `inventory_levels` directly; everything posts a movement through one service.
+Must precede W2-3 (vendor quotes arrive in purchase UoM).
+
+**MG ⛔ decisions locked 2026-07-09:** fractional stock ALLOWED on conversion
+remainders (numeric, no forced rounding, receive UI flags them); held stock COUNTS in
+valuation, EXCLUDED from reorder/ATP (position = on_hand - on_hold + in_transit -
+allocated); hold/release ships WITH UI.
+**MG decision 2026-07-11:** `in_transit` commitment stays a kernel-surface function
+(`apply_po_approval`) rather than posting through `post_stock_movement` — confirmed for
+now, MG reserves the right to veto later (revisit at W2-3 procurement, the next flow
+that touches in_transit).
+
+**Dependencies:** W2-2 (posting RPCs, enum), W2-1 (UoM registry, import lanes),
+Block 11 receive path.
+
+**What shipped (contract as built, branch `feature/item2-w2-2-5-core-hardening`):**
+1. **Posting kernel** (`post_stock_movement()` SQL + TS façade): validates
+   type-specific rules, inserts the movement, updates `inventory_levels` including
+   avg-cost + on-hold effects, fires audit. All writers reposted through it (receive,
+   issue, adjust, count-close, imports). `record_stock_movements()` = balance-neutral
+   ingestion door. Member RLS writes DROPPED on `inventory_levels` +
+   `stock_movements` — only the kernel path mutates balances.
+2. **UoM conversion**: `product_suppliers.purchase_uom` + `purchase_to_stock_factor`;
+   PO lines order in purchase UoM, receipt converts to stock units at post; ledger +
+   balances stay stock-UoM only, always. Carried through link form, import lane, and
+   the receive conversion rail with a FRACTIONAL flag.
+3. **Moving-average cost + valuation**: `avg_unit_cost` + provenance (`seeded` from
+   primary-supplier cost, `posted` at receipt; receipt-only update rule with
+   zero/negative guards); valuation views; ValuationStrip on the inventory page +
+   CSV export.
+4. **Stock status**: `inventory_levels.on_hold`, hold/release UI, and `netPosition()`
+   as the single shared ATP helper (grep-enforced: one position calculation).
+5. Explicitly deferred, tracked: FIFO layers, landed cost, GL integration,
+   three-way match.
+
+**Acceptance criteria (from the kickoff contract; verified per
+`_reviews/2026-07-09_item2_w2_2_5_evidence.md`, remainder at the merge gate):**
+- [x] Buy-in-cases / stock-in-eaches works end to end (PO in cases, receipt posts eaches).
+- [x] Valuation view answers "what is my inventory worth" per SKU / location / tenant.
+- [x] Held stock excluded from reorder position; included in valuation.
+- [x] Every balance mutation flows through the posting service; ledger-replay test
+      proves ledger/balance agreement.
+- [x] Suite 809/809, tsc/biome/craft clean, Codex round-1 fixed.
+- [ ] Merge gate: 3 migrations applied to prod in order (a → b → c, FINAL files), prod
+      schema re-probed, ff-merge, deploy probed. **Pending MG walkthrough + go.**
+
+**What's memorable:** The conversion rail: as the operator types a purchase quantity
+the rail lights dim→mid and answers `× 12 → 300 ea` live; a non-whole result raises the
+FRACTIONAL flag. Artifact:
+`_reviews/2026-07-09_feature_item2_w2_2_5_memorable.test.tsx` +
+`tests/purchase-orders/receive-conversion.memorable.test.tsx`.
+
+---
+
+## Feature: W2-3 Procurement (RFQ, requisition, PO) — planned
+
+**Why**: `WAVE2_SCOPE.md` §4 W2-3 + operator-eval Scenario A — RFQ to one OR multiple
+vendors (user's choice per RFQ, both from the start, §5 decision 3), capture returned
+vendor prices in purchase UoM (exists as of W2-2.5), requisition as an approvable
+document that becomes a PO. The deepest Wave 2 build; the first true satellite module
+on the inventory kernel.
+
+**Dependencies:** W2-2.5 MERGED (purchase UoM + posting kernel). New tables
+(`rfqs`, `rfq_lines`, `rfq_vendor_quotes`, `requisitions`, `requisition_lines`) follow
+the header/line + RLS + audit pattern.
+
+**Hard constraint:** W2-3 must not write balances at all — only the PO receive path
+posts, through the kernel. (This is the first proof of the kernel contract; also the
+natural checkpoint to revisit MG's reserved veto on `apply_po_approval` staying
+kernel-surface.)
+
+**⛔ MG DECIDES before build:** approval rules (who approves a requisition, single-step
+vs threshold), RFQ email-from-app vs export-for-manual-send, quote-to-line matching UX.
+Bring a short written design for sign-off first, like the mode-spine doc.
+
+**Acceptance criteria (forward contract, refine at design sign-off):**
+- [ ] RFQ to 1..N vendors; returned quotes captured in purchase UoM per vendor.
+- [ ] Requisition → approval → PO flow, audit-logged at each transition.
+- [ ] Zero direct balance writes anywhere in the module (probe test).
+
+**What's memorable:** TBD at design sign-off (candidate: the quote-comparison surface —
+"get three quotes" answered on one bench).
+
+---
+
+## Feature: W2-4 Multi-location UI — planned
+
+**Why**: `WAVE2_SCOPE.md` §4 W2-4 — the original Wave 2: location selector,
+location-aware dashboards, transfer recommendations. Especially relevant to storeroom.
+Schema is already multi-location (Foundation wired-for test); this is the UI + engine
+surfacing.
+
+**Dependencies:** W2-2.5 (netPosition helper is location-aware), transfer_in/out
+movement types (exist).
+
+**Acceptance criteria (forward contract):**
+- [ ] Location selector; dashboards scope to location.
+- [ ] Transfer recommendations post through the kernel when acted on.
+
+**What's memorable:** TBD at design time.
 
 ---
 
