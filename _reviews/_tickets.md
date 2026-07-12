@@ -466,4 +466,5 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   imagery "further down" (the optimized renders are held in `public/marketing/`).
 
 - [ ] W2-2.5 (Codex 2026-07-09): browser-level Playwright page-flow test for /inventory hold/release + PO receive conversion rail (jsdom RTL exists; page-level flow does not). Pairs with the standing Lighthouse-on-Preview ticket.
-- [ ] W2-2.5 (Codex 2026-07-09): MG decision — Wave-2 feature contract home: kickoff doc vs FEATURES.md backfill.
+- [x] W2-2.5 (Codex 2026-07-09): MG decision — Wave-2 feature contract home: kickoff doc vs FEATURES.md backfill. **RESOLVED 2026-07-11: FEATURES.md backfilled (Wave 2 section, commit `7df9ee8`); kickoff doc stays the session log.**
+- [ ] W2-2.5 (walkthrough 2026-07-12): extend `scripts/seed-storeroom-demo.mjs` with a case-packed open PO (purchase_uom + factor on the supplier link) so the receive conversion rail is walkable on the demo tenant — MG's walkthrough had no PO data to exercise it.

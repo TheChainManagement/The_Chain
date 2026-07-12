@@ -100,6 +100,13 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
   transfer_in, transfer_out, adjustment, cycle_count`. W2-2 ADDS `issue_out` / `issue_return` plus
   the demand-reference envelope and `location_kind`, per `WAVE2_W2-0_MODE_SPINE_DESIGN.md` §10.
   Pulls in a minimal role slice (who can issue/adjust) from the original Wave 3.
+  **SHIPPED to prod 2026-07-09 (`d29b227..9d50726`).**
+- **W2-2.5: Inventory-core hardening (added by the 2026-07-06 audit; SHIPPED to prod
+  2026-07-12, `9d50726..7df9ee8`).** UoM conversion (purchase UoM + factor on the supplier
+  link), moving-average cost + valuation views/strip/CSV export, on-hold stock status with
+  hold/release UI, and the formalized POSTING KERNEL (`post_stock_movement()`; member
+  direct writes to balances revoked). Contract: `FEATURES.md` Wave 2 section. Landed
+  BEFORE W2-3 per the audit sequencing (vendor quotes arrive in purchase UoM).
 - **W2-3: Procurement workflow.** RFQ to vendors, capture the prices they return, a requisition
   that is approved and then becomes a PO. Useful in both modes. The deepest build; comes after
   the data model is right.

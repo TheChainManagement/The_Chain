@@ -360,3 +360,19 @@ mode-spine doc.
      (the next flow touching in_transit).
   Remaining before merge: MG walkthrough of Item 2 on the storeroom demo tenant, then
   the merge gate above on MG's go. Stripe live-card acceptance still unanswered.
+- 2026-07-12: **Item 2 (W2-2.5) SHIPPED TO PRODUCTION.** MG walked the demo tenant
+  (valuation strip, hold/release, CSV export — all passed; the receive conversion rail
+  could not be walked because the demo seed has no POs; it stands on the 07-09 live
+  verification + the memorable RTL tests) and gave the go. Merge gate executed: 3
+  migrations applied to prod in order (w2_2_5a → w2_2_5b → w2_2_5c, final files) via
+  Supabase MCP; post-apply schema probes ALL GREEN (12 kernel-path functions with
+  correct signatures incl. 8-arg link_supplier, hold/release enum values, 5 new
+  columns, 3 valuation views, the 3 member-write policies dropped, all CHECKs present
+  across partitions); security advisor ZERO new findings (same 5 pre-existing WARNs);
+  fast-forward merged `9d50726..7df9ee8` to main + pushed; Vercel production Ready
+  (`the-chain-1j4rzp2pc`); smoke probes pass (/, /pricing, /signin, /inventory 200;
+  webhook GET 405; valuation export 401 to anon). **The posting kernel is now the
+  enforced prod contract.** NEXT = Item 3 (W2-3 procurement): bring the short written
+  design for MG sign-off first (approval rules, RFQ send vs export, quote-to-line UX
+  are the ⛔s). Follow-ups carried: demo seed should gain a case-packed PO so the
+  conversion rail is walkable; Stripe live-card acceptance still unanswered.
