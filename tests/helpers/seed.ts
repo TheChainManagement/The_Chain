@@ -22,6 +22,8 @@ declare
   v_conn uuid := gen_random_uuid();
   v_syncrun uuid := gen_random_uuid();
   v_session uuid := gen_random_uuid();
+  v_rfq uuid := gen_random_uuid();
+  v_req uuid := gen_random_uuid();
 begin
   insert into profiles (user_id, active_tenant_id) values (u, t);
   insert into tenant_members (tenant_id, user_id, role) values (t, u, 'owner');
@@ -79,6 +81,18 @@ begin
     values (t, 'product', v_prod, 'claude-x', 'v1', '{"note":"ok"}'::jsonb);
   insert into cold_archives (tenant_id, partition_name, source_table, blob_url)
     values (t, 'audit_log_2026', 'audit_log', 'https://blob.example/${salt}');
+  insert into rfqs (tenant_id, id, location_id, status, title, created_by_user_id)
+    values (t, v_rfq, v_loc, 'draft', 'Q3 fasteners ${salt}', u);
+  insert into rfq_lines (tenant_id, rfq_id, line_no, product_id, qty)
+    values (t, v_rfq, 1, v_prod, 30);
+  insert into rfq_vendors (tenant_id, rfq_id, supplier_id, status)
+    values (t, v_rfq, v_sup, 'quoted');
+  insert into rfq_vendor_quotes (tenant_id, rfq_id, supplier_id, line_no, quoted_unit_cost, quoted_purchase_uom, purchase_to_stock_factor, lead_time_days, entered_by_user_id)
+    values (t, v_rfq, v_sup, 1, 24.00, 'CS', 12, 5, u);
+  insert into requisitions (tenant_id, id, location_id, status, source_rfq_id, requested_by_user_id, total)
+    values (t, v_req, v_loc, 'draft', v_rfq, u, 60.00);
+  insert into requisition_lines (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost, purchase_uom, purchase_to_stock_factor, source_quote_line_no)
+    values (t, v_req, 1, v_prod, v_sup, 30, 24.00, 'CS', 12, 1);
 end $$;`;
 }
 
