@@ -10,6 +10,7 @@ export const NAV_ITEMS = [
   { href: '/forecasts', label: 'Forecasts' },
   { href: '/suppliers', label: 'Suppliers' },
   { href: '/purchase-orders', label: 'Purchase Orders' },
+  { href: '/procurement', label: 'Procurement' },
   { href: '/import', label: 'Import' },
   { href: '/integrations', label: 'Integrations' },
   { href: '/reorder', label: 'Reorder' },

@@ -1,0 +1,194 @@
+/* Procurement bench (W2-3 slice 2): RFQ ledger + create form. Tokens only. */
+
+/* ----- RFQ ledger ----- */
+.ledger {
+  --grid: minmax(150px, 2.4fr) minmax(92px, 1fr) 48px 66px 60px minmax(84px, auto);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: var(--grid);
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: 0 var(--spacing-5);
+}
+
+.head {
+  height: 34px;
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.numHead {
+  text-align: right;
+}
+
+.row {
+  position: relative;
+  min-height: 52px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-hairline);
+  border-left: 2px solid transparent;
+  transition:
+    background var(--duration-quick) var(--ease-spring-soft),
+    border-left-color var(--duration-quick) var(--ease-spring-soft);
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: var(--color-inset);
+  border-left-color: var(--color-divider);
+}
+.row:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+
+.cellTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.cellTitleText {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cellLocation {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+.cellNum {
+  justify-self: end;
+  text-align: right;
+}
+.cellMuted {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-dim);
+}
+
+/* ----- RFQ status chain (the compact 4-node track) ----- */
+.chain {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.chainSeg {
+  display: inline-flex;
+  align-items: center;
+}
+.chainNode {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  transform: rotate(45deg);
+}
+.chainNode[data-state="done"] {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+}
+.chainNode[data-state="stopped"] {
+  background: var(--color-stop);
+  border-color: var(--color-stop);
+  transform: none;
+  border-radius: 50%;
+}
+.chainLink {
+  width: 14px;
+  height: 1px;
+  background: var(--color-divider);
+}
+.chainLink[data-state="done"] {
+  background: var(--color-signal);
+}
+
+/* ----- Create form (disclosure, AddSupplier idiom) ----- */
+.addWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-3);
+}
+.addForm {
+  position: absolute;
+  top: calc(100% + var(--spacing-3));
+  right: 0;
+  z-index: 20;
+  width: min(420px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-raised);
+}
+.addEyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.addField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  flex: 1;
+}
+.addRow {
+  display: flex;
+  gap: var(--spacing-4);
+}
+.addLabel {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.addInput,
+.addSelect {
+  height: 36px;
+  padding: 0 var(--spacing-3);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--color-deep);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+.addInput:focus-visible,
+.addSelect:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -1px;
+}
+.addActions {
+  display: flex;
+  justify-content: flex-end;
+}
+.formError {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}

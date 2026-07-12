@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState, useTransition } from 'react';
+import { createRfqFromRecommendations } from '@/app/(app)/procurement/actions';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { type ReorderGroup, type ReorderRow, reorderGroupKey } from '@/lib/reorder/queue';
@@ -71,6 +72,20 @@ export function ReorderQueue({ groups }: { groups: ReorderGroup[] }): ReactNode 
     });
   }
 
+  // W2-3: the same selection becomes a draft RFQ instead of a PO. The
+  // recommendations stay open — quoting precedes ordering.
+  function requestQuotes() {
+    setError(null);
+    startTransition(async () => {
+      const res = await createRfqFromRecommendations({ recommendationIds: [...selected] });
+      if (!res?.ok) {
+        setError(res?.error ?? 'Could not open the quote request.');
+        return;
+      }
+      router.push(`/procurement/rfqs/${res.rfqId}`);
+    });
+  }
+
   return (
     <div className={styles.queue} data-testid="reorder-queue">
       {groups.map((group) => {
@@ -124,6 +139,14 @@ export function ReorderQueue({ groups }: { groups: ReorderGroup[] }): ReactNode 
         <span className={styles.barCount}>
           {selectedCount > 0 ? `${selectedCount} selected` : 'Select recommendations to order'}
         </span>
+        <ActionButton
+          variant="secondary"
+          onClick={requestQuotes}
+          loading={pending}
+          disabled={selectedCount === 0}
+        >
+          Request quotes
+        </ActionButton>
         <ActionButton
           variant="primary"
           onClick={convert}
