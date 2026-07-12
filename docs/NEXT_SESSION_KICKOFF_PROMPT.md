@@ -376,3 +376,12 @@ mode-spine doc.
   design for MG sign-off first (approval rules, RFQ send vs export, quote-to-line UX
   are the ⛔s). Follow-ups carried: demo seed should gain a case-packed PO so the
   conversion rail is walkable; Stripe live-card acceptance still unanswered.
+- 2026-07-12 (later): **Stripe live-card acceptance DEFERRED by MG — off the board, do
+  not ask again.** MG understands the trade (real charge, refund loses the Stripe fee);
+  the first real customer signup effectively runs it. **Item 3 (W2-3) ⛔ decisions
+  LOCKED with MG via the design doc `docs/WAVE2_W2-3_PROCUREMENT_DESIGN.md` (signed off
+  2026-07-12):** single-step approval (owner + manager, no self-approval, thresholds =
+  Wave 3), export-for-manual-send (email-from-app = fast-follow ticket), comparison-grid
+  quote UX with per-line picks. Build proceeds per the doc's §10 slice order on a fresh
+  feature branch: migration slice first (5 tables + RLS + audit + zero-balance-writes
+  probe).
