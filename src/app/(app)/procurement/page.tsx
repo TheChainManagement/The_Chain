@@ -4,11 +4,17 @@ import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
-import { listLocationOptions, listRfqs, type RfqListRow } from '@/lib/procurement/queries';
+import {
+  listLocationOptions,
+  listRequisitions,
+  listRfqs,
+  type RequisitionListRow,
+  type RfqListRow,
+} from '@/lib/procurement/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { NewRfq } from './NewRfq';
 import styles from './procurement.module.css';
-import { RfqChainTrack } from './RfqChainTrack';
+import { RequisitionChainTrack, RfqChainTrack } from './RfqChainTrack';
 
 export const metadata = { title: 'Procurement · The Chain' };
 
@@ -19,7 +25,11 @@ export const metadata = { title: 'Procurement · The Chain' };
  */
 export default async function ProcurementPage(): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const [rfqs, locations] = await Promise.all([listRfqs(supabase), listLocationOptions(supabase)]);
+  const [rfqs, requisitions, locations] = await Promise.all([
+    listRfqs(supabase),
+    listRequisitions(supabase),
+    listLocationOptions(supabase),
+  ]);
 
   return (
     <div className={pageStyles.stack}>
@@ -51,7 +61,56 @@ export default async function ProcurementPage(): Promise<ReactNode> {
           ))}
         </div>
       )}
+
+      <PageHeader eyebrow="Procurement · approval before ordering" title="Requisitions" />
+      {requisitions.length === 0 ? (
+        <Panel
+          prefix="Procurement"
+          title="No requisitions yet"
+          empty
+          emptyMessage="Award quotes on a request and the draft requisition lands here for approval."
+        />
+      ) : (
+        <div className={styles.ledger}>
+          <div className={styles.head} aria-hidden="true">
+            <span>Requisition</span>
+            <span>Chain</span>
+            <span className={styles.numHead}>Lines</span>
+            <span className={styles.numHead}>Vendors</span>
+            <span className={styles.numHead}>Total</span>
+            <span>Created</span>
+          </div>
+          {requisitions.map((row) => (
+            <RequisitionRow key={row.id} row={row} />
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function RequisitionRow({ row }: { row: RequisitionListRow }): ReactNode {
+  const title = row.sourceRfqTitle ? `From: ${row.sourceRfqTitle}` : 'Direct requisition';
+  return (
+    <Link href={`/procurement/requisitions/${row.id}`} className={styles.row} aria-label={title}>
+      <span className={styles.cellTitle}>
+        <span className={styles.cellTitleText}>{title}</span>
+        <span className={styles.cellLocation}>{row.locationName}</span>
+      </span>
+      <span>
+        <RequisitionChainTrack status={row.status} />
+      </span>
+      <span className={styles.cellNum}>
+        <StatNumber value={row.lineCount} />
+      </span>
+      <span className={styles.cellNum}>
+        <StatNumber value={row.vendorCount} />
+      </span>
+      <span className={styles.cellNum}>
+        <StatNumber value={row.total == null ? null : `$${row.total.toFixed(2)}`} />
+      </span>
+      <span className={styles.cellMuted}>{row.createdAt.slice(0, 10)}</span>
+    </Link>
   );
 }
 

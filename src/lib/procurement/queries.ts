@@ -290,3 +290,194 @@ export async function listLocationOptions(supabase: SupabaseClient): Promise<Loc
   }
   return data ?? [];
 }
+
+// ============================================================
+// Slice 4 — requisition reads
+// ============================================================
+
+import type { RequisitionStatus } from './transform';
+
+export interface RequisitionListRow {
+  id: string;
+  status: RequisitionStatus;
+  locationName: string;
+  sourceRfqTitle: string | null;
+  lineCount: number;
+  vendorCount: number;
+  total: number | null;
+  createdAt: string;
+}
+
+interface RawRequisitionListRow {
+  id: string;
+  status: RequisitionStatus;
+  total: number | null;
+  created_at: string;
+  locations: { name: string } | null;
+  rfqs: { title: string | null } | null;
+  requisition_lines: { supplier_id: string }[];
+}
+
+export async function listRequisitions(supabase: SupabaseClient): Promise<RequisitionListRow[]> {
+  const { data, error } = await supabase
+    .from('requisitions')
+    .select(
+      `id, status, total, created_at,
+       locations ( name ),
+       rfqs!requisitions_source_rfq_id_fkey ( title ),
+       requisition_lines ( supplier_id )`,
+    )
+    .order('created_at', { ascending: false })
+    .returns<RawRequisitionListRow[]>();
+  if (error) {
+    throw new Error(`listRequisitions failed: ${error.message}`);
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    status: r.status,
+    locationName: r.locations?.name ?? '—',
+    sourceRfqTitle: r.rfqs?.title ?? null,
+    lineCount: r.requisition_lines.length,
+    vendorCount: new Set(r.requisition_lines.map((l) => l.supplier_id)).size,
+    total: r.total == null ? null : Number(r.total),
+    createdAt: r.created_at,
+  }));
+}
+
+export interface RequisitionLineDetail {
+  lineNo: number;
+  productId: string;
+  sku: string;
+  productName: string;
+  supplierId: string;
+  supplierName: string;
+  qty: number;
+  unitCost: number | null;
+  purchaseUom: string | null;
+  factor: number | null;
+  /** The supplier link's CURRENT cost, for the update-link affordance (design §8). */
+  linkUnitCost: number | null;
+}
+
+export interface ConvertedPoRow {
+  id: string;
+  supplierName: string;
+  status: string;
+  total: number | null;
+}
+
+export interface RequisitionDetail {
+  id: string;
+  status: RequisitionStatus;
+  locationName: string;
+  sourceRfqId: string | null;
+  sourceRfqTitle: string | null;
+  requestedByUserId: string | null;
+  rejectionNote: string | null;
+  total: number | null;
+  createdAt: string;
+  lines: RequisitionLineDetail[];
+  purchaseOrders: ConvertedPoRow[];
+}
+
+interface RawRequisitionDetail {
+  id: string;
+  status: RequisitionStatus;
+  source_rfq_id: string | null;
+  requested_by_user_id: string | null;
+  rejection_note: string | null;
+  total: number | null;
+  created_at: string;
+  locations: { name: string } | null;
+  rfqs: { title: string | null } | null;
+  requisition_lines: {
+    line_no: number;
+    qty: number;
+    unit_cost: number | null;
+    purchase_uom: string | null;
+    purchase_to_stock_factor: number | null;
+    supplier_id: string;
+    products: { id: string; sku: string; name: string } | null;
+    suppliers: { name: string } | null;
+  }[];
+  purchase_orders: {
+    id: string;
+    status: string;
+    total: number | null;
+    suppliers: { name: string } | null;
+  }[];
+}
+
+export async function getRequisitionDetail(
+  supabase: SupabaseClient,
+  requisitionId: string,
+): Promise<RequisitionDetail | null> {
+  const { data, error } = await supabase
+    .from('requisitions')
+    .select(
+      `id, status, source_rfq_id, requested_by_user_id, rejection_note, total, created_at,
+       locations ( name ),
+       rfqs!requisitions_source_rfq_id_fkey ( title ),
+       requisition_lines ( line_no, qty, unit_cost, purchase_uom, purchase_to_stock_factor, supplier_id,
+         products ( id, sku, name ), suppliers ( name ) ),
+       purchase_orders ( id, status, total, suppliers ( name ) )`,
+    )
+    .eq('id', requisitionId)
+    .maybeSingle<RawRequisitionDetail>();
+  if (error) {
+    throw new Error(`getRequisitionDetail failed: ${error.message}`);
+  }
+  if (!data) {
+    return null;
+  }
+
+  const lines: RequisitionLineDetail[] = data.requisition_lines
+    .map((l) => ({
+      lineNo: l.line_no,
+      productId: l.products?.id ?? '',
+      sku: l.products?.sku ?? '—',
+      productName: l.products?.name ?? '—',
+      supplierId: l.supplier_id,
+      supplierName: l.suppliers?.name ?? '—',
+      qty: Number(l.qty),
+      unitCost: l.unit_cost == null ? null : Number(l.unit_cost),
+      purchaseUom: l.purchase_uom,
+      factor: l.purchase_to_stock_factor == null ? null : Number(l.purchase_to_stock_factor),
+      linkUnitCost: null,
+    }))
+    .sort((a, b) => a.lineNo - b.lineNo);
+
+  // Current link costs for the update-link-price affordance (design §8).
+  const productIds = [...new Set(lines.map((l) => l.productId).filter(Boolean))];
+  if (productIds.length > 0) {
+    const { data: links } = await supabase
+      .from('product_suppliers')
+      .select('product_id, supplier_id, unit_cost')
+      .in('product_id', productIds);
+    for (const line of lines) {
+      const link = (links ?? []).find(
+        (k) => k.product_id === line.productId && k.supplier_id === line.supplierId,
+      );
+      line.linkUnitCost = link?.unit_cost == null ? null : Number(link.unit_cost);
+    }
+  }
+
+  return {
+    id: data.id,
+    status: data.status,
+    locationName: data.locations?.name ?? '—',
+    sourceRfqId: data.source_rfq_id,
+    sourceRfqTitle: data.rfqs?.title ?? null,
+    requestedByUserId: data.requested_by_user_id,
+    rejectionNote: data.rejection_note,
+    total: data.total == null ? null : Number(data.total),
+    createdAt: data.created_at,
+    lines,
+    purchaseOrders: data.purchase_orders.map((po) => ({
+      id: po.id,
+      supplierName: po.suppliers?.name ?? '—',
+      status: po.status,
+      total: po.total == null ? null : Number(po.total),
+    })),
+  };
+}

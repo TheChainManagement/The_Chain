@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
@@ -73,17 +74,21 @@ export default async function RfqDetailPage({
         <div className={gridStyles.drafted} role="status">
           <span className={gridStyles.draftedText}>
             {rfq.draftedRequisitions.length === 1
-              ? 'A requisition has been drafted from this request.'
-              : `${rfq.draftedRequisitions.length} requisitions have been drafted from this request.`}
+              ? 'A requisition has been drafted from this request:'
+              : `${rfq.draftedRequisitions.length} requisitions have been drafted from this request:`}
           </span>
           <span className={gridStyles.draftedMeta}>
-            {rfq.draftedRequisitions
-              .map(
-                (r) =>
-                  `${r.status.toUpperCase()}${r.total != null ? ` · $${r.total.toFixed(2)}` : ''}`,
-              )
-              .join('  ·  ')}
-            {' — the requisitions bench lands in the next slice'}
+            {rfq.draftedRequisitions.map((r, i) => (
+              <Link
+                key={r.id}
+                href={`/procurement/requisitions/${r.id}`}
+                className={gridStyles.draftedLink}
+              >
+                {r.status.toUpperCase()}
+                {r.total != null ? ` · $${r.total.toFixed(2)}` : ''}
+                {i < rfq.draftedRequisitions.length - 1 ? '  ·  ' : ''}
+              </Link>
+            ))}
           </span>
         </div>
       ) : null}

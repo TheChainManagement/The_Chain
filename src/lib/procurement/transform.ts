@@ -373,3 +373,102 @@ export function computeAward(
   }
   return { ok: true, lines: drafts, total: Math.round(total * 100) / 100 };
 }
+
+// ============================================================
+// Slice 4 — requisition lifecycle (design §5, §7.1)
+// ============================================================
+
+export type RequisitionStatus =
+  | 'draft'
+  | 'submitted'
+  | 'approved'
+  | 'rejected'
+  | 'converted'
+  | 'canceled';
+
+/** Roles that may APPROVE or REJECT (single-step, MG 2026-07-12). */
+export const REQUISITION_APPROVER_ROLES: ReadonlySet<string> = new Set(['owner', 'manager']);
+
+/** Draft submits; a rejected document resubmits (same document, new audit row). */
+export function canSubmitRequisition(status: RequisitionStatus): Validation {
+  if (status !== 'draft' && status !== 'rejected') {
+    return { ok: false, error: 'This requisition has already been submitted.' };
+  }
+  return { ok: true };
+}
+
+/**
+ * Single-step approval: owner or manager, and NEVER the requester approving
+ * their own submission (design §7.1). The same guard gates reject — a decision
+ * is a decision.
+ */
+export function canDecideRequisition(input: {
+  status: RequisitionStatus;
+  role: string;
+  actorUserId: string | null;
+  requestedByUserId: string | null;
+}): Validation {
+  if (input.status !== 'submitted') {
+    return { ok: false, error: 'Only a submitted requisition can be decided.' };
+  }
+  if (!REQUISITION_APPROVER_ROLES.has(input.role)) {
+    return { ok: false, error: 'Only an owner or manager can decide a requisition.' };
+  }
+  if (
+    input.actorUserId != null &&
+    input.requestedByUserId != null &&
+    input.actorUserId === input.requestedByUserId
+  ) {
+    return { ok: false, error: 'You cannot approve your own requisition.' };
+  }
+  return { ok: true };
+}
+
+export function canConvertRequisition(status: RequisitionStatus): Validation {
+  if (status === 'converted') {
+    return { ok: false, error: 'This requisition has already become its purchase orders.' };
+  }
+  if (status !== 'approved') {
+    return { ok: false, error: 'Approve the requisition before converting it.' };
+  }
+  return { ok: true };
+}
+
+export function canCancelRequisition(status: RequisitionStatus): Validation {
+  if (status !== 'draft' && status !== 'submitted' && status !== 'rejected') {
+    return { ok: false, error: 'This requisition is already settled.' };
+  }
+  return { ok: true };
+}
+
+export interface RequisitionChainStep {
+  step: 'DRAFTED' | 'SUBMITTED' | 'APPROVED' | 'ORDERED';
+  state: 'done' | 'pending' | 'stopped';
+}
+
+/**
+ * The requisition chain: DRAFTED · SUBMITTED · APPROVED · ORDERED. A rejection
+ * shows a stop node at APPROVED (the decision point); canceled stops where the
+ * document died — same honest-state language as the RFQ and PO chains.
+ */
+export function buildRequisitionChain(status: RequisitionStatus): RequisitionChainStep[] {
+  const order: RequisitionChainStep['step'][] = ['DRAFTED', 'SUBMITTED', 'APPROVED', 'ORDERED'];
+  const reached: Record<RequisitionStatus, number> = {
+    draft: 1,
+    submitted: 2,
+    approved: 3,
+    rejected: 2,
+    converted: 4,
+    canceled: 1,
+  };
+  const stopAt: Partial<Record<RequisitionStatus, number>> = {
+    rejected: 2,
+    canceled: 1,
+  };
+  const n = reached[status];
+  const stop = stopAt[status];
+  return order.map((step, i) => ({
+    step,
+    state: stop != null && i === stop ? 'stopped' : i < n ? 'done' : 'pending',
+  }));
+}

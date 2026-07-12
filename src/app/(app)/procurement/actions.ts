@@ -656,3 +656,252 @@ export async function awardQuotesToRequisition(input: {
   revalidatePath('/procurement');
   return { ok: true, requisitionId: requisition.id, total: award.total };
 }
+
+// ============================================================
+// Slice 4 — requisition lifecycle + convert (design §5, §7.1, §8)
+// ============================================================
+
+import {
+  canCancelRequisition,
+  canConvertRequisition,
+  canDecideRequisition,
+  canSubmitRequisition,
+  type RequisitionStatus,
+} from '@/lib/procurement/transform';
+
+async function loadRequisition(
+  supabase: Server,
+  requisitionId: string,
+): Promise<{ status: RequisitionStatus; requestedByUserId: string | null } | null> {
+  const { data } = await supabase
+    .from('requisitions')
+    .select('status, requested_by_user_id')
+    .eq('id', requisitionId)
+    .maybeSingle<{ status: RequisitionStatus; requested_by_user_id: string | null }>();
+  if (!data) {
+    return null;
+  }
+  return { status: data.status, requestedByUserId: data.requested_by_user_id };
+}
+
+function revalidateRequisition(requisitionId: string): void {
+  revalidatePath('/procurement');
+  revalidatePath(`/procurement/requisitions/${requisitionId}`);
+}
+
+/** Draft (or rejected) → submitted. Any procurement writer may submit. */
+export async function submitRequisition(input: { requisitionId: string }): Promise<RfqEditState> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const req = await loadRequisition(supabase, input.requisitionId);
+  if (!req) {
+    return { ok: false, error: 'That requisition no longer exists.' };
+  }
+  const allowed = canSubmitRequisition(req.status);
+  if (!allowed.ok) {
+    return allowed;
+  }
+
+  const { error } = await supabase
+    .from('requisitions')
+    .update({ status: 'submitted', rejection_note: null })
+    .eq('id', input.requisitionId);
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+  revalidateRequisition(input.requisitionId);
+  return { ok: true };
+}
+
+/**
+ * Single-step approval (design §7.1, MG-locked): owner or manager, never the
+ * requester deciding their own submission. Approve stamps the decision trail.
+ */
+export async function approveRequisition(input: { requisitionId: string }): Promise<RfqEditState> {
+  return decideRequisition(input.requisitionId, 'approved', null);
+}
+
+export async function rejectRequisition(input: {
+  requisitionId: string;
+  note: string;
+}): Promise<RfqEditState> {
+  const note = input.note.trim();
+  if (!note) {
+    return { ok: false, error: 'Tell the requester why (a short note is required to reject).' };
+  }
+  return decideRequisition(input.requisitionId, 'rejected', note);
+}
+
+async function decideRequisition(
+  requisitionId: string,
+  decision: 'approved' | 'rejected',
+  rejectionNote: string | null,
+): Promise<RfqEditState> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const req = await loadRequisition(supabase, requisitionId);
+  if (!req) {
+    return { ok: false, error: 'That requisition no longer exists.' };
+  }
+  const allowed = canDecideRequisition({
+    status: req.status,
+    role: actor.role,
+    actorUserId: actor.userId,
+    requestedByUserId: req.requestedByUserId,
+  });
+  if (!allowed.ok) {
+    return allowed;
+  }
+
+  const { error } = await supabase
+    .from('requisitions')
+    .update({
+      status: decision,
+      approved_by_user_id: actor.userId,
+      decided_at: new Date().toISOString(),
+      rejection_note: rejectionNote,
+    })
+    .eq('id', requisitionId)
+    .eq('status', 'submitted');
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+  revalidateRequisition(requisitionId);
+  return { ok: true };
+}
+
+export async function cancelRequisition(input: { requisitionId: string }): Promise<RfqEditState> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const req = await loadRequisition(supabase, input.requisitionId);
+  if (!req) {
+    return { ok: false, error: 'That requisition no longer exists.' };
+  }
+  const allowed = canCancelRequisition(req.status);
+  if (!allowed.ok) {
+    return allowed;
+  }
+
+  const { error } = await supabase
+    .from('requisitions')
+    .update({ status: 'canceled' })
+    .eq('id', input.requisitionId);
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+  revalidateRequisition(input.requisitionId);
+  return { ok: true };
+}
+
+export type ConvertRequisitionResult =
+  | { ok: true; pos: { poId: string; supplierId: string; lineCount: number }[]; applied: boolean }
+  | { ok: false; error: string };
+
+/**
+ * Approved → purchase orders via the W2-3d RPC (one PO per supplier,
+ * purchase-UoM lines copied straight across, requisition stamped converted).
+ * The RPC is idempotent; replay returns the existing POs. No balance writes.
+ */
+export async function convertRequisition(input: {
+  requisitionId: string;
+}): Promise<ConvertRequisitionResult> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const req = await loadRequisition(supabase, input.requisitionId);
+  if (!req) {
+    return { ok: false, error: 'That requisition no longer exists.' };
+  }
+  const allowed = canConvertRequisition(req.status);
+  if (!allowed.ok) {
+    return allowed;
+  }
+
+  const { data, error } = await supabase.rpc('convert_requisition_to_po', {
+    p_tenant: actor.tenantId,
+    p_requisition: input.requisitionId,
+  });
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+  const rows = (data ?? []) as {
+    out_po_id: string;
+    out_supplier_id: string;
+    out_line_count: number;
+    out_applied: boolean;
+  }[];
+
+  revalidateRequisition(input.requisitionId);
+  revalidatePath('/purchase-orders');
+  return {
+    ok: true,
+    pos: rows.map((r) => ({
+      poId: r.out_po_id,
+      supplierId: r.out_supplier_id,
+      lineCount: r.out_line_count,
+    })),
+    applied: rows.every((r) => r.out_applied),
+  };
+}
+
+/**
+ * Post-award link refresh (design §8): copy ONE awarded line's price + UoM
+ * snapshot onto the supplier link, as an explicit, audited user action — never
+ * automatic. Stale link costs are how valuation seeds and reorder math drift.
+ */
+export async function updateSupplierLinkPrice(input: {
+  requisitionId: string;
+  lineNo: number;
+}): Promise<RfqEditState> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+
+  const { data: line } = await supabase
+    .from('requisition_lines')
+    .select('product_id, supplier_id, unit_cost, purchase_uom, purchase_to_stock_factor')
+    .eq('requisition_id', input.requisitionId)
+    .eq('line_no', input.lineNo)
+    .maybeSingle<{
+      product_id: string;
+      supplier_id: string;
+      unit_cost: number | null;
+      purchase_uom: string | null;
+      purchase_to_stock_factor: number | null;
+    }>();
+  if (!line) {
+    return { ok: false, error: 'That requisition line no longer exists.' };
+  }
+  if (line.unit_cost == null) {
+    return { ok: false, error: 'This line has no awarded price to copy.' };
+  }
+
+  const { error } = await supabase
+    .from('product_suppliers')
+    .update({
+      unit_cost: line.unit_cost,
+      purchase_uom: line.purchase_uom,
+      purchase_to_stock_factor: line.purchase_to_stock_factor,
+    })
+    .eq('product_id', line.product_id)
+    .eq('supplier_id', line.supplier_id);
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+
+  revalidateRequisition(input.requisitionId);
+  return { ok: true };
+}

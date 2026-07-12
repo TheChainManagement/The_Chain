@@ -1,0 +1,239 @@
+/* Requisition detail (W2-3 slice 4). Tokens only. */
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  flex-wrap: wrap;
+}
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metaKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.metaValue {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.metaLink {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-signal);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.metaLink:hover {
+  border-bottom-color: var(--color-signal);
+}
+.metaLink:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 1px;
+}
+
+/* Rejection note callout */
+.rejection {
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-stop);
+  border-left-width: 3px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.rejectionKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-stop);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ----- Lines ledger ----- */
+.lines {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.linesHead,
+.lineRow {
+  display: grid;
+  grid-template-columns: 28px minmax(130px, 1.6fr) minmax(110px, 1.2fr) minmax(84px, auto) minmax(
+      72px,
+      auto
+    ) minmax(84px, auto) max-content;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: 0 var(--spacing-4);
+}
+.linesHead {
+  height: 34px;
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.lineRow {
+  min-height: 48px;
+  border-bottom: 1px solid var(--color-hairline);
+}
+.lineRow:last-child {
+  border-bottom: none;
+}
+.lineNo {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-dim);
+}
+.lineSku {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.lineSkuCode {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--color-deep);
+}
+.lineName {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.num {
+  justify-self: end;
+  text-align: right;
+}
+.linkBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-signal);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.linkBtn:hover {
+  text-decoration: underline;
+}
+.linkBtn:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 1px;
+}
+.linkDone {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  white-space: nowrap;
+}
+
+/* ----- Converted POs panel ----- */
+.pos {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.posHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 var(--spacing-4);
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.poRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  min-height: 48px;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-bottom: 1px solid var(--color-hairline);
+  text-decoration: none;
+}
+.poRow:last-child {
+  border-bottom: none;
+}
+.poRow:hover {
+  background: var(--color-inset);
+}
+.poRow:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -2px;
+}
+.poName {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.poMeta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+.headerActions {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rejectForm {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+.rejectInput {
+  height: 34px;
+  width: min(260px, 50vw);
+  padding: 0 var(--spacing-3);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+  background: var(--color-inset);
+  border: 1px solid var(--color-hairline);
+}
+.rejectInput:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -1px;
+}
+.error {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
