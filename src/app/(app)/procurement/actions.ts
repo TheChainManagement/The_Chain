@@ -47,7 +47,9 @@ async function loadRfqState(
 ): Promise<{ status: RfqStatus; lineCount: number; vendorCount: number } | null> {
   const { data } = await supabase
     .from('rfqs')
-    .select('status, rfq_lines ( count ), rfq_vendors ( count )')
+    .select(
+      'status, rfq_lines!rfq_lines_rfq_id_fkey ( count ), rfq_vendors!rfq_vendors_rfq_id_fkey ( count )',
+    )
     .eq('id', rfqId)
     .maybeSingle<{
       status: RfqStatus;
@@ -402,4 +404,255 @@ export async function createRfqFromRecommendations(input: {
   revalidatePath('/procurement');
   revalidatePath(`/procurement/rfqs/${rfq.id}`);
   return { ok: true, rfqId: rfq.id };
+}
+
+// ============================================================
+// Slice 3 — quote entry + award (design §7.3)
+// ============================================================
+
+import {
+  type AwardPick,
+  buildQuoteRow,
+  canEnterQuotes,
+  computeAward,
+  type VendorQuoteCell,
+  validateQuoteInput,
+} from '@/lib/procurement/transform';
+
+/**
+ * Upsert one vendor's quote for one line, entered by the operator from the
+ * vendor's reply. Flips the vendor plate to 'quoted' and — when no vendor is
+ * still pending — the RFQ itself to 'quoted' (design §5's auto-flip).
+ */
+export async function saveVendorQuote(
+  _prev: RfqEditState,
+  formData: FormData,
+): Promise<RfqEditState> {
+  const rfqId = String(formData.get('rfq_id') ?? '').trim();
+  const supplierId = String(formData.get('supplier_id') ?? '').trim();
+  const lineNo = Number(String(formData.get('line_no') ?? ''));
+  if (!rfqId || !supplierId || !Number.isInteger(lineNo)) {
+    return { ok: false, error: 'Missing quote reference.' };
+  }
+  const parsed = validateQuoteInput({
+    cost: String(formData.get('cost') ?? ''),
+    purchaseUom: String(formData.get('purchase_uom') ?? ''),
+    factor: String(formData.get('factor') ?? ''),
+    leadTimeDays: String(formData.get('lead_time_days') ?? ''),
+    moq: String(formData.get('moq') ?? ''),
+  });
+  if (!parsed.ok) {
+    return parsed;
+  }
+  const note = String(formData.get('note') ?? '').trim();
+
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const state = await loadRfqState(supabase, rfqId);
+  if (!state) {
+    return { ok: false, error: 'That quote request no longer exists.' };
+  }
+  const open = canEnterQuotes(state.status);
+  if (!open.ok) {
+    return open;
+  }
+
+  const { error } = await supabase.from('rfq_vendor_quotes').upsert(
+    {
+      tenant_id: actor.tenantId,
+      rfq_id: rfqId,
+      supplier_id: supplierId,
+      line_no: lineNo,
+      quoted_unit_cost: parsed.quote.cost,
+      quoted_purchase_uom: parsed.quote.purchaseUom,
+      purchase_to_stock_factor: parsed.quote.factor,
+      lead_time_days: parsed.quote.leadTimeDays,
+      moq: parsed.quote.moq,
+      note: note || null,
+      entered_by_user_id: actor.userId,
+      entered_at: new Date().toISOString(),
+    },
+    { onConflict: 'rfq_id,supplier_id,line_no' },
+  );
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+
+  const { error: vendorError } = await supabase
+    .from('rfq_vendors')
+    .update({ status: 'quoted', responded_at: new Date().toISOString() })
+    .eq('rfq_id', rfqId)
+    .eq('supplier_id', supplierId);
+  if (vendorError) {
+    return { ok: false, error: mapRfqWriteError(vendorError.code, vendorError.message) };
+  }
+
+  await autoFlipQuoted(supabase, rfqId);
+  revalidatePath(`/procurement/rfqs/${rfqId}`);
+  revalidatePath('/procurement');
+  return { ok: true };
+}
+
+/** A vendor who answered "no bid": their column settles without a quote. */
+export async function markVendorDeclined(input: {
+  rfqId: string;
+  supplierId: string;
+}): Promise<RfqEditState> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const state = await loadRfqState(supabase, input.rfqId);
+  if (!state) {
+    return { ok: false, error: 'That quote request no longer exists.' };
+  }
+  const open = canEnterQuotes(state.status);
+  if (!open.ok) {
+    return open;
+  }
+
+  const { error } = await supabase
+    .from('rfq_vendors')
+    .update({ status: 'declined', responded_at: new Date().toISOString() })
+    .eq('rfq_id', input.rfqId)
+    .eq('supplier_id', input.supplierId);
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+
+  await autoFlipQuoted(supabase, input.rfqId);
+  revalidatePath(`/procurement/rfqs/${input.rfqId}`);
+  revalidatePath('/procurement');
+  return { ok: true };
+}
+
+async function autoFlipQuoted(supabase: Server, rfqId: string): Promise<void> {
+  const { data } = await supabase.from('rfq_vendors').select('status').eq('rfq_id', rfqId);
+  const vendors = data ?? [];
+  if (vendors.length > 0 && vendors.every((v) => v.status !== 'pending')) {
+    await supabase.from('rfqs').update({ status: 'quoted' }).eq('id', rfqId).eq('status', 'sent');
+  }
+}
+
+export type AwardActionResult =
+  | { ok: true; requisitionId: string; total: number }
+  | { ok: false; error: string };
+
+/**
+ * Award the picked quotes into a DRAFT requisition (design §10 slice 3's exit).
+ * Lines convert the RFQ's stock quantities into each winning vendor's purchase
+ * unit and snapshot the quote's cost + UoM — the same purchase basis PO lines
+ * use, so slice 4's convert-to-PO is a straight copy. ZERO balance writes:
+ * this creates a document, nothing else.
+ */
+export async function awardQuotesToRequisition(input: {
+  rfqId: string;
+  picks: AwardPick[];
+}): Promise<AwardActionResult> {
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+
+  const { data: rfq } = await supabase
+    .from('rfqs')
+    .select(
+      `id, status, location_id,
+       rfq_lines!rfq_lines_rfq_id_fkey ( line_no, qty, product_id ),
+       rfq_vendor_quotes!rfq_vendor_quotes_rfq_id_fkey ( supplier_id, line_no, quoted_unit_cost, quoted_purchase_uom, purchase_to_stock_factor, lead_time_days, moq )`,
+    )
+    .eq('id', input.rfqId)
+    .maybeSingle<{
+      id: string;
+      status: string;
+      location_id: string;
+      rfq_lines: { line_no: number; qty: number; product_id: string }[];
+      rfq_vendor_quotes: {
+        supplier_id: string;
+        line_no: number;
+        quoted_unit_cost: number;
+        quoted_purchase_uom: string | null;
+        purchase_to_stock_factor: number | null;
+        lead_time_days: number | null;
+        moq: number | null;
+      }[];
+    }>();
+  if (!rfq) {
+    return { ok: false, error: 'That quote request no longer exists.' };
+  }
+  const open = canEnterQuotes(rfq.status as Parameters<typeof canEnterQuotes>[0]);
+  if (!open.ok) {
+    return open;
+  }
+
+  const quotesByLine = new Map<number, VendorQuoteCell[]>();
+  for (const line of rfq.rfq_lines) {
+    quotesByLine.set(
+      line.line_no,
+      buildQuoteRow(
+        rfq.rfq_vendor_quotes
+          .filter((q) => q.line_no === line.line_no)
+          .map((q) => ({
+            supplierId: q.supplier_id,
+            quotedUnitCost: Number(q.quoted_unit_cost),
+            purchaseUom: q.quoted_purchase_uom,
+            factor: q.purchase_to_stock_factor == null ? null : Number(q.purchase_to_stock_factor),
+            leadTimeDays: q.lead_time_days,
+            moq: q.moq,
+          })),
+      ),
+    );
+  }
+  const award = computeAward(
+    rfq.rfq_lines.map((l) => ({ lineNo: l.line_no, productId: l.product_id, qty: Number(l.qty) })),
+    quotesByLine,
+    input.picks,
+  );
+  if (!award.ok) {
+    return award;
+  }
+
+  const { data: requisition, error: reqError } = await supabase
+    .from('requisitions')
+    .insert({
+      tenant_id: actor.tenantId,
+      location_id: rfq.location_id,
+      source_rfq_id: rfq.id,
+      requested_by_user_id: actor.userId,
+      total: award.total,
+    })
+    .select('id')
+    .single<{ id: string }>();
+  if (reqError || !requisition) {
+    return { ok: false, error: mapRfqWriteError(reqError?.code, reqError?.message ?? '') };
+  }
+
+  const { error: linesError } = await supabase.from('requisition_lines').insert(
+    award.lines.map((l) => ({
+      tenant_id: actor.tenantId,
+      requisition_id: requisition.id,
+      line_no: l.lineNo,
+      product_id: l.productId,
+      supplier_id: l.supplierId,
+      qty: l.qty,
+      unit_cost: l.unitCost,
+      purchase_uom: l.purchaseUom,
+      purchase_to_stock_factor: l.factor,
+      source_quote_line_no: l.sourceQuoteLineNo,
+    })),
+  );
+  if (linesError) {
+    // Leave no headless document behind.
+    await supabase.from('requisitions').delete().eq('id', requisition.id);
+    return { ok: false, error: mapRfqWriteError(linesError.code, linesError.message) };
+  }
+
+  revalidatePath(`/procurement/rfqs/${input.rfqId}`);
+  revalidatePath('/procurement');
+  return { ok: true, requisitionId: requisition.id, total: award.total };
 }

@@ -52,7 +52,8 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }));
 vi.mock('next/headers', () => ({
-  headers: async () => new Headers({ 'x-forwarded-host': 'thechain.test', 'x-forwarded-proto': 'https' }),
+  headers: async () =>
+    new Headers({ 'x-forwarded-host': 'thechain.test', 'x-forwarded-proto': 'https' }),
 }));
 vi.mock('next/navigation', () => ({ redirect: h.redirect }));
 
@@ -207,9 +208,7 @@ describe('GET /api/auth/confirm', () => {
   it('rejects a non-recovery token type (reset endpoint is recovery-only)', async () => {
     const res = await confirmGet(req('token_hash=th1&type=signup&next=/reset-password') as never);
     expect(h.verifyOtp).not.toHaveBeenCalled();
-    expect(res.headers.get('location')).toBe(
-      'https://thechain.test/forgot-password?error=expired',
-    );
+    expect(res.headers.get('location')).toBe('https://thechain.test/forgot-password?error=expired');
   });
 
   it('exchanges a PKCE code link', async () => {
@@ -230,15 +229,11 @@ describe('GET /api/auth/confirm', () => {
   it('bounces failed verification to the expired notice', async () => {
     h.verifyOtp.mockResolvedValue({ error: { message: 'expired' } });
     const res = await confirmGet(req('token_hash=th1&type=recovery') as never);
-    expect(res.headers.get('location')).toBe(
-      'https://thechain.test/forgot-password?error=expired',
-    );
+    expect(res.headers.get('location')).toBe('https://thechain.test/forgot-password?error=expired');
   });
 
   it('bounces links with no credentials at all', async () => {
     const res = await confirmGet(req('next=/reset-password') as never);
-    expect(res.headers.get('location')).toBe(
-      'https://thechain.test/forgot-password?error=expired',
-    );
+    expect(res.headers.get('location')).toBe('https://thechain.test/forgot-password?error=expired');
   });
 });

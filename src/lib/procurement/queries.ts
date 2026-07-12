@@ -37,8 +37,8 @@ export async function listRfqs(supabase: SupabaseClient): Promise<RfqListRow[]> 
     .select(
       `id, title, status, respond_by, created_at,
        locations ( name ),
-       rfq_lines ( count ),
-       rfq_vendors ( status )`,
+       rfq_lines!rfq_lines_rfq_id_fkey ( count ),
+       rfq_vendors!rfq_vendors_rfq_id_fkey ( status )`,
     )
     .order('created_at', { ascending: false })
     .returns<RawRfqListRow[]>();
@@ -75,6 +75,24 @@ export interface RfqVendorRow {
   sentAt: string | null;
 }
 
+export interface RfqQuoteRow {
+  supplierId: string;
+  lineNo: number;
+  quotedUnitCost: number;
+  purchaseUom: string | null;
+  factor: number | null;
+  leadTimeDays: number | null;
+  moq: number | null;
+  note: string | null;
+}
+
+export interface DraftedRequisitionRow {
+  id: string;
+  status: string;
+  total: number | null;
+  createdAt: string;
+}
+
 export interface RfqDetail {
   id: string;
   title: string;
@@ -87,6 +105,8 @@ export interface RfqDetail {
   createdAt: string;
   lines: RfqLineRow[];
   vendors: RfqVendorRow[];
+  quotes: RfqQuoteRow[];
+  draftedRequisitions: DraftedRequisitionRow[];
 }
 
 interface RawRfqDetail {
@@ -111,6 +131,22 @@ interface RawRfqDetail {
     sent_at: string | null;
     suppliers: { name: string } | null;
   }[];
+  rfq_vendor_quotes: {
+    supplier_id: string;
+    line_no: number;
+    quoted_unit_cost: number;
+    quoted_purchase_uom: string | null;
+    purchase_to_stock_factor: number | null;
+    lead_time_days: number | null;
+    moq: number | null;
+    note: string | null;
+  }[];
+  requisitions: {
+    id: string;
+    status: string;
+    total: number | null;
+    created_at: string;
+  }[];
 }
 
 export async function getRfqDetail(
@@ -122,8 +158,10 @@ export async function getRfqDetail(
     .select(
       `id, title, note, status, location_id, respond_by, sent_at, created_at,
        locations ( name ),
-       rfq_lines ( line_no, qty, note, products ( id, sku, name, unit_of_measure ) ),
-       rfq_vendors ( supplier_id, status, sent_at, suppliers ( name ) )`,
+       rfq_lines!rfq_lines_rfq_id_fkey ( line_no, qty, note, products ( id, sku, name, unit_of_measure ) ),
+       rfq_vendors!rfq_vendors_rfq_id_fkey ( supplier_id, status, sent_at, suppliers ( name ) ),
+       rfq_vendor_quotes!rfq_vendor_quotes_rfq_id_fkey ( supplier_id, line_no, quoted_unit_cost, quoted_purchase_uom, purchase_to_stock_factor, lead_time_days, moq, note ),
+       requisitions!requisitions_source_rfq_id_fkey ( id, status, total, created_at )`,
     )
     .eq('id', rfqId)
     .maybeSingle<RawRfqDetail>();
@@ -162,7 +200,59 @@ export async function getRfqDetail(
         sentAt: v.sent_at,
       }))
       .sort((a, b) => a.supplierName.localeCompare(b.supplierName)),
+    quotes: data.rfq_vendor_quotes.map((q) => ({
+      supplierId: q.supplier_id,
+      lineNo: q.line_no,
+      quotedUnitCost: Number(q.quoted_unit_cost),
+      purchaseUom: q.quoted_purchase_uom,
+      factor: q.purchase_to_stock_factor == null ? null : Number(q.purchase_to_stock_factor),
+      leadTimeDays: q.lead_time_days,
+      moq: q.moq,
+      note: q.note,
+    })),
+    draftedRequisitions: data.requisitions
+      .map((r) => ({
+        id: r.id,
+        status: r.status,
+        total: r.total == null ? null : Number(r.total),
+        createdAt: r.created_at,
+      }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };
+}
+
+export interface LinkDefault {
+  productId: string;
+  supplierId: string;
+  purchaseUom: string | null;
+  factor: number | null;
+}
+
+/**
+ * Supplier-link conversion defaults for the quote entry form: when a vendor
+ * already has a purchase UoM + factor on file for a product, the entry cell
+ * pre-fills them (the quote still snapshots its own copy).
+ */
+export async function listLinkDefaults(
+  supabase: SupabaseClient,
+  productIds: string[],
+): Promise<LinkDefault[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+  const { data, error } = await supabase
+    .from('product_suppliers')
+    .select('product_id, supplier_id, purchase_uom, purchase_to_stock_factor')
+    .in('product_id', productIds);
+  if (error) {
+    throw new Error(`listLinkDefaults failed: ${error.message}`);
+  }
+  return (data ?? []).map((r) => ({
+    productId: r.product_id as string,
+    supplierId: r.supplier_id as string,
+    purchaseUom: (r.purchase_uom as string | null) ?? null,
+    factor: r.purchase_to_stock_factor == null ? null : Number(r.purchase_to_stock_factor),
+  }));
 }
 
 export interface SkuOption {

@@ -44,9 +44,7 @@ describe('eventDetail', () => {
   });
 
   it('marks a completed count session and stays quiet otherwise', () => {
-    expect(eventDetail('cycle_count_sessions', { status: 'completed' })).toBe(
-      'session completed',
-    );
+    expect(eventDetail('cycle_count_sessions', { status: 'completed' })).toBe('session completed');
     expect(eventDetail('cycle_count_sessions', { status: 'open' })).toBeNull();
     expect(eventDetail('products', { sku: 'X' })).toBeNull();
     expect(eventDetail('stock_movements', null)).toBeNull();

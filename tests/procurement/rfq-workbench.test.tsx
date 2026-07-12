@@ -56,6 +56,8 @@ function rfq(overrides: Partial<RfqDetail> = {}): RfqDetail {
       },
     ],
     vendors: [{ supplierId: 's1', supplierName: 'Acme Supply', status: 'pending', sentAt: null }],
+    quotes: [],
+    draftedRequisitions: [],
     ...overrides,
   };
 }

@@ -192,3 +192,184 @@ export function mapRfqWriteError(code: string | undefined, message: string): str
   }
   return 'Could not save the quote request. Please try again.';
 }
+
+// ============================================================
+// Slice 3 — quote entry, the comparison grid, award (design §7.3)
+// ============================================================
+
+/** Quote entry is open while vendors can still answer: sent or quoted. */
+export function canEnterQuotes(status: RfqStatus): Validation {
+  if (status !== 'sent' && status !== 'quoted') {
+    return { ok: false, error: 'Send the request before entering vendor quotes.' };
+  }
+  return { ok: true };
+}
+
+export interface QuoteInput {
+  cost: string;
+  purchaseUom: string;
+  factor: string;
+  leadTimeDays: string;
+  moq: string;
+}
+
+export interface ParsedQuote {
+  cost: number;
+  purchaseUom: string | null;
+  factor: number | null;
+  leadTimeDays: number | null;
+  moq: number | null;
+}
+
+/**
+ * Validate one vendor quote as entered. Cost is per PURCHASE unit; the factor
+ * converts to stock units (null = same unit). Fractional factors are allowed
+ * (MG 2026-07-09); lead time and MOQ are optional non-negative integers.
+ */
+export function validateQuoteInput(
+  input: QuoteInput,
+): { ok: true; quote: ParsedQuote } | { ok: false; error: string } {
+  const cost = Number(input.cost.trim());
+  if (!input.cost.trim() || !Number.isFinite(cost) || cost < 0) {
+    return { ok: false, error: 'Enter the quoted unit price (0 or more).' };
+  }
+  const purchaseUom = input.purchaseUom.trim() || null;
+  let factor: number | null = null;
+  if (input.factor.trim()) {
+    factor = Number(input.factor.trim());
+    if (!Number.isFinite(factor) || factor <= 0) {
+      return { ok: false, error: 'The conversion factor must be greater than zero.' };
+    }
+  }
+  if (purchaseUom && factor == null) {
+    return {
+      ok: false,
+      error: 'A purchase unit needs its conversion factor (1 unit = ? stock units).',
+    };
+  }
+  let leadTimeDays: number | null = null;
+  if (input.leadTimeDays.trim()) {
+    leadTimeDays = Number(input.leadTimeDays.trim());
+    if (!Number.isInteger(leadTimeDays) || leadTimeDays < 0) {
+      return { ok: false, error: 'Lead time is whole days, 0 or more.' };
+    }
+  }
+  let moq: number | null = null;
+  if (input.moq.trim()) {
+    moq = Number(input.moq.trim());
+    if (!Number.isInteger(moq) || moq < 0) {
+      return { ok: false, error: 'MOQ is a whole number, 0 or more.' };
+    }
+  }
+  return { ok: true, quote: { cost, purchaseUom, factor, leadTimeDays, moq } };
+}
+
+/** Cost per STOCK unit — the comparable number (quoted cost ÷ factor). */
+export function perStockUnitCost(cost: number, factor: number | null): number {
+  return cost / (factor ?? 1);
+}
+
+export interface VendorQuoteCell {
+  supplierId: string;
+  quotedUnitCost: number;
+  purchaseUom: string | null;
+  factor: number | null;
+  leadTimeDays: number | null;
+  moq: number | null;
+  perStockUnit: number;
+  cheapest: boolean;
+}
+
+/**
+ * One comparison row per RFQ line: each vendor's answer normalized to
+ * per-stock-unit cost, with the cheapest answered cell flagged (the ignite).
+ * Ties: every cell at the minimum lights — the operator breaks the tie.
+ */
+export function buildQuoteRow(
+  quotes: {
+    supplierId: string;
+    quotedUnitCost: number;
+    purchaseUom: string | null;
+    factor: number | null;
+    leadTimeDays: number | null;
+    moq: number | null;
+  }[],
+): VendorQuoteCell[] {
+  const cells = quotes.map((q) => ({
+    supplierId: q.supplierId,
+    quotedUnitCost: q.quotedUnitCost,
+    purchaseUom: q.purchaseUom,
+    factor: q.factor,
+    leadTimeDays: q.leadTimeDays,
+    moq: q.moq,
+    perStockUnit: perStockUnitCost(q.quotedUnitCost, q.factor),
+    cheapest: false,
+  }));
+  if (cells.length === 0) {
+    return cells;
+  }
+  const min = Math.min(...cells.map((c) => c.perStockUnit));
+  for (const c of cells) {
+    c.cheapest = c.perStockUnit === min;
+  }
+  return cells;
+}
+
+export interface AwardPick {
+  lineNo: number;
+  supplierId: string;
+}
+
+export interface AwardLineDraft {
+  lineNo: number;
+  productId: string;
+  supplierId: string;
+  /** PURCHASE UoM (the vendor's unit): RFQ stock qty ÷ factor. Fractional allowed. */
+  qty: number;
+  unitCost: number;
+  purchaseUom: string | null;
+  factor: number | null;
+  sourceQuoteLineNo: number;
+}
+
+/**
+ * Assemble the requisition draft from the picks. Each picked line converts the
+ * RFQ's stock quantity into the winning vendor's purchase unit (÷ factor,
+ * fractional allowed per MG) and carries the quote's cost + UoM snapshots —
+ * the same purchase-UoM basis PO lines use, so slice 4's conversion is a
+ * straight copy. Total = Σ qty × unit cost (purchase basis).
+ */
+export function computeAward(
+  lines: { lineNo: number; productId: string; qty: number }[],
+  quotesByLine: Map<number, VendorQuoteCell[]>,
+  picks: AwardPick[],
+): { ok: true; lines: AwardLineDraft[]; total: number } | { ok: false; error: string } {
+  if (picks.length === 0) {
+    return { ok: false, error: 'Pick a winning quote for at least one line.' };
+  }
+  const drafts: AwardLineDraft[] = [];
+  let total = 0;
+  for (const [i, pick] of picks.entries()) {
+    const line = lines.find((l) => l.lineNo === pick.lineNo);
+    if (!line) {
+      return { ok: false, error: `Line ${pick.lineNo} is no longer on the request.` };
+    }
+    const cell = quotesByLine.get(pick.lineNo)?.find((c) => c.supplierId === pick.supplierId);
+    if (!cell) {
+      return { ok: false, error: `That vendor has not quoted line ${pick.lineNo}.` };
+    }
+    const qty = line.qty / (cell.factor ?? 1);
+    drafts.push({
+      lineNo: i + 1,
+      productId: line.productId,
+      supplierId: pick.supplierId,
+      qty,
+      unitCost: cell.quotedUnitCost,
+      purchaseUom: cell.purchaseUom,
+      factor: cell.factor,
+      sourceQuoteLineNo: pick.lineNo,
+    });
+    total += qty * cell.quotedUnitCost;
+  }
+  return { ok: true, lines: drafts, total: Math.round(total * 100) / 100 };
+}

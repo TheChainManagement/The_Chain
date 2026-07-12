@@ -1,0 +1,269 @@
+/* The quote comparison grid (W2-3 slice 3) — THE memorable element.
+   Rows = RFQ lines, columns = vendors, cheapest answered cell ignites cobalt,
+   picks assemble the requisition in the award tray. Tokens only. */
+
+.wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+
+.gridHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 var(--spacing-4);
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--color-hairline);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+
+.scroller {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  border-bottom: 1px solid var(--color-hairline);
+  padding: var(--spacing-3) var(--spacing-3);
+  text-align: left;
+  vertical-align: middle;
+}
+.table th {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  background: var(--color-inset);
+}
+.vendorHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vendorHeadName {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-deep);
+}
+.vendorHeadActions {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+.vendorHeadBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--color-signal);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.vendorHeadBtn:hover {
+  text-decoration: underline;
+}
+.vendorHeadBtn:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 1px;
+}
+.vendorDeclined {
+  color: var(--color-stop);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.skuCell {
+  min-width: 150px;
+}
+.skuCode {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--color-deep);
+  display: block;
+}
+.skuQty {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
+
+/* ----- The quote cell ----- */
+.cell {
+  width: 100%;
+  min-width: 128px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: transparent;
+  border: 1px solid var(--color-hairline);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--duration-quick) var(--ease-spring-soft),
+    background var(--duration-quick) var(--ease-spring-soft),
+    box-shadow var(--duration-quick) var(--ease-spring-soft);
+}
+.cell:hover {
+  border-color: var(--color-divider);
+  background: var(--color-inset);
+}
+.cell:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -1px;
+}
+.cellEmpty {
+  border-style: dashed;
+  color: var(--color-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cellCost {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-deep);
+}
+.cellMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-dim);
+}
+/* Cheapest answered cell per row: the ignite. */
+.cell[data-cheapest="true"] {
+  border-color: var(--color-signal);
+  box-shadow: inset 2px 0 0 var(--color-signal);
+}
+/* Picked winner: full cobalt commitment. */
+.cell[data-picked="true"] {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+}
+.cell[data-picked="true"] .cellCost,
+.cell[data-picked="true"] .cellMeta {
+  color: var(--color-on-signal);
+}
+
+/* ----- Entry panel (one active form under the grid) ----- */
+.entry {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(80px, 1fr)) minmax(100px, 1.4fr) max-content;
+  gap: var(--spacing-3);
+  align-items: end;
+  padding: var(--spacing-4);
+  border-top: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+}
+.entryTitle {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+}
+.entry button {
+  white-space: nowrap;
+}
+.entry input {
+  height: 32px;
+  width: 100%;
+  padding: 0 var(--spacing-2);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+}
+.entry input:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: -1px;
+}
+.entry label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+/* ----- Award tray ----- */
+.tray {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-hairline);
+  background: var(--color-inset);
+  flex-wrap: wrap;
+}
+.trayReads {
+  display: flex;
+  gap: var(--spacing-5);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.trayKey {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-dim);
+  margin-right: var(--spacing-2);
+}
+.trayValue {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.error {
+  margin: 0;
+  padding: var(--spacing-2) var(--spacing-4);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-stop);
+}
+
+/* ----- Drafted-requisition banner ----- */
+.drafted {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-signal);
+  border-left-width: 3px;
+}
+.draftedText {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-deep);
+}
+.draftedMeta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}

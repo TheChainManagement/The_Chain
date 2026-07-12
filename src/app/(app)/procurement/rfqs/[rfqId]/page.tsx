@@ -2,10 +2,12 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
-import { getRfqDetail, listSkuOptions } from '@/lib/procurement/queries';
+import { getRfqDetail, listLinkDefaults, listSkuOptions } from '@/lib/procurement/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
 import { RfqChainTrack } from '../../RfqChainTrack';
+import { QuoteGrid } from './QuoteGrid';
+import gridStyles from './quote-grid.module.css';
 import { RfqLines, RfqStatusActions, RfqVendors } from './RfqWorkbench';
 import styles from './rfq.module.css';
 
@@ -27,10 +29,16 @@ export default async function RfqDetailPage({
     notFound();
   }
 
-  const [skuOptions, supplierOptions] = await Promise.all([
+  const [skuOptions, supplierOptions, linkDefaults] = await Promise.all([
     listSkuOptions(supabase),
     listSupplierOptions(supabase),
+    listLinkDefaults(
+      supabase,
+      rfq.lines.map((l) => l.productId),
+    ),
   ]);
+
+  const gridLive = rfq.status !== 'draft' && rfq.status !== 'canceled';
 
   return (
     <div className={pageStyles.stack}>
@@ -60,6 +68,27 @@ export default async function RfqDetailPage({
           </span>
         </div>
       </div>
+
+      {rfq.draftedRequisitions.length > 0 ? (
+        <div className={gridStyles.drafted} role="status">
+          <span className={gridStyles.draftedText}>
+            {rfq.draftedRequisitions.length === 1
+              ? 'A requisition has been drafted from this request.'
+              : `${rfq.draftedRequisitions.length} requisitions have been drafted from this request.`}
+          </span>
+          <span className={gridStyles.draftedMeta}>
+            {rfq.draftedRequisitions
+              .map(
+                (r) =>
+                  `${r.status.toUpperCase()}${r.total != null ? ` · $${r.total.toFixed(2)}` : ''}`,
+              )
+              .join('  ·  ')}
+            {' — the requisitions bench lands in the next slice'}
+          </span>
+        </div>
+      ) : null}
+
+      {gridLive ? <QuoteGrid rfq={rfq} linkDefaults={linkDefaults} /> : null}
 
       <div className={styles.columns}>
         <RfqLines rfq={rfq} skuOptions={skuOptions} />
