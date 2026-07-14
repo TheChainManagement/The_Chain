@@ -1,0 +1,101 @@
+.addForm,
+.editForm {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.addForm label,
+.editForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.addForm input,
+.addForm select,
+.editForm input,
+.editForm select {
+  min-width: 0;
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  color: var(--color-deep);
+  padding: 10px 12px;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.button,
+.archiveButton {
+  border: 1px solid var(--color-hairline);
+  background: transparent;
+  color: var(--color-deep);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.button:hover {
+  border-color: var(--color-signal);
+}
+.grid {
+  display: grid;
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--color-hairline);
+  background: var(--color-surface);
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+.archived {
+  opacity: 0.58;
+}
+.cardHead div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.cardHead strong {
+  font-size: 18px;
+}
+.cardHead span {
+  color: var(--color-dim);
+  font-size: 12px;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+}
+.actions form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.archiveButton {
+  color: var(--color-stop);
+}
+.archiveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.error {
+  color: var(--color-stop);
+  font-size: 12px;
+  margin: 0;
+}
+.success {
+  color: var(--color-flow);
+  font-size: 12px;
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .addForm,
+  .editForm {
+    grid-template-columns: 1fr;
+  }
+  .actions {
+    flex-direction: column;
+  }
+}

@@ -406,3 +406,10 @@ mode-spine doc.
   `dpl_8GVxfDbmGWoivvALRZw7DVmzGUNP` reached Ready. Canonical route, auth-gate, unauthorized
   export, and Stripe webhook method-gate smoke checks passed. Full evidence:
   `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`.
+- 2026-07-14: **W2-4 multi-location design SIGNED OFF by MG.** Locked URL-backed scope,
+  `All locations` default reads, archive-only location lifecycle, immediate atomic Wave 2
+  transfers, and tenant-wide roles with per-location grants deferred to Wave 3. Audit found
+  one hidden prerequisite: operators currently have no UI to create a second location, so
+  W2-4a begins with location management and an explicit primary marker. Design:
+  `docs/WAVE2_W2-4_MULTI_LOCATION_DESIGN.md`. Build branch:
+  `codex/w2-4-multi-location`.

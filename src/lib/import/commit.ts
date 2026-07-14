@@ -542,6 +542,8 @@ export async function ensurePrimaryLocation(
     .from('locations')
     .select('id')
     .eq('tenant_id', tenantId)
+    .eq('active', true)
+    .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle<{ id: string }>();
@@ -550,7 +552,13 @@ export async function ensurePrimaryLocation(
 
   const { data: created, error } = await admin
     .from('locations')
-    .insert({ tenant_id: tenantId, name: 'Primary', type: 'warehouse' })
+    .insert({
+      tenant_id: tenantId,
+      name: 'Primary',
+      type: 'warehouse',
+      active: true,
+      is_primary: true,
+    })
     .select('id')
     .single<{ id: string }>();
 

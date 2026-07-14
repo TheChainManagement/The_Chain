@@ -968,7 +968,7 @@ selects one vendor across every answered line. The durable artifact is
 
 ---
 
-## Feature: W2-4 Multi-location UI — planned
+## Feature: W2-4 Multi-location UI - designed, MG signed off 2026-07-14
 
 **Why**: `WAVE2_SCOPE.md` §4 W2-4 — the original Wave 2: location selector,
 location-aware dashboards, transfer recommendations. Especially relevant to storeroom.
@@ -978,11 +978,25 @@ surfacing.
 **Dependencies:** W2-2.5 (netPosition helper is location-aware), transfer_in/out
 movement types (exist).
 
-**Acceptance criteria (forward contract):**
-- [ ] Location selector; dashboards scope to location.
-- [ ] Transfer recommendations post through the kernel when acted on.
+**Signed-off decisions:** URL-backed location scope; `All locations` as the default read
+scope; archive-only lifecycle with blocking checks; immediate atomic Wave 2 transfers;
+tenant-wide roles now with per-location assignments deferred to Wave 3. Full design:
+`docs/WAVE2_W2-4_MULTI_LOCATION_DESIGN.md`.
 
-**What's memorable:** TBD at design time.
+**Acceptance criteria (forward contract):**
+- [ ] Operators can create, rename, make primary, and safely archive locations.
+- [ ] One-location tenants retain the quiet shell; multi-location tenants get a URL-backed
+      selector with `All locations` and concrete-location scopes.
+- [ ] Dashboards, inventory, valuation, forecast, policy, reorder, procurement, POs, holds,
+      issues, adjustments, and counts honor the selected scope.
+- [ ] `All locations` permits aggregate reads but never an ambiguous physical write.
+- [ ] Transfer recommendations respect source surplus and destination need.
+- [ ] Acting on a transfer recommendation posts paired `transfer_out` and `transfer_in`
+      movements atomically through the kernel.
+
+**What's memorable:** A chain-junction selector tightens the whole bench to one physical
+node. The transfer tray shows safe source surplus flowing into destination need, then resolves
+to matched OUT and IN ledger stamps without creating or destroying inventory.
 
 ---
 
