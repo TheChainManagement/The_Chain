@@ -42,6 +42,8 @@ export interface DerivePoliciesParams {
   runId: string;
   /** Restrict to these products (a shard's slice / a single recompute). */
   productIds?: string[];
+  /** Restrict a location-targeted recompute to exactly one policy row. */
+  locationId?: string | null;
 }
 
 export interface DeriveSummary {
@@ -54,6 +56,7 @@ interface ForecastRow {
   id: string;
   product_id: string;
   horizon_days: number;
+  location_id: string | null;
 }
 interface SupplierLinkRow {
   product_id: string;
@@ -83,13 +86,14 @@ export async function derivePoliciesForRun(
 ): Promise<DeriveSummary> {
   let forecastQuery = admin
     .from('forecasts')
-    .select('id, product_id, horizon_days')
+    .select('id, product_id, horizon_days, location_id')
     .eq('tenant_id', params.tenantId)
     .eq('run_id', params.runId)
     .eq('promoted', true);
   if (params.productIds && params.productIds.length > 0) {
     forecastQuery = forecastQuery.in('product_id', params.productIds);
   }
+  if (params.locationId) forecastQuery = forecastQuery.eq('location_id', params.locationId);
   const { data: forecasts } = await forecastQuery.returns<ForecastRow[]>();
   if (!forecasts || forecasts.length === 0) {
     return { policies: 0, skippedNoLeadTime: 0, skippedNoBands: 0 };
@@ -126,12 +130,15 @@ export async function derivePoliciesForRun(
       .eq('tenant_id', params.tenantId)
       .in('product_id', productIds)
       .returns<SupplierLinkRow[]>(),
-    admin
-      .from('inventory_levels')
-      .select('product_id, location_id, on_hand, on_hold, allocated, in_transit')
-      .eq('tenant_id', params.tenantId)
-      .in('product_id', productIds)
-      .returns<LevelRow[]>(),
+    (() => {
+      let query = admin
+        .from('inventory_levels')
+        .select('product_id, location_id, on_hand, on_hold, allocated, in_transit')
+        .eq('tenant_id', params.tenantId)
+        .in('product_id', productIds);
+      if (params.locationId) query = query.eq('location_id', params.locationId);
+      return query.returns<LevelRow[]>();
+    })(),
     admin
       .from('inventory_policy')
       .select('product_id, location_id, service_level')
@@ -222,8 +229,13 @@ export async function derivePoliciesForRun(
     }
 
     const productLevels = levelsByProduct.get(f.product_id) ?? [];
-    const targets =
-      productLevels.length > 0
+    const targets = f.location_id
+      ? productLevels.length > 0
+        ? productLevels
+            .filter((level) => level.location_id === f.location_id)
+            .map((level) => ({ locationId: level.location_id, position: netPosition(level) }))
+        : [{ locationId: f.location_id, position: null }]
+      : productLevels.length > 0
         ? productLevels.map((l) => ({
             locationId: l.location_id,
             position: netPosition(l),

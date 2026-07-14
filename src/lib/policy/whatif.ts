@@ -242,13 +242,18 @@ export interface PolicyLedgerRow {
   leadTimeDaysUsed: number;
 }
 
-export async function listPolicies(supabase: SupabaseClient): Promise<PolicyLedgerRow[]> {
-  const { data } = await supabase
+export async function listPolicies(
+  supabase: SupabaseClient,
+  locationId?: string | null,
+): Promise<PolicyLedgerRow[]> {
+  let query = supabase
     .from('inventory_policy')
     .select(
       'product_id, location_id, days_of_supply, stockout_risk_score, reorder_point, lead_time_days_used, products ( sku, name ), locations ( name )',
-    )
-    .returns<
+    );
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data } =
+    await query.returns<
       {
         product_id: string;
         location_id: string;

@@ -243,6 +243,8 @@ export interface ChunkParams {
    * (shardIndex, shardSize, offset).
    */
   productIds?: string[];
+  /** Explicit demand/location target for W2-4 single-SKU recompute. */
+  locationId?: string | null;
 }
 
 interface ProductSlice {
@@ -275,17 +277,21 @@ export async function runForecastChunk(
 
   const [{ data: existing }, movementsByProduct, classByProduct, benchmarks, priorStates] =
     await Promise.all([
-      admin
-        .from('forecasts')
-        .select('product_id')
-        .eq('tenant_id', params.tenantId)
-        .eq('run_id', params.runId)
-        .in('product_id', ids)
-        .returns<{ product_id: string }[]>(),
-      loadDemandMovements(admin, params.tenantId, ids, params.nowMs),
+      (() => {
+        let existingQuery = admin
+          .from('forecasts')
+          .select('product_id')
+          .eq('tenant_id', params.tenantId)
+          .eq('run_id', params.runId)
+          .in('product_id', ids);
+        if (params.locationId) existingQuery = existingQuery.eq('location_id', params.locationId);
+        else existingQuery = existingQuery.is('location_id', null);
+        return existingQuery.returns<{ product_id: string }[]>();
+      })(),
+      loadDemandMovements(admin, params.tenantId, ids, params.nowMs, params.locationId),
       loadClassifications(admin, params.tenantId, ids),
       loadBenchmarks(admin, params.tenantId),
-      loadPriorStates(admin, params.tenantId, ids, params.runId),
+      loadPriorStates(admin, params.tenantId, ids, params.runId, params.locationId),
     ]);
 
   const done = new Set((existing ?? []).map((r) => r.product_id));
@@ -432,8 +438,8 @@ export async function runForecastChunk(
     const forecast = {
       tenant_id: params.tenantId,
       product_id: item.product.id,
-      location_id: null,
-      aggregation_level: 'sku',
+      location_id: params.locationId ?? null,
+      aggregation_level: params.locationId ? 'sku_location' : 'sku',
       method: METHOD_ENUM[item.method],
       horizon_days: HORIZON_WEEKS * 7,
       confidence_level: 0.95,
@@ -590,6 +596,7 @@ async function loadDemandMovements(
   tenantId: string,
   productIds: string[],
   nowMs: number,
+  locationId?: string | null,
 ): Promise<Map<string, Movement[]>> {
   const since = new Date(nowMs - DEMAND_WEEKS * 7 * 24 * 60 * 60 * 1000).toISOString();
   // W2-2: demand is mode-routed — sales for distribution, issue_out for a
@@ -605,17 +612,18 @@ async function loadDemandMovements(
     product_id: string;
     quantity: number | string;
     occurred_at: string;
-  }>((from, to) =>
-    admin
+  }>((from, to) => {
+    let query = admin
       .from('stock_movements')
       .select('product_id, quantity, occurred_at')
       .eq('tenant_id', tenantId)
       .in('type', [...demandTypes])
       .gte('occurred_at', since)
       .in('product_id', productIds)
-      .order('occurred_at')
-      .range(from, to),
-  );
+      .order('occurred_at');
+    if (locationId) query = query.eq('location_id', locationId);
+    return query.range(from, to);
+  });
   const out = new Map<string, Movement[]>();
   for (const r of rows) {
     const list = out.get(r.product_id) ?? [];
@@ -681,16 +689,20 @@ async function loadPriorStates(
   tenantId: string,
   productIds: string[],
   runId: string,
+  locationId?: string | null,
 ): Promise<Map<string, string>> {
-  const { data } = await admin
+  let query = admin
     .from('forecasts')
     .select('product_id, cold_start_state, computed_at')
     .eq('tenant_id', tenantId)
     .neq('run_id', runId)
     .in('product_id', productIds)
     .order('computed_at', { ascending: false })
-    .limit(productIds.length * 4)
-    .returns<{ product_id: string; cold_start_state: string; computed_at: string }[]>();
+    .limit(productIds.length * 4);
+  if (locationId) query = query.eq('location_id', locationId);
+  else query = query.is('location_id', null);
+  const { data } =
+    await query.returns<{ product_id: string; cold_start_state: string; computed_at: string }[]>();
   const out = new Map<string, string>();
   for (const r of data ?? []) {
     if (!out.has(r.product_id)) out.set(r.product_id, r.cold_start_state);

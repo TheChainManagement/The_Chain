@@ -75,14 +75,33 @@ function toRun(r: RawRun): BatchRunRow {
   };
 }
 
-export async function loadForecastOverview(supabase: SupabaseClient): Promise<ForecastOverview> {
-  const { data: runs } = await supabase
+export async function loadForecastOverview(
+  supabase: SupabaseClient,
+  locationId?: string | null,
+): Promise<ForecastOverview> {
+  let locationRunId: string | null = null;
+  if (locationId) {
+    const { data } = await supabase
+      .from('forecasts')
+      .select('run_id')
+      .eq('location_id', locationId)
+      .order('computed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle<{ run_id: string }>();
+    locationRunId = data?.run_id ?? null;
+  }
+  let runsQuery = supabase
     .from('sync_runs')
     .select('id, workflow_run_id, status, started_at, finished_at, cursor')
-    .eq('cursor->>kind', 'forecast_batch')
     .order('started_at', { ascending: false })
-    .limit(10)
-    .returns<RawRun[]>();
+    .limit(10);
+  if (locationId) {
+    if (!locationRunId) return { running: null, latest: null, stats: null };
+    runsQuery = runsQuery.eq('id', locationRunId);
+  } else {
+    runsQuery = runsQuery.eq('cursor->>kind', 'forecast_batch');
+  }
+  const { data: runs } = await runsQuery.returns<RawRun[]>();
 
   const running = (runs ?? []).find((r) => r.status === 'running');
   const finished = (runs ?? []).find((r) => r.status === 'completed' || r.status === 'failed');
@@ -91,11 +110,15 @@ export async function loadForecastOverview(supabase: SupabaseClient): Promise<Fo
   if (finished) {
     const head = (filter: (q: ReturnType<typeof base>) => ReturnType<typeof base>) =>
       filter(base()).then((r) => r.count ?? 0);
-    const base = () =>
-      supabase
+    const base = () => {
+      let query = supabase
         .from('forecasts')
         .select('id', { count: 'exact', head: true })
         .eq('run_id', finished.id);
+      if (locationId) query = query.eq('location_id', locationId);
+      else query = query.is('location_id', null);
+      return query;
+    };
 
     const [forecasts, promoted, benchmarked, warm, warming, cold, failedCount] = await Promise.all([
       head((q) => q),

@@ -6,6 +6,8 @@ import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { listForecastedSkus } from '@/lib/forecast/detail';
 import { loadForecastOverview } from '@/lib/forecast/queries';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { ForecastBatchControls } from './ForecastBatchControls';
 import styles from './forecasts.module.css';
@@ -18,13 +20,18 @@ export const metadata = { title: 'Forecasts · The Chain' };
  * per-SKU forecast chart — the centerpiece — lands in wave 2c; this surface is
  * the batch's honest dashboard until then.
  */
-export default async function ForecastsPage(): Promise<ReactNode> {
+export default async function ForecastsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string }>;
+}): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const overview = await loadForecastOverview(supabase);
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
+  const overview = await loadForecastOverview(supabase, locationId);
   const { stats, latest } = overview;
   const ledger =
     latest && stats && stats.forecasts > 0
-      ? await listForecastedSkus(supabase, latest.syncRunId)
+      ? await listForecastedSkus(supabase, latest.syncRunId, locationId)
       : [];
 
   return (
@@ -101,7 +108,10 @@ export default async function ForecastsPage(): Promise<ReactNode> {
               <ul className={styles.ledger}>
                 {ledger.map((row) => (
                   <li key={row.productId}>
-                    <Link href={`/forecasts/${row.productId}`} className={styles.ledgerRow}>
+                    <Link
+                      href={locationHref(`/forecasts/${row.productId}`, locationId)}
+                      className={styles.ledgerRow}
+                    >
                       <span className={styles.ledgerSku}>{row.sku}</span>
                       <span className={styles.ledgerName}>{row.name}</span>
                       <span className={styles.ledgerMethod}>{row.methodLabel}</span>

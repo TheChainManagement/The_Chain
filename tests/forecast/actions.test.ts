@@ -33,6 +33,7 @@ vi.mock('@/lib/policy/derive', () => ({
     skippedNoBands: 0,
   })),
 }));
+vi.mock('@/lib/locations/validate', () => ({ isActiveTenantLocation: vi.fn(async () => true) }));
 
 function scriptedBuilder(queue: Array<{ data: unknown; error: unknown }>, onUpdate?: () => void) {
   const next = () => Promise.resolve(queue.shift() ?? { data: null, error: null });
@@ -146,10 +147,16 @@ describe('recomputeForecast — single-SKU on-demand', () => {
     expect(chunkMock).not.toHaveBeenCalled();
   });
 
-  it('refuses a locationId honestly until multi-location activates', async () => {
+  it('targets an explicit active location', async () => {
+    rlsQueue = [ok({ id: 'P1' })];
+    adminQueue = [ok({ id: 'SR9' })];
     const res = await recomputeForecast({ productId: 'P1', locationId: 'L1' });
-    expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/multi-location/) });
-    expect(chunkMock).not.toHaveBeenCalled();
+    expect(res.ok).toBe(true);
+    expect(chunkMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ productIds: ['P1'], locationId: 'L1' }),
+      expect.anything(),
+    );
   });
 
   it('rejects a SKU outside the caller catalog (RLS check)', async () => {

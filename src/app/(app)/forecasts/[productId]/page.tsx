@@ -8,6 +8,8 @@ import { ForecastInsightPanel } from '@/components/InsightPanel/ForecastInsightP
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { liftCaption, loadForecastDetail } from '@/lib/forecast/detail';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from './forecast-detail.module.css';
 import { RecomputeControls } from './RecomputeControls';
@@ -23,12 +25,15 @@ export const metadata = { title: 'Forecast · The Chain' };
  */
 export default async function ForecastDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ productId: string }>;
+  searchParams: Promise<{ location?: string }>;
 }): Promise<ReactNode> {
   const { productId } = await params;
   const supabase = await createSupabaseServer();
-  const detail = await loadForecastDetail(supabase, productId, Date.now());
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
+  const detail = await loadForecastDetail(supabase, productId, Date.now(), locationId);
   if (!detail) notFound();
 
   const { product, forecast, points, evaluation, history } = detail;
@@ -39,7 +44,7 @@ export default async function ForecastDetailPage({
       <PageHeader eyebrow={`Forecasts · ${product.sku}`} title={product.name} />
 
       <div className={styles.meta}>
-        <Link href="/forecasts" className={styles.backLink}>
+        <Link href={locationHref('/forecasts', locationId)} className={styles.backLink}>
           ← All forecasts
         </Link>
         {forecast ? (
@@ -53,7 +58,7 @@ export default async function ForecastDetailPage({
             ) : null}
           </div>
         ) : null}
-        <RecomputeControls productId={product.id} />
+        <RecomputeControls productId={product.id} locationId={locationId} />
       </div>
 
       {forecast == null ? (

@@ -67,6 +67,7 @@ export async function loadForecastDetail(
   supabase: SupabaseClient,
   productId: string,
   nowMs: number,
+  locationId?: string | null,
 ): Promise<ForecastDetail | null> {
   const { data: product } = await supabase
     .from('products')
@@ -75,25 +76,25 @@ export async function loadForecastDetail(
     .maybeSingle<{ id: string; sku: string; name: string; status: string }>();
   if (!product) return null;
 
+  let forecastQuery = supabase
+    .from('forecasts')
+    .select(
+      'id, method, cold_start_state, eligibility_threshold_met, promoted, computed_at, horizon_days',
+    )
+    .eq('product_id', productId);
+  if (locationId) forecastQuery = forecastQuery.eq('location_id', locationId);
+  else forecastQuery = forecastQuery.is('location_id', null);
   const [{ data: forecast }, movements] = await Promise.all([
-    supabase
-      .from('forecasts')
-      .select(
-        'id, method, cold_start_state, eligibility_threshold_met, promoted, computed_at, horizon_days',
-      )
-      .eq('product_id', productId)
-      .order('computed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle<{
-        id: string;
-        method: string;
-        cold_start_state: 'cold' | 'warming' | 'warm';
-        eligibility_threshold_met: boolean;
-        promoted: boolean;
-        computed_at: string;
-        horizon_days: number;
-      }>(),
-    loadAllDemandHistory(supabase, productId, nowMs),
+    forecastQuery.order('computed_at', { ascending: false }).limit(1).maybeSingle<{
+      id: string;
+      method: string;
+      cold_start_state: 'cold' | 'warming' | 'warm';
+      eligibility_threshold_met: boolean;
+      promoted: boolean;
+      computed_at: string;
+      horizon_days: number;
+    }>(),
+    loadAllDemandHistory(supabase, productId, nowMs, locationId),
   ]);
 
   const history = toWeeklySeries(movements, nowMs);
@@ -204,16 +205,20 @@ export interface ForecastLedgerRow {
 export async function listForecastedSkus(
   supabase: SupabaseClient,
   runId: string,
+  locationId?: string | null,
 ): Promise<ForecastLedgerRow[]> {
-  const { data } = await supabase
+  let query = supabase
     .from('forecasts')
     .select(
       `id, product_id, method, cold_start_state, promoted,
        products ( sku, name ),
        forecast_evaluations ( rmsse )`,
     )
-    .eq('run_id', runId)
-    .returns<
+    .eq('run_id', runId);
+  if (locationId) query = query.eq('location_id', locationId);
+  else query = query.is('location_id', null);
+  const { data } =
+    await query.returns<
       {
         id: string;
         product_id: string;
@@ -250,6 +255,7 @@ async function loadAllDemandHistory(
   supabase: SupabaseClient,
   productId: string,
   nowMs: number,
+  locationId?: string | null,
 ): Promise<Array<{ quantity: number; occurredAt: string }>> {
   const since = new Date(nowMs - 364 * 24 * 60 * 60 * 1000).toISOString();
   const PAGE = 1000;
@@ -267,12 +273,14 @@ async function loadAllDemandHistory(
   const demandTypes = demandTypesForMode(tenant?.operating_mode ?? null);
   const out: Array<{ quantity: number; occurredAt: string }> = [];
   for (let from = 0; ; from += PAGE) {
-    const { data } = await supabase
+    let query = supabase
       .from('stock_movements')
       .select('quantity, occurred_at')
       .eq('product_id', productId)
       .in('type', [...demandTypes])
-      .gte('occurred_at', since)
+      .gte('occurred_at', since);
+    if (locationId) query = query.eq('location_id', locationId);
+    const { data } = await query
       .order('occurred_at')
       .range(from, from + PAGE - 1)
       .returns<{ quantity: number | string; occurred_at: string }[]>();

@@ -11,7 +11,13 @@ import styles from './forecast-detail.module.css';
  * as the batch — one targeted chunk, fresh run id — then refreshes the chart in
  * place. Owner/manager only (enforced in the action).
  */
-export function RecomputeControls({ productId }: { productId: string }): ReactNode {
+export function RecomputeControls({
+  productId,
+  locationId,
+}: {
+  productId: string;
+  locationId: string | null;
+}): ReactNode {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +27,7 @@ export function RecomputeControls({ productId }: { productId: string }): ReactNo
     setError(null);
     setNote(null);
     startTransition(async () => {
-      const res = await recomputeForecast({ productId });
+      const res = await recomputeForecast({ productId, locationId });
       if (!res.ok) {
         setError(res.error);
         return;

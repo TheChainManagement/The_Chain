@@ -4,6 +4,8 @@ import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { COVERAGE_DAYS } from '@/lib/policy/derive';
 import { dosTone, riskTone } from '@/lib/policy/queries';
 import { listPolicies, loadWhatIfInputs } from '@/lib/policy/whatif';
@@ -25,12 +27,13 @@ export default async function PolicyBenchPage({
 }): Promise<ReactNode> {
   const { product, location } = await searchParams;
   const supabase = await createSupabaseServer();
+  const locationId = await resolveLocationScope(supabase, location);
 
-  const ledger = await listPolicies(supabase);
+  const ledger = await listPolicies(supabase, locationId);
   const selectedId = product ?? ledger[0]?.productId ?? null;
-  const selectedLocation = product ? location : ledger[0]?.locationId;
+  const selectedLocation = product ? locationId : ledger[0]?.locationId;
   const inputs = selectedId
-    ? await loadWhatIfInputs(supabase, selectedId, COVERAGE_DAYS, selectedLocation)
+    ? await loadWhatIfInputs(supabase, selectedId, COVERAGE_DAYS, selectedLocation ?? undefined)
     : null;
   const selected = ledger.find((r) => r.productId === selectedId) ?? null;
   const skuCount = new Set(ledger.map((r) => r.productId)).size;
@@ -54,7 +57,10 @@ export default async function PolicyBenchPage({
               prefix="What-if"
               title={`${inputs.sku} · ${inputs.name}${multiLocation ? ` · ${inputs.locationName}` : ''}`}
               actions={
-                <Link href={`/inventory/${inputs.productId}`} className={styles.skuLink}>
+                <Link
+                  href={locationHref(`/inventory/${inputs.productId}`, locationId)}
+                  className={styles.skuLink}
+                >
                   SKU page →
                 </Link>
               }

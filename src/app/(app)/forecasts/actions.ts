@@ -9,6 +9,7 @@ import {
   finalizeForecastBatch,
   runForecastChunk,
 } from '@/lib/forecast/batch-core';
+import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { derivePoliciesForRun } from '@/lib/policy/derive';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -107,11 +108,6 @@ export async function recomputeForecast(input: {
   if (!role || !PRIVILEGED.has(role)) {
     return { ok: false, error: 'Only an owner or manager can recompute a forecast.' };
   }
-  if (input.locationId != null) {
-    // Schema is location-capable; the engine forecasts tenant-wide until the
-    // multi-location wave activates. Refuse honestly instead of ignoring it.
-    return { ok: false, error: 'Per-location forecasts arrive with multi-location support.' };
-  }
 
   // RLS-scoped existence check: a caller can only recompute their own SKU.
   const { data: product } = await supabase
@@ -123,6 +119,9 @@ export async function recomputeForecast(input: {
   if (!product) return { ok: false, error: 'That SKU was not found in your catalog.' };
 
   const admin = createSupabaseAdmin();
+  if (input.locationId && !(await isActiveTenantLocation(admin, tenantId, input.locationId))) {
+    return { ok: false, error: 'Select an active location before recomputing this forecast.' };
+  }
   const { data: run, error } = await admin
     .from('sync_runs')
     .insert({
@@ -131,7 +130,12 @@ export async function recomputeForecast(input: {
       workflow_run_id: randomBytes(16).toString('hex'),
       status: 'running',
       started_at: new Date().toISOString(),
-      cursor: { kind: 'forecast_single', done: false, product_id: input.productId },
+      cursor: {
+        kind: 'forecast_single',
+        done: false,
+        product_id: input.productId,
+        location_id: input.locationId ?? null,
+      },
     })
     .select('id')
     .single<{ id: string }>();
@@ -152,6 +156,7 @@ export async function recomputeForecast(input: {
         limit: 1,
         nowMs: Date.now(),
         productIds: [input.productId],
+        locationId: input.locationId,
       },
       {
         baseUrl: env.FORECAST_API_URL,
@@ -164,6 +169,7 @@ export async function recomputeForecast(input: {
       tenantId,
       runId: run.id,
       productIds: [input.productId],
+      locationId: input.locationId,
     });
     await finalizeForecastBatch(admin, {
       tenantId,
