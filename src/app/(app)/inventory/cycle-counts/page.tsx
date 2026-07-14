@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import styles from '../inventory.module.css';
 import { StartCount } from './StartCount';
@@ -26,14 +28,20 @@ const fmtDate = (iso: string): string =>
  * to the stock ledger (the schema was wired for this since Wave 1; W2-2 turns
  * the reconciliation on).
  */
-export default async function CycleCountsPage(): Promise<ReactNode> {
+export default async function CycleCountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string }>;
+}): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const { data } = await supabase
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
+  let query = supabase
     .from('cycle_count_sessions')
     .select('id, status, started_at, completed_at, locations(name)')
     .order('started_at', { ascending: false })
-    .limit(50)
-    .returns<SessionRow[]>();
+    .limit(50);
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data } = await query.returns<SessionRow[]>();
   const sessions = data ?? [];
 
   return (
@@ -43,10 +51,10 @@ export default async function CycleCountsPage(): Promise<ReactNode> {
         title="Cycle counts"
         actions={
           <div className={pageStyles.headerActions}>
-            <Link href="/inventory" className={pageStyles.headerLink}>
+            <Link href={locationHref('/inventory', locationId)} className={pageStyles.headerLink}>
               Back to inventory
             </Link>
-            <StartCount />
+            <StartCount locationId={locationId} />
           </div>
         }
       />
@@ -69,7 +77,10 @@ export default async function CycleCountsPage(): Promise<ReactNode> {
           </div>
           {sessions.map((s) => (
             <div key={s.id} className={styles.countRow}>
-              <Link href={`/inventory/cycle-counts/${s.id}`} className={styles.cellSkuLink}>
+              <Link
+                href={locationHref(`/inventory/cycle-counts/${s.id}`, locationId)}
+                className={styles.cellSkuLink}
+              >
                 {s.id.slice(0, 8)}
               </Link>
               <span>{s.locations?.name ?? '—'}</span>

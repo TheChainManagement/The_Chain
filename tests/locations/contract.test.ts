@@ -127,3 +127,32 @@ describe('W2-4b location inventory view', () => {
     expect(rows.rows.some((row) => Number(row.on_hand) === 0)).toBe(true);
   });
 });
+
+describe('W2-4c active-location write boundary', () => {
+  it('keeps archived locations historical and rejects new operational rows', async () => {
+    await asSuperuser(client);
+    const archived = await client.query<{ id: string }>(
+      `insert into locations (tenant_id, name, type, active)
+       values ($1, 'Retired annex', 'warehouse', false) returning id`,
+      [T],
+    );
+    const product = await client.query<{ id: string }>(
+      'select id from products where tenant_id = $1 limit 1',
+      [T],
+    );
+    expect(
+      await dbError(
+        `insert into inventory_levels (tenant_id, product_id, location_id, on_hand)
+         values ($1, $2, $3, 0)`,
+        [T, product.rows[0]?.id, archived.rows[0]?.id],
+      ),
+    ).toMatch(/active location not found/i);
+    expect(
+      await dbError(
+        `insert into cycle_count_sessions (tenant_id, location_id, created_by_user_id)
+         values ($1, $2, $3)`,
+        [T, archived.rows[0]?.id, U],
+      ),
+    ).toMatch(/active location not found/i);
+  });
+});

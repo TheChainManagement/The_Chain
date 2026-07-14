@@ -19,7 +19,7 @@ const h = vi.hoisted(() => ({
   postAdjustment: vi.fn(),
   postStockHold: vi.fn(),
   closeCycleCount: vi.fn(),
-  ensurePrimaryLocation: vi.fn(async () => 'loc1'),
+  isActiveTenantLocation: vi.fn(async () => true),
   revalidatePath: vi.fn(),
 }));
 
@@ -35,13 +35,16 @@ vi.mock('@/lib/storeroom/post', () => ({
   closeCycleCount: h.closeCycleCount,
 }));
 vi.mock('@/lib/inventory/post-movement', () => ({ postStockHold: h.postStockHold }));
-vi.mock('@/lib/import/commit', () => ({ ensurePrimaryLocation: h.ensurePrimaryLocation }));
+vi.mock('@/lib/locations/validate', () => ({
+  isActiveTenantLocation: h.isActiveTenantLocation,
+}));
 vi.mock('next/cache', () => ({ revalidatePath: h.revalidatePath }));
 
 import { closeCountSession } from '@/app/(app)/inventory/cycle-counts/actions';
 import { adjustStock, holdStock, issueStock } from '@/app/(app)/inventory/storeroom-actions';
 
 const issueInput = {
+  locationId: 'loc1',
   movement: 'issue_out' as const,
   demandRefType: 'work_order',
   demandRefId: 'WO-1',
@@ -68,6 +71,8 @@ beforeEach(() => {
     absVariance: 2,
   });
   h.revalidatePath.mockClear();
+  h.isActiveTenantLocation.mockReset();
+  h.isActiveTenantLocation.mockResolvedValue(true);
 });
 
 describe('issueStock gate (owner/manager/warehouse, MG-locked)', () => {
@@ -127,10 +132,18 @@ describe('issueStock validation', () => {
     expect(result).toEqual({ ok: false, error: 'Could not record the issue.' });
     expect(h.revalidatePath).not.toHaveBeenCalled();
   });
+
+  it('rejects a missing, archived, or cross-tenant location before the service-role write', async () => {
+    h.isActiveTenantLocation.mockResolvedValue(false);
+    const result = await issueStock({ ...issueInput, locationId: 'other-tenant-location' });
+    expect(result).toEqual({ ok: false, error: expect.stringMatching(/active location/i) });
+    expect(h.postIssue).not.toHaveBeenCalled();
+  });
 });
 
 describe('adjustStock', () => {
   const input = {
+    locationId: 'loc1',
     productId: 'p1',
     delta: -2,
     reasonCode: 'damage',
@@ -168,6 +181,7 @@ describe('adjustStock', () => {
 
 describe('holdStock', () => {
   const input = {
+    locationId: 'loc1',
     productId: 'p1',
     movement: 'hold' as const,
     qty: 4,

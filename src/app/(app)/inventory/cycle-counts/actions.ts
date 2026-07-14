@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { ensurePrimaryLocation } from '@/lib/import/commit';
+import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { closeCycleCount } from '@/lib/storeroom/post';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -32,12 +32,15 @@ export type StartCountState = { ok: false; error: string } | null;
 
 export async function startCountSession(
   _prev: StartCountState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<StartCountState> {
   const operator = await resolveOperator();
   if (!operator) return { ok: false, error: PERMISSION_MESSAGE };
 
-  const locationId = await ensurePrimaryLocation(createSupabaseAdmin(), operator.tenantId);
+  const locationId = String(formData.get('location_id') ?? '').trim();
+  if (!(await isActiveTenantLocation(createSupabaseAdmin(), operator.tenantId, locationId))) {
+    return { ok: false, error: 'Select an active location before starting a count.' };
+  }
 
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase

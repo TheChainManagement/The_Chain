@@ -100,7 +100,7 @@ export default async function InventoryPage({
           }
         />
       ) : (
-        <InventoryLedger rows={rows} showIssue={showIssue} />
+        <InventoryLedger rows={rows} showIssue={showIssue} locationId={locationId} />
       )}
     </div>
   );

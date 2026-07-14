@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ensurePrimaryLocation } from '@/lib/import/commit';
 import { postStockHold } from '@/lib/inventory/post-movement';
+import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { isDemandRefType } from '@/lib/storeroom/constants';
 import { postAdjustment, postIssue } from '@/lib/storeroom/post';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -42,6 +42,7 @@ export type IssueActionState =
   | { ok: false; error: string };
 
 export async function issueStock(input: {
+  locationId: string;
   movement: 'issue_out' | 'issue_return';
   demandRefType: string;
   demandRefId: string;
@@ -75,10 +76,12 @@ export async function issueStock(input: {
   }
 
   const admin = createSupabaseAdmin();
-  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
+    return { ok: false, error: 'Select an active location before moving stock.' };
+  }
   const result = await postIssue(admin, {
     tenantId: operator.tenantId,
-    locationId,
+    locationId: input.locationId,
     movement: input.movement,
     demandRefType: input.demandRefType,
     demandRefId: refId,
@@ -98,6 +101,7 @@ export async function issueStock(input: {
 export type AdjustActionState = { ok: true; onHand: number | null } | { ok: false; error: string };
 
 export async function adjustStock(input: {
+  locationId: string;
   productId: string;
   delta: number;
   reasonCode: string;
@@ -119,10 +123,12 @@ export async function adjustStock(input: {
   }
 
   const admin = createSupabaseAdmin();
-  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
+    return { ok: false, error: 'Select an active location before moving stock.' };
+  }
   const result = await postAdjustment(admin, {
     tenantId: operator.tenantId,
-    locationId,
+    locationId: input.locationId,
     productId: input.productId,
     delta: input.delta,
     reasonCode: input.reasonCode.trim(),
@@ -142,6 +148,7 @@ export type HoldActionState =
   | { ok: false; error: string };
 
 export async function holdStock(input: {
+  locationId: string;
   productId: string;
   movement: 'hold' | 'release';
   qty: number;
@@ -167,10 +174,12 @@ export async function holdStock(input: {
   }
 
   const admin = createSupabaseAdmin();
-  const locationId = await ensurePrimaryLocation(admin, operator.tenantId);
+  if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
+    return { ok: false, error: 'Select an active location before moving stock.' };
+  }
   const result = await postStockHold(admin, {
     tenantId: operator.tenantId,
-    locationId,
+    locationId: input.locationId,
     productId: input.productId,
     movement: input.movement,
     qty: input.qty,

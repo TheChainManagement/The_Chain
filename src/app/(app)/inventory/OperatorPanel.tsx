@@ -35,29 +35,33 @@ const HOLD_REASONS = [
 export function OperatorPanel({
   mode,
   rows,
+  locationId,
   onDone,
   onCancel,
 }: {
   mode: OperatorMode;
   rows: InventoryListRow[];
+  locationId: string;
   onDone: () => void;
   onCancel: () => void;
 }): React.ReactNode {
   if (mode === 'issue') {
-    return <IssueForm rows={rows} onDone={onDone} onCancel={onCancel} />;
+    return <IssueForm rows={rows} locationId={locationId} onDone={onDone} onCancel={onCancel} />;
   }
   if (mode === 'hold') {
-    return <HoldForm row={rows[0]} onDone={onDone} onCancel={onCancel} />;
+    return <HoldForm row={rows[0]} locationId={locationId} onDone={onDone} onCancel={onCancel} />;
   }
-  return <AdjustForm row={rows[0]} onDone={onDone} onCancel={onCancel} />;
+  return <AdjustForm row={rows[0]} locationId={locationId} onDone={onDone} onCancel={onCancel} />;
 }
 
 function IssueForm({
   rows,
+  locationId,
   onDone,
   onCancel,
 }: {
   rows: InventoryListRow[];
+  locationId: string;
   onDone: () => void;
   onCancel: () => void;
 }): React.ReactNode {
@@ -93,6 +97,7 @@ function IssueForm({
     }
     startTransition(async () => {
       const result = await issueStock({
+        locationId,
         movement: 'issue_out',
         demandRefType: refType,
         demandRefId: refId.trim(),
@@ -225,10 +230,12 @@ function IssueForm({
 
 function AdjustForm({
   row,
+  locationId,
   onDone,
   onCancel,
 }: {
   row: InventoryListRow | undefined;
+  locationId: string;
   onDone: () => void;
   onCancel: () => void;
 }): React.ReactNode {
@@ -256,6 +263,7 @@ function AdjustForm({
     }
     startTransition(async () => {
       const result = await adjustStock({
+        locationId,
         productId: row.id,
         delta: d,
         reasonCode: reason,
@@ -349,10 +357,12 @@ function AdjustForm({
  */
 function HoldForm({
   row,
+  locationId,
   onDone,
   onCancel,
 }: {
   row: InventoryListRow | undefined;
+  locationId: string;
   onDone: () => void;
   onCancel: () => void;
 }): React.ReactNode {
@@ -385,6 +395,7 @@ function HoldForm({
     }
     startTransition(async () => {
       const result = await holdStock({
+        locationId,
         productId: row.id,
         movement,
         qty,

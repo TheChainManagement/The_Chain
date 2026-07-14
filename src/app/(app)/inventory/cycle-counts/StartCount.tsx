@@ -11,20 +11,24 @@ import { type StartCountState, startCountSession } from './actions';
  * page (the action redirects on success, so this island only owns the error).
  */
 
-function SubmitButton(): React.ReactNode {
+function SubmitButton({ disabled }: { disabled: boolean }): React.ReactNode {
   const { pending } = useFormStatus();
   return (
-    <ActionButton type="submit" loading={pending}>
+    <ActionButton type="submit" loading={pending} disabled={disabled}>
       Start a count
     </ActionButton>
   );
 }
 
-export function StartCount(): React.ReactNode {
+export function StartCount({ locationId }: { locationId: string | null }): React.ReactNode {
   const [state, formAction] = useActionState<StartCountState, FormData>(startCountSession, null);
   return (
     <form action={formAction} className={styles.countStart}>
-      <SubmitButton />
+      <input type="hidden" name="location_id" value={locationId ?? ''} />
+      <SubmitButton disabled={!locationId} />
+      {!locationId ? (
+        <span className={styles.formError}>Select a location to start a physical count.</span>
+      ) : null}
       {state?.ok === false ? (
         <span className={styles.formError} role="alert">
           {state.error}

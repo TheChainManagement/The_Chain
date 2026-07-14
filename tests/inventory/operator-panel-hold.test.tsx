@@ -39,7 +39,15 @@ const row: InventoryListRow = {
 function renderHold(): { onDone: ReturnType<typeof vi.fn>; onCancel: ReturnType<typeof vi.fn> } {
   const onDone = vi.fn();
   const onCancel = vi.fn();
-  render(<OperatorPanel mode="hold" rows={[row]} onDone={onDone} onCancel={onCancel} />);
+  render(
+    <OperatorPanel
+      mode="hold"
+      rows={[row]}
+      locationId="loc1"
+      onDone={onDone}
+      onCancel={onCancel}
+    />,
+  );
   return { onDone, onCancel };
 }
 
@@ -64,6 +72,7 @@ describe('OperatorPanel hold mode', () => {
     expect(holdStock).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'p1',
+        locationId: 'loc1',
         movement: 'hold',
         qty: 4,
         reasonCode: 'qc_hold',

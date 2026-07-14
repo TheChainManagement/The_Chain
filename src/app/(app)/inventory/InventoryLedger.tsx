@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { ClassificationBadge } from '@/components/ClassificationBadge/ClassificationBadge';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
 import type { InventoryListRow } from '@/lib/inventory/queries';
+import { locationHref } from '@/lib/locations/href';
 import { uomLabel } from '@/lib/uom/units';
 import { bulkArchiveProducts } from './actions';
 import styles from './inventory.module.css';
@@ -27,9 +28,11 @@ const fmtQty = (n: number): string => n.toLocaleString('en-US', { maximumFractio
 export function InventoryLedger({
   rows,
   showIssue = false,
+  locationId = null,
 }: {
   rows: InventoryListRow[];
   showIssue?: boolean;
+  locationId?: string | null;
 }): React.ReactNode {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -83,7 +86,12 @@ export function InventoryLedger({
       {selected.size > 0 ? (
         <section className={styles.bulkBar} aria-label="Bulk actions">
           <span className={styles.bulkCount}>{selected.size} selected</span>
-          {showIssue ? (
+          {!locationId ? (
+            <span className={styles.bulkError}>
+              Select a location above to move physical stock.
+            </span>
+          ) : null}
+          {showIssue && locationId ? (
             <button
               type="button"
               className={styles.bulkArchive}
@@ -93,7 +101,7 @@ export function InventoryLedger({
               Issue selected
             </button>
           ) : null}
-          {selected.size === 1 ? (
+          {selected.size === 1 && locationId ? (
             <button
               type="button"
               className={styles.bulkArchive}
@@ -103,7 +111,7 @@ export function InventoryLedger({
               Adjust
             </button>
           ) : null}
-          {selected.size === 1 ? (
+          {selected.size === 1 && locationId ? (
             <button
               type="button"
               className={styles.bulkArchive}
@@ -140,10 +148,11 @@ export function InventoryLedger({
         </section>
       ) : null}
 
-      {panel && selected.size > 0 ? (
+      {panel && selected.size > 0 && locationId ? (
         <OperatorPanel
           mode={panel}
           rows={rows.filter((r) => selected.has(r.id))}
+          locationId={locationId}
           onDone={operatorDone}
           onCancel={() => setPanel(null)}
         />
@@ -180,7 +189,10 @@ export function InventoryLedger({
                 aria-label={`Select ${row.sku}`}
               />
             </span>
-            <Link href={`/inventory/${row.id}`} className={styles.cellSkuLink}>
+            <Link
+              href={locationHref(`/inventory/${row.id}`, locationId)}
+              className={styles.cellSkuLink}
+            >
               {row.sku}
             </Link>
             <span className={styles.cellName}>
