@@ -701,7 +701,7 @@ Wave 2 (the kickoff doc `docs/NEXT_SESSION_KICKOFF_PROMPT.md` stays the session 
 the contract). Blocks below are written from `docs/WAVE2_SCOPE.md`,
 `docs/WAVE2_W2-0_MODE_SPINE_DESIGN.md`, the kickoff doc, and the `_reviews/` evidence
 trail. Shipped blocks record the contract the code was verified against; planned blocks
-(W2-3, W2-4) are forward contracts and re-enter the normal Phase 4 checkpoint before
+(W2-4) are forward contracts and re-enter the normal Phase 4 checkpoint before
 build.*
 
 **Wave 2 build order:**
@@ -711,7 +711,7 @@ build.*
 - Item 0. Password reset / auth recovery — **SHIPPED to prod** (`f1c18b6`, 2026-07-07)
 - W2-2. Storeroom operations — **SHIPPED to prod** (`9d50726`, 2026-07-09)
 - W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) - **SHIPPED to prod** (`7df9ee8`, 2026-07-12)
-- W2-3. Procurement (RFQ, requisition, PO) - **BUILT, review-clean, at MG merge gate** (`feature/item3-w2-3-procurement`)
+- W2-3. Procurement (RFQ, requisition, PO) - **SHIPPED to prod** (`0058367`, 2026-07-13)
 - W2-4. Multi-location UI — planned
 
 ---
@@ -900,7 +900,7 @@ FRACTIONAL flag. Artifact:
 
 ---
 
-## Feature: W2-3 Procurement (RFQ, requisition, PO) - built, at MG merge gate
+## Feature: W2-3 Procurement (RFQ, requisition, PO) - shipped to production
 
 **Why**: `WAVE2_SCOPE.md` §4 W2-3 + operator-eval Scenario A — RFQ to one OR multiple
 vendors (user's choice per RFQ, both from the start, §5 decision 3), capture returned
@@ -954,6 +954,8 @@ column. Thresholds remain Wave 3. Email delivery is a fast-follow ticket.
       `inventory_levels` and `stock_movements` byte-identical.
 - [x] Full suite 879/879; TypeScript, Biome, craft, clean migration replay green on
       2026-07-13.
+- [x] Six migrations applied to production; schema, RLS, security advisor, Vercel Ready,
+      canonical routes, auth boundary, and webhook method gate probed on 2026-07-13.
 
 **Intentional deferrals:** direct no-RFQ creation UI, direct requisition line editing,
 email-from-app, and a one-award/versioned re-award policy. Dated tickets are in

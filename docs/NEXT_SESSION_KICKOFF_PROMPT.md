@@ -397,3 +397,12 @@ mode-spine doc.
   walkthrough the branch, apply the six W2-3 migrations to production in filename order,
   re-probe production schema/security, fast-forward merge to main, and probe the deploy.
   Nothing was applied to production and main was not touched.
+- 2026-07-13: **Item 3 (W2-3 procurement) SHIPPED TO PRODUCTION after MG authorization.**
+  Applied all six reviewed migrations to Supabase project `hdpivaufoqokeuzgftsj` in exact
+  order. Production probes confirmed six RLS-enabled tables, 24 policies, six audit triggers,
+  tenant-scoped lineage constraints, snapshot checks, and SECURITY INVOKER functions with no
+  balance references. Security Advisor refreshed at zero errors with the same five pre-existing
+  warnings. Fast-forwarded and pushed main at `0058367`; Vercel deployment
+  `dpl_8GVxfDbmGWoivvALRZw7DVmzGUNP` reached Ready. Canonical route, auth-gate, unauthorized
+  export, and Stripe webhook method-gate smoke checks passed. Full evidence:
+  `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`.

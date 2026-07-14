@@ -107,13 +107,14 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
   hold/release UI, and the formalized POSTING KERNEL (`post_stock_movement()`; member
   direct writes to balances revoked). Contract: `FEATURES.md` Wave 2 section. Landed
   BEFORE W2-3 per the audit sequencing (vendor quotes arrive in purchase UoM).
-- **W2-3: Procurement workflow (BUILT, review-clean, at MG merge gate 2026-07-13).** RFQ
+- **W2-3: Procurement workflow (SHIPPED to prod 2026-07-13, main `0058367`).** RFQ
   to one or many vendors, export-for-manual-send documents, purchase-UoM quote comparison,
   per-line awards, single-step requisition approval, and idempotent mixed-vendor PO fan-out.
   The review pass hardened tenant-scoped lineage, atomic award math including MOQ, the
   database no-self-approval boundary, and immutable PO-line UoM snapshots. Full contract:
   `FEATURES.md`; review evidence: `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`.
-  Production migrations and merge remain MG's gate.
+  The six production migrations, schema/security probes, main fast-forward, and live route
+  smoke checks passed. Deployment evidence is recorded in the review file.
 - **W2-4: Multi-location.** The original Wave 2: location selector, location-aware dashboards,
   transfer recommendations (the transfer_in / transfer_out movement types already exist).
   Especially relevant to storeroom.

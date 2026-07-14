@@ -8,8 +8,9 @@ Review range: `origin/main..HEAD`, beginning at pushed tip `fc09b30`. Contract:
 ## Outcome
 
 Item 3 is functionally complete, review-clean, locally verified from a clean database
-replay, and ready for MG's production merge gate. This pass did not touch main, production,
-or the production Supabase project.
+replay, and shipped to production after MG authorized the production gate. The six reviewed
+migrations are recorded in production, main contains the reviewed tip, and the Vercel
+production deployment is Ready.
 
 ## Confirmed findings fixed
 
@@ -73,21 +74,28 @@ Dated tickets were added for email-from-app, direct no-RFQ requisition creation 
 requisition line editing, and re-award versioning/one-award policy. These are not required
 for the signed-off Scenario A loop and were not built speculatively.
 
-## State of the branch and MG merge gate
+## Production gate execution
 
-The feature branch contains the full Scenario A loop and the review hardening above. The
-only remaining work is MG's gate:
+MG authorized execution after reviewing the gate. The following migrations were applied to
+Supabase project `hdpivaufoqokeuzgftsj` in exact filename order and recorded in
+`supabase_migrations.schema_migrations`:
 
-1. Walk through the feature branch and review this evidence.
-2. Apply these migrations to production in exact filename order:
+1. Migrations:
    - `20260712120000_w2_3a_procurement_schema.sql`
    - `20260712150000_w2_3a2_quotes_rfq_fk.sql`
    - `20260712160000_w2_3d_convert_requisition_rpc.sql`
    - `20260713120000_w2_3_review_hardening.sql`
    - `20260713130000_w2_3_award_moq.sql`
    - `20260713140000_w2_3_uom_snapshot_pair.sql`
-3. Re-probe the production schema, RLS relationships, functions, and security advisor.
-4. Fast-forward merge to main and probe the production deploy.
-
-Stop condition honored: no production migration, no main merge, and no production deploy was
-attempted in this pass.
+2. Production schema probe: six procurement tables, all six with RLS enabled, 24 policies,
+   six audit triggers, nine expected tenant-scoped FK constraints, three UoM snapshot-pair
+   checks, and both PO line snapshot columns present.
+3. Function probe: award, decision, and conversion functions are SECURITY INVOKER and contain
+   no balance references. The Supabase Security Advisor refreshed with zero errors and the
+   same five pre-existing warnings.
+4. Git gate: feature tip `0058367` was fast-forwarded to main and pushed.
+5. Vercel gate: production deployment `dpl_8GVxfDbmGWoivvALRZw7DVmzGUNP` reached Ready and
+   serves the canonical domain.
+6. Live smoke: `/`, `/pricing`, `/signin`, and `/procurement` returned 200; an anonymous invalid
+   RFQ export returned 401; `/api/webhooks/stripe` returned 405 to GET, confirming the route is
+   present and method-gated.
