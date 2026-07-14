@@ -1,5 +1,122 @@
 -- W2-4d: immediate, atomic, idempotent stock transfers.
 
+-- Extend the posting kernel's existing p_unit_cost contract to transfer_in.
+-- Transfer quantities and their relocated value therefore share the same
+-- locked inventory_levels write; orchestration never reaches around the kernel.
+create or replace function public.post_stock_movement(
+  p_tenant uuid,
+  p_product uuid,
+  p_location uuid,
+  p_type text,
+  p_quantity numeric,
+  p_source text,
+  p_source_ref text,
+  p_occurred_at timestamptz,
+  p_demand_ref_type text default null,
+  p_demand_ref_id text default null,
+  p_reason_code text default null,
+  p_note text default null,
+  p_unit_cost numeric default null,
+  p_affects_in_transit boolean default false
+)
+returns table (out_on_hand numeric, out_on_hold numeric, out_avg_unit_cost numeric)
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_level record;
+  v_new_on_hand numeric;
+  v_new_on_hold numeric;
+  v_new_in_transit numeric;
+  v_new_avg numeric;
+  v_new_provenance text;
+begin
+  if p_quantity is null or p_quantity = 0 then raise exception 'bad_qty'; end if;
+  if p_type in ('hold', 'release', 'receipt', 'issue_return', 'customer_return', 'transfer_in')
+     and p_quantity < 0 then raise exception 'bad_sign'; end if;
+  if p_type in ('sale', 'issue_out', 'return_to_vendor', 'transfer_out')
+     and p_quantity > 0 then raise exception 'bad_sign'; end if;
+  if p_type in ('issue_out', 'issue_return')
+     and (p_demand_ref_type is null or p_demand_ref_id is null) then
+    raise exception 'missing_demand_ref';
+  end if;
+  if p_type in ('hold', 'release')
+     and (p_reason_code is null or btrim(p_reason_code) = '') then
+    raise exception 'missing_reason';
+  end if;
+  if p_unit_cost is not null and (p_unit_cost < 0 or p_type not in ('receipt', 'transfer_in')) then
+    raise exception 'bad_unit_cost';
+  end if;
+
+  insert into public.inventory_levels (tenant_id, product_id, location_id, on_hand)
+  values (p_tenant, p_product, p_location, 0)
+  on conflict (tenant_id, product_id, location_id) do nothing;
+
+  select on_hand, on_hold, in_transit, avg_unit_cost, avg_cost_provenance
+    into v_level
+  from public.inventory_levels
+  where tenant_id = p_tenant and product_id = p_product and location_id = p_location
+  for update;
+
+  v_new_on_hand := v_level.on_hand;
+  v_new_on_hold := v_level.on_hold;
+  v_new_in_transit := v_level.in_transit;
+  v_new_avg := v_level.avg_unit_cost;
+  v_new_provenance := v_level.avg_cost_provenance;
+
+  if p_type = 'hold' then
+    if p_quantity > (v_level.on_hand - v_level.on_hold) then
+      raise exception 'insufficient_stock_to_hold';
+    end if;
+    v_new_on_hold := v_level.on_hold + p_quantity;
+  elsif p_type = 'release' then
+    if p_quantity > v_level.on_hold then raise exception 'insufficient_held'; end if;
+    v_new_on_hold := v_level.on_hold - p_quantity;
+  else
+    v_new_on_hand := v_level.on_hand + p_quantity;
+    if p_type = 'receipt' and p_affects_in_transit then
+      v_new_in_transit := greatest(0, v_level.in_transit - p_quantity);
+    end if;
+    if p_type in ('receipt', 'transfer_in') and p_unit_cost is not null then
+      if v_level.on_hand <= 0 or v_level.avg_unit_cost is null then
+        v_new_avg := p_unit_cost;
+      else
+        v_new_avg := ((v_level.on_hand * v_level.avg_unit_cost)
+                      + (p_quantity * p_unit_cost))
+                     / (v_level.on_hand + p_quantity);
+      end if;
+      v_new_provenance := 'posted';
+    end if;
+  end if;
+
+  insert into public.stock_movements
+    (tenant_id, product_id, location_id, type, quantity, source, source_ref,
+     occurred_at, demand_ref_type, demand_ref_id, reason_code, note)
+  values
+    (p_tenant, p_product, p_location, p_type::public.stock_movement_type,
+     p_quantity, p_source::public.stock_movement_source, p_source_ref,
+     p_occurred_at, p_demand_ref_type, p_demand_ref_id,
+     nullif(btrim(coalesce(p_reason_code, '')), ''),
+     nullif(btrim(coalesce(p_note, '')), ''));
+
+  update public.inventory_levels
+    set on_hand = v_new_on_hand,
+        on_hold = v_new_on_hold,
+        in_transit = v_new_in_transit,
+        avg_unit_cost = v_new_avg,
+        avg_cost_provenance = v_new_provenance
+    where tenant_id = p_tenant and product_id = p_product and location_id = p_location;
+
+  return query select v_new_on_hand, v_new_on_hold, v_new_avg;
+end;
+$$;
+
+comment on function public.post_stock_movement(uuid, uuid, uuid, text, numeric, text, text, timestamptz, text, text, text, text, numeric, boolean) is
+  'THE inventory posting kernel: validates the movement contract, writes the ledger, and '
+  'moves balances and valuation under one level-row lock. Costed receipts and transfer_in '
+  'blend p_unit_cost; every inventory_levels mutation flows through this function.';
+
 create table public.stock_transfer_events (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id),
@@ -128,28 +245,8 @@ begin
   perform * from public.post_stock_movement(
     p_tenant, p_product, p_destination, 'transfer_in', p_quantity,
     'workflow', v_ref || ':in', v_now + interval '1 microsecond',
-    null, null, 'location_transfer', v_ref, null, false
+    null, null, 'location_transfer', v_ref, v_source.avg_unit_cost, false
   );
-
-  -- Carry the source layer's value into the destination. This is not a new
-  -- purchase cost; it is the weighted relocation of existing tenant value.
-  if v_source.avg_unit_cost is not null then
-    update public.inventory_levels
-    set avg_unit_cost = case
-          when v_destination.on_hand <= 0 or v_destination.avg_unit_cost is null
-            then v_source.avg_unit_cost
-          else ((v_destination.on_hand * v_destination.avg_unit_cost)
-                + (p_quantity * v_source.avg_unit_cost))
-               / (v_destination.on_hand + p_quantity)
-        end,
-        avg_cost_provenance = case
-          when v_destination.on_hand <= 0 or v_destination.avg_unit_cost is null
-            then v_source.avg_cost_provenance
-          else v_destination.avg_cost_provenance
-        end
-    where tenant_id = p_tenant and product_id = p_product
-      and location_id = p_destination;
-  end if;
 
   select * into v_source from public.inventory_levels
   where tenant_id = p_tenant and product_id = p_product and location_id = p_source;

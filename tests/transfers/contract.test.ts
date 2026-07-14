@@ -38,9 +38,9 @@ beforeAll(async () => {
   );
   destinationId = destination.rows[0]?.id ?? '';
   await client.query(
-    `insert into inventory_levels
+     `insert into inventory_levels
        (tenant_id, product_id, location_id, on_hand, avg_unit_cost, avg_cost_provenance)
-     values ($1, $2, $3, 0, 20, 'posted')`,
+     values ($1, $2, $3, 10, 20, 'posted')`,
     [T, productId, destinationId],
   );
   await client.query(
@@ -78,7 +78,16 @@ describe('execute_stock_transfer', () => {
       [T, productId],
     );
     expect(Number(after.rows[0]?.qty)).toBe(Number(before.rows[0]?.qty));
-    expect(Number(after.rows[0]?.value)).toBeCloseTo(Number(before.rows[0]?.value), 6);
+    // avg_unit_cost is stored at four decimals, so valuation conservation is
+    // asserted at the product's reporting precision (currency cents).
+    expect(Number(after.rows[0]?.value)).toBeCloseTo(Number(before.rows[0]?.value), 2);
+    const destination = await client.query<{ avg_unit_cost: string; avg_cost_provenance: string }>(
+      `select avg_unit_cost, avg_cost_provenance from inventory_levels
+       where tenant_id = $1 and product_id = $2 and location_id = $3`,
+      [T, productId, destinationId],
+    );
+    expect(Number(destination.rows[0]?.avg_unit_cost)).toBeCloseTo(40 / 3, 4);
+    expect(destination.rows[0]?.avg_cost_provenance).toBe('posted');
     const movements = await client.query<{ type: string; quantity: string; source_ref: string }>(
       `select type, quantity, source_ref from stock_movements
        where tenant_id = $1 and source_ref like $2 order by occurred_at`,
@@ -88,6 +97,18 @@ describe('execute_stock_transfer', () => {
       ['transfer_out', -20],
       ['transfer_in', 20],
     ]);
+  });
+
+  it('delegates destination valuation to the posting kernel', async () => {
+    const definition = await client.query<{ definition: string }>(
+      `select pg_get_functiondef(
+         'execute_stock_transfer(uuid,uuid,uuid,uuid,numeric,text)'::regprocedure
+       ) definition`,
+    );
+    expect(definition.rows[0]?.definition).not.toMatch(/update\s+public\.inventory_levels/i);
+    expect(definition.rows[0]?.definition).toMatch(
+      /post_stock_movement\([\s\S]*?'transfer_in'[\s\S]*?v_source\.avg_unit_cost/i,
+    );
   });
 
   it('replays the same key without a second movement', async () => {

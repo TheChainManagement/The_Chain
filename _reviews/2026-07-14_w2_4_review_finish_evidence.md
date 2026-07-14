@@ -19,8 +19,10 @@
 - `execute_stock_transfer` is tenant/role gated, serializes idempotency keys, locks both balance
   rows deterministically, rejects unsafe quantities, and posts paired OUT/IN movements through
   `post_stock_movement` in one transaction.
-- Transfer valuation carries the source cost layer into the destination with weighted averaging;
-  database contract tests assert tenant quantity and value conservation.
+- Transfer valuation passes the source cost layer into `post_stock_movement`; the kernel blends
+  it into the destination under the same row lock as `transfer_in`. The transfer orchestrator
+  never writes `inventory_levels` directly, and database contracts assert quantity/value
+  conservation.
 
 ## Verification
 
@@ -29,7 +31,7 @@
 - Focused Vitest run: 7 files, 63 tests passed.
 - Transfer database contracts cover matched movements, conservation, idempotent replay, role
   denial, same-location denial, excess-quantity denial, and absence of partial event writes.
-- Full Vitest run: 126 files, 896 tests passed.
+- Full Vitest run after the kernel-only valuation amendment: 126 files, 897 tests passed.
 - `npm run typecheck`: passed.
 - `npm run lint`: 345 source files checked, passed.
 - `npm run check:craft`: token discipline and trust hierarchy guard passed.
