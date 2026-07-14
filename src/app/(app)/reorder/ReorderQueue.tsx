@@ -5,6 +5,7 @@ import { type ReactNode, useMemo, useState, useTransition } from 'react';
 import { createRfqFromRecommendations } from '@/app/(app)/procurement/actions';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { locationHref } from '@/lib/locations/href';
 import { type ReorderGroup, type ReorderRow, reorderGroupKey } from '@/lib/reorder/queue';
 import type { ReorderUrgency } from '@/lib/reorder/recommend';
 import { convertSelectedToPo } from './actions';
@@ -30,7 +31,13 @@ const URGENCY_TONE: Record<ReorderUrgency, 'stop' | 'warn' | 'mid'> = {
   at_reorder: 'mid',
 };
 
-export function ReorderQueue({ groups }: { groups: ReorderGroup[] }): ReactNode {
+export function ReorderQueue({
+  groups,
+  locationId = null,
+}: {
+  groups: ReorderGroup[];
+  locationId?: string | null;
+}): ReactNode {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -68,7 +75,7 @@ export function ReorderQueue({ groups }: { groups: ReorderGroup[] }): ReactNode 
         setError(res.error);
         return;
       }
-      router.push(`/purchase-orders/${res.poId}`);
+      router.push(locationHref(`/purchase-orders/${res.poId}`, locationId));
     });
   }
 
@@ -82,7 +89,7 @@ export function ReorderQueue({ groups }: { groups: ReorderGroup[] }): ReactNode 
         setError(res?.error ?? 'Could not open the quote request.');
         return;
       }
-      router.push(`/procurement/rfqs/${res.rfqId}`);
+      router.push(locationHref(`/procurement/rfqs/${res.rfqId}`, locationId));
     });
   }
 

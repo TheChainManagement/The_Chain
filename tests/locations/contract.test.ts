@@ -67,7 +67,9 @@ describe('W2-4a location lifecycle', () => {
     expect(primary.rows).toEqual([{ id }]);
 
     await actAs(client, { sub: U, tenant_id: T, role: 'planner' });
-    expect(await dbError('select set_primary_location($1, $2)', [T, id])).toMatch(/not authorized/i);
+    expect(await dbError('select set_primary_location($1, $2)', [T, id])).toMatch(
+      /not authorized/i,
+    );
   });
 
   it('blocks duplicate active names and unsafe archival at the database boundary', async () => {
@@ -105,5 +107,23 @@ describe('W2-4a location lifecycle', () => {
         '00000000-0000-0000-0000-000000000099',
       ]),
     ).toMatch(/not found/i);
+  });
+});
+
+describe('W2-4b location inventory view', () => {
+  it('returns one catalog row per active location with isolated quantities', async () => {
+    await asSuperuser(client);
+    const product = await client.query<{ id: string }>(
+      'select id from products where tenant_id = $1 limit 1',
+      [T],
+    );
+    const rows = await client.query<{ location_id: string; on_hand: string }>(
+      `select location_id, on_hand from inventory_location_list_v
+       where tenant_id = $1 and id = $2 order by location_id`,
+      [T, product.rows[0]?.id],
+    );
+    expect(rows.rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows.rows.filter((row) => Number(row.on_hand) === 100)).toHaveLength(1);
+    expect(rows.rows.some((row) => Number(row.on_hand) === 0)).toBe(true);
   });
 });

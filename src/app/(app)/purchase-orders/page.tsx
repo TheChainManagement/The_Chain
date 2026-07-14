@@ -5,6 +5,8 @@ import pageStyles from '@/components/bench/page.module.css';
 import { OrderTrack } from '@/components/OrderTrack/OrderTrack';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { listPurchaseOrders, type PurchaseOrderListRow } from '@/lib/purchase-orders/queries';
 import {
   committedValue,
@@ -26,9 +28,14 @@ export const metadata = { title: 'Purchase Orders · The Chain' };
  * the reorder engine). The featured order renders as the full igniting chain;
  * the ledger below carries every order with its compact progress track.
  */
-export default async function PurchaseOrdersPage(): Promise<ReactNode> {
+export default async function PurchaseOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string }>;
+}): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const rows = await listPurchaseOrders(supabase);
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
+  const rows = await listPurchaseOrders(supabase, locationId);
 
   if (rows.length === 0) {
     return (
@@ -89,7 +96,7 @@ export default async function PurchaseOrdersPage(): Promise<ReactNode> {
           <span>Status</span>
         </div>
         {rows.map((row) => (
-          <OrderRow key={row.id} row={row} />
+          <OrderRow key={row.id} row={row} locationId={locationId} />
         ))}
       </div>
     </div>
@@ -113,10 +120,16 @@ function FeaturedOrder({ po }: { po: PurchaseOrderListRow }): ReactNode {
   );
 }
 
-function OrderRow({ row }: { row: PurchaseOrderListRow }): ReactNode {
+function OrderRow({
+  row,
+  locationId,
+}: {
+  row: PurchaseOrderListRow;
+  locationId: string | null;
+}): ReactNode {
   return (
     <Link
-      href={`/purchase-orders/${row.id}`}
+      href={locationHref(`/purchase-orders/${row.id}`, locationId)}
       className={styles.row}
       aria-label={`${row.reference} from ${row.supplierName}`}
     >

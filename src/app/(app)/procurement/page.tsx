@@ -4,6 +4,8 @@ import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import {
   listLocationOptions,
   listRequisitions,
@@ -23,11 +25,16 @@ export const metadata = { title: 'Procurement · The Chain' };
  * with its status chain, line/vendor counts, and respond-by. Requisitions join
  * this bench in slice 4. Server Component; reads are RLS-scoped.
  */
-export default async function ProcurementPage(): Promise<ReactNode> {
+export default async function ProcurementPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string }>;
+}): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
   const [rfqs, requisitions, locations] = await Promise.all([
-    listRfqs(supabase),
-    listRequisitions(supabase),
+    listRfqs(supabase, locationId),
+    listRequisitions(supabase, locationId),
     listLocationOptions(supabase),
   ]);
 
@@ -36,7 +43,7 @@ export default async function ProcurementPage(): Promise<ReactNode> {
       <PageHeader
         eyebrow="Procurement · request for quote"
         title="Quote requests"
-        actions={<NewRfq locations={locations} />}
+        actions={<NewRfq locations={locations} selectedLocationId={locationId} />}
       />
 
       {rfqs.length === 0 ? (
@@ -57,7 +64,7 @@ export default async function ProcurementPage(): Promise<ReactNode> {
             <span>Respond by</span>
           </div>
           {rfqs.map((row) => (
-            <RfqRow key={row.id} row={row} />
+            <RfqRow key={row.id} row={row} locationId={locationId} />
           ))}
         </div>
       )}
@@ -81,7 +88,7 @@ export default async function ProcurementPage(): Promise<ReactNode> {
             <span>Created</span>
           </div>
           {requisitions.map((row) => (
-            <RequisitionRow key={row.id} row={row} />
+            <RequisitionRow key={row.id} row={row} locationId={locationId} />
           ))}
         </div>
       )}
@@ -89,10 +96,20 @@ export default async function ProcurementPage(): Promise<ReactNode> {
   );
 }
 
-function RequisitionRow({ row }: { row: RequisitionListRow }): ReactNode {
+function RequisitionRow({
+  row,
+  locationId,
+}: {
+  row: RequisitionListRow;
+  locationId: string | null;
+}): ReactNode {
   const title = row.sourceRfqTitle ? `From: ${row.sourceRfqTitle}` : 'Direct requisition';
   return (
-    <Link href={`/procurement/requisitions/${row.id}`} className={styles.row} aria-label={title}>
+    <Link
+      href={locationHref(`/procurement/requisitions/${row.id}`, locationId)}
+      className={styles.row}
+      aria-label={title}
+    >
       <span className={styles.cellTitle}>
         <span className={styles.cellTitleText}>{title}</span>
         <span className={styles.cellLocation}>{row.locationName}</span>
@@ -114,9 +131,13 @@ function RequisitionRow({ row }: { row: RequisitionListRow }): ReactNode {
   );
 }
 
-function RfqRow({ row }: { row: RfqListRow }): ReactNode {
+function RfqRow({ row, locationId }: { row: RfqListRow; locationId: string | null }): ReactNode {
   return (
-    <Link href={`/procurement/rfqs/${row.id}`} className={styles.row} aria-label={row.title}>
+    <Link
+      href={locationHref(`/procurement/rfqs/${row.id}`, locationId)}
+      className={styles.row}
+      aria-label={row.title}
+    >
       <span className={styles.cellTitle}>
         <span className={styles.cellTitleText}>{row.title}</span>
         <span className={styles.cellLocation}>{row.locationName}</span>

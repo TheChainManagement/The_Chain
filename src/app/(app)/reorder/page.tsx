@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { loadReorderQueue } from '@/lib/reorder/queue';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { RecomputeControls } from './RecomputeControls';
@@ -16,9 +17,14 @@ export const metadata = { title: 'Reorder · The Chain' };
  * below its reorder point surfaces here with the reasoning behind it, grouped by
  * supplier and ready to convert into a purchase order.
  */
-export default async function ReorderPage(): Promise<ReactNode> {
+export default async function ReorderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ location?: string }>;
+}): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
-  const groups = await loadReorderQueue(supabase);
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
+  const groups = await loadReorderQueue(supabase, locationId);
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const stockouts = groups.reduce(
     (n, g) => n + g.rows.filter((r) => r.urgency === 'stockout').length,
@@ -55,7 +61,7 @@ export default async function ReorderPage(): Promise<ReactNode> {
           </p>
         </Panel>
       ) : (
-        <ReorderQueue groups={groups} />
+        <ReorderQueue groups={groups} locationId={locationId} />
       )}
     </div>
   );

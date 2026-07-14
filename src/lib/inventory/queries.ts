@@ -41,6 +41,7 @@ export interface ListInventoryOptions {
   status?: StatusFilter;
   /** Restrict to these product ids (used by the supplier filter). Empty → no rows. */
   productIds?: string[] | null;
+  locationId?: string | null;
 }
 
 export async function listInventory(
@@ -53,12 +54,15 @@ export async function listInventory(
 
   // Reads the index-optimized aggregate view (security_invoker → RLS still fences
   // to the caller's tenant). Sum-by-SKU + tenant-wide classification happen in SQL.
+  const view = opts.locationId ? 'inventory_location_list_v' : 'inventory_list_v';
   let query = supabase
-    .from('inventory_list_v')
+    .from(view)
     .select(
       'id, sku, name, status, unit_of_measure, on_hand, on_hold, allocated, in_transit, total_value, abc_class, xyz_class',
     )
     .order('sku', { ascending: true });
+
+  if (opts.locationId) query = query.eq('location_id', opts.locationId);
 
   const status: StatusFilter = opts.status ?? 'active';
   if (status !== 'all') {

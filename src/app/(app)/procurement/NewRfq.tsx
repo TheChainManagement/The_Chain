@@ -23,16 +23,23 @@ function SubmitRow(): React.ReactNode {
   );
 }
 
-export function NewRfq({ locations }: { locations: LocationOption[] }): React.ReactNode {
+export function NewRfq({
+  locations,
+  selectedLocationId = null,
+}: {
+  locations: LocationOption[];
+  selectedLocationId?: string | null;
+}): React.ReactNode {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<RfqActionState, FormData>(createRfq, null);
 
   useEffect(() => {
     if (state?.ok) {
-      router.push(`/procurement/rfqs/${state.rfqId}`);
+      const scope = selectedLocationId ? `?location=${encodeURIComponent(selectedLocationId)}` : '';
+      router.push(`/procurement/rfqs/${state.rfqId}${scope}`);
     }
-  }, [state, router]);
+  }, [state, router, selectedLocationId]);
 
   return (
     <div className={styles.addWrap}>
@@ -66,7 +73,7 @@ export function NewRfq({ locations }: { locations: LocationOption[] }): React.Re
               <select
                 name="location_id"
                 className={styles.addSelect}
-                defaultValue={locations[0]?.id}
+                defaultValue={selectedLocationId ?? locations[0]?.id}
               >
                 {locations.map((l) => (
                   <option key={l.id} value={l.id}>

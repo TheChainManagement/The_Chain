@@ -6,6 +6,8 @@ import { Panel } from '@/components/Panel/Panel';
 import { listInventory, productIdsForSupplier } from '@/lib/inventory/queries';
 import { normalizeStatusFilter, sanitizeSearch } from '@/lib/inventory/transform';
 import { getValuationSummary } from '@/lib/inventory/valuation';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { loadOperatingProfile } from '@/lib/modes/resolver';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { listSupplierOptions } from '@/lib/suppliers/queries';
@@ -25,7 +27,7 @@ export const metadata = { title: 'Inventory · The Chain' };
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; supplier?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; supplier?: string; location?: string }>;
 }): Promise<ReactNode> {
   const sp = await searchParams;
   const search = sp.q ?? '';
@@ -34,6 +36,7 @@ export default async function InventoryPage({
   const filtering = Boolean(sanitizeSearch(search)) || status !== 'active' || Boolean(supplierId);
 
   const supabase = await createSupabaseServer();
+  const locationId = await resolveLocationScope(supabase, sp.location);
   const supplierOptions = await listSupplierOptions(supabase);
 
   // W2-2: the operator surface follows the mode spine — issue-archetype
@@ -46,8 +49,8 @@ export default async function InventoryPage({
   // Supplier filter resolves to a product-id set the list query intersects with.
   const productIds = supplierId ? await productIdsForSupplier(supabase, supplierId) : null;
   const [rows, valuation] = await Promise.all([
-    listInventory(supabase, { search, status, productIds }),
-    getValuationSummary(supabase),
+    listInventory(supabase, { search, status, productIds, locationId }),
+    getValuationSummary(supabase, locationId),
   ]);
 
   return (
@@ -57,10 +60,16 @@ export default async function InventoryPage({
         title={profile?.navLabels['/inventory'] ?? 'Inventory'}
         actions={
           <div className={pageStyles.headerActions}>
-            <Link href="/inventory/cycle-counts" className={pageStyles.headerLink}>
+            <Link
+              href={locationHref('/inventory/cycle-counts', locationId)}
+              className={pageStyles.headerLink}
+            >
               Cycle counts
             </Link>
-            <Link href="/inventory/classification" className={pageStyles.headerLink}>
+            <Link
+              href={locationHref('/inventory/classification', locationId)}
+              className={pageStyles.headerLink}
+            >
               Classification
             </Link>
             <AddSku />

@@ -25,12 +25,14 @@ const SELECT = `id, external_po_id, external_reference, supplier_id, status, rec
 
 export async function listPurchaseOrders(
   supabase: SupabaseClient,
+  locationId?: string | null,
 ): Promise<PurchaseOrderListRow[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('purchase_orders')
     .select(SELECT)
-    .order('updated_at', { ascending: false })
-    .returns<RawPurchaseOrderRow[]>();
+    .order('updated_at', { ascending: false });
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data, error } = await query.returns<RawPurchaseOrderRow[]>();
   if (error) {
     throw new Error(`listPurchaseOrders failed: ${error.message}`);
   }

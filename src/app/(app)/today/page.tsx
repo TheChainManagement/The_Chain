@@ -17,6 +17,8 @@ import {
   throughputLast7Days,
   worstDaysOfSupply,
 } from '@/lib/dashboard/transform';
+import { locationHref } from '@/lib/locations/href';
+import { resolveLocationScope } from '@/lib/locations/scope';
 import { loadOnboardingState } from '@/lib/onboarding/queries';
 import { onboardingComplete } from '@/lib/onboarding/state';
 import { listPurchaseOrders } from '@/lib/purchase-orders/queries';
@@ -53,11 +55,16 @@ const STRIP_KEYS = ['AT STOCKOUT RISK', 'WORST DAYS OF SUPPLY', 'TOP SUPPLIER OT
  * shapes what's already tenant-fenced. Renders three stages: fresh, onboarding,
  * and populated.
  */
-export default async function TodayPage(): Promise<ReactNode> {
+export default async function TodayPage(
+  { searchParams }: { searchParams: Promise<{ location?: string }> } = {
+    searchParams: Promise.resolve({}),
+  },
+): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
+  const locationId = await resolveLocationScope(supabase, (await searchParams).location);
   const [pos, groups, alerts, otifBySupplier, productCount, onboarding] = await Promise.all([
-    listPurchaseOrders(supabase),
-    loadReorderQueue(supabase),
+    listPurchaseOrders(supabase, locationId),
+    loadReorderQueue(supabase, locationId),
     listOpenAlerts(supabase),
     loadSupplierOtif(supabase),
     countActiveProducts(supabase),
@@ -123,7 +130,7 @@ export default async function TodayPage(): Promise<ReactNode> {
               points now. Recommendations, the live order chain, and your daily numbers land here
               after the first batch — usually within a few minutes of an import.
             </p>
-            <Link href="/forecasts" className={pageStyles.headerLink}>
+            <Link href={locationHref('/forecasts', locationId)} className={pageStyles.headerLink}>
               Watch the forecast run →
             </Link>
           </div>
@@ -165,7 +172,7 @@ export default async function TodayPage(): Promise<ReactNode> {
 
       {/* Metric strip — the numbers that decide the day. Each is clickable. */}
       <div className={pageStyles.strip}>
-        <Link href="/reorder" className={styles.metricLink}>
+        <Link href={locationHref('/reorder', locationId)} className={styles.metricLink}>
           <MetricCell
             label="AT STOCKOUT RISK"
             value={stockouts}
@@ -173,7 +180,10 @@ export default async function TodayPage(): Promise<ReactNode> {
           />
         </Link>
         <Link
-          href={worst ? `/inventory/${worst.productId}` : '/inventory/policy'}
+          href={locationHref(
+            worst ? `/inventory/${worst.productId}` : '/inventory/policy',
+            locationId,
+          )}
           className={styles.metricLink}
         >
           <MetricCell
@@ -194,7 +204,7 @@ export default async function TodayPage(): Promise<ReactNode> {
             tone={supplier?.otifPct != null ? otifTone(supplier.otifPct) : 'deep'}
           />
         </Link>
-        <Link href="/purchase-orders" className={styles.metricLink}>
+        <Link href={locationHref('/purchase-orders', locationId)} className={styles.metricLink}>
           <MetricCell label="OPEN ORDERS" value={openPoCount(pos)} />
         </Link>
       </div>
@@ -207,7 +217,7 @@ export default async function TodayPage(): Promise<ReactNode> {
                 steps={steps}
                 activeIndex={activeIndex}
                 reference={mostPressing.reference}
-                poHref={`/purchase-orders/${mostPressing.id}`}
+                poHref={locationHref(`/purchase-orders/${mostPressing.id}`, locationId)}
                 topAlertId={topAlert?.id ?? null}
                 topAlertMemo={topAlert?.memo ?? null}
               />

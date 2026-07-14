@@ -31,8 +31,11 @@ interface RawRfqListRow {
   rfq_vendors: { status: string }[];
 }
 
-export async function listRfqs(supabase: SupabaseClient): Promise<RfqListRow[]> {
-  const { data, error } = await supabase
+export async function listRfqs(
+  supabase: SupabaseClient,
+  locationId?: string | null,
+): Promise<RfqListRow[]> {
+  let query = supabase
     .from('rfqs')
     .select(
       `id, title, status, respond_by, created_at,
@@ -40,8 +43,9 @@ export async function listRfqs(supabase: SupabaseClient): Promise<RfqListRow[]> 
        rfq_lines!rfq_lines_rfq_id_fkey ( count ),
        rfq_vendors!rfq_vendors_rfq_id_fkey ( status )`,
     )
-    .order('created_at', { ascending: false })
-    .returns<RawRfqListRow[]>();
+    .order('created_at', { ascending: false });
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data, error } = await query.returns<RawRfqListRow[]>();
   if (error) {
     throw new Error(`listRfqs failed: ${error.message}`);
   }
@@ -318,8 +322,11 @@ interface RawRequisitionListRow {
   requisition_lines: { supplier_id: string }[];
 }
 
-export async function listRequisitions(supabase: SupabaseClient): Promise<RequisitionListRow[]> {
-  const { data, error } = await supabase
+export async function listRequisitions(
+  supabase: SupabaseClient,
+  locationId?: string | null,
+): Promise<RequisitionListRow[]> {
+  let query = supabase
     .from('requisitions')
     .select(
       `id, status, total, created_at,
@@ -327,8 +334,9 @@ export async function listRequisitions(supabase: SupabaseClient): Promise<Requis
        rfqs!requisitions_source_rfq_id_fkey ( title ),
        requisition_lines ( supplier_id )`,
     )
-    .order('created_at', { ascending: false })
-    .returns<RawRequisitionListRow[]>();
+    .order('created_at', { ascending: false });
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data, error } = await query.returns<RawRequisitionListRow[]>();
   if (error) {
     throw new Error(`listRequisitions failed: ${error.message}`);
   }

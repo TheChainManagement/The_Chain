@@ -50,15 +50,19 @@ interface RawRec {
   locations: { name: string | null } | null;
 }
 
-export async function loadReorderQueue(supabase: SupabaseClient): Promise<ReorderGroup[]> {
-  const { data: recs, error } = await supabase
+export async function loadReorderQueue(
+  supabase: SupabaseClient,
+  locationId?: string | null,
+): Promise<ReorderGroup[]> {
+  let query = supabase
     .from('reorder_recommendations')
     .select(
       `id, product_id, location_id, supplier_id, recommended_qty, reason,
        products ( sku, name ), suppliers ( name ), locations ( name )`,
     )
-    .eq('status', 'open')
-    .returns<RawRec[]>();
+    .eq('status', 'open');
+  if (locationId) query = query.eq('location_id', locationId);
+  const { data: recs, error } = await query.returns<RawRec[]>();
   // Fail loud: a swallowed read would render "Nothing to reorder" on the
   // product's primary action loop — a dangerous lie. Let the error boundary show.
   if (error) throw new Error(`could not load the reorder queue: ${error.message}`);

@@ -81,7 +81,39 @@ export interface ValuationSummary {
 
 export async function getValuationSummary(
   supabase: SupabaseClient,
+  locationId?: string | null,
 ): Promise<ValuationSummary | null> {
+  if (locationId) {
+    const { data, error } = await supabase
+      .from('inventory_valuation_v')
+      .select('product_id, on_hand, avg_unit_cost, total_value, held_value')
+      .eq('location_id', locationId)
+      .returns<
+        {
+          product_id: string;
+          on_hand: number | string;
+          avg_unit_cost: number | string | null;
+          total_value: number | string | null;
+          held_value: number | string | null;
+        }[]
+      >();
+    if (error) throw new Error(`getValuationSummary failed: ${error.message}`);
+    const rows = data ?? [];
+    const valued = rows.filter((row) => row.total_value != null);
+    return {
+      totalValue: valued.length
+        ? valued.reduce((sum, row) => sum + Number(row.total_value), 0)
+        : null,
+      heldValue: valued.length
+        ? valued.reduce((sum, row) => sum + Number(row.held_value ?? 0), 0)
+        : null,
+      uncostedSkus: new Set(
+        rows
+          .filter((row) => row.avg_unit_cost == null && Number(row.on_hand) !== 0)
+          .map((row) => row.product_id),
+      ).size,
+    };
+  }
   const { data, error } = await supabase
     .from('inventory_valuation_totals_v')
     .select('total_value, held_value, uncosted_skus')
