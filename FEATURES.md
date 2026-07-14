@@ -700,9 +700,7 @@
 Wave 2 (the kickoff doc `docs/NEXT_SESSION_KICKOFF_PROMPT.md` stays the session log, not
 the contract). Blocks below are written from `docs/WAVE2_SCOPE.md`,
 `docs/WAVE2_W2-0_MODE_SPINE_DESIGN.md`, the kickoff doc, and the `_reviews/` evidence
-trail. Shipped blocks record the contract the code was verified against; planned blocks
-(W2-4) are forward contracts and re-enter the normal Phase 4 checkpoint before
-build.*
+trail. Shipped blocks record the contract the code was verified against.*
 
 **Wave 2 build order:**
 
@@ -712,7 +710,7 @@ build.*
 - W2-2. Storeroom operations — **SHIPPED to prod** (`9d50726`, 2026-07-09)
 - W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) - **SHIPPED to prod** (`7df9ee8`, 2026-07-12)
 - W2-3. Procurement (RFQ, requisition, PO) - **SHIPPED to prod** (`0058367`, 2026-07-13)
-- W2-4. Multi-location UI — planned
+- W2-4. Multi-location UI — **BUILT on review branch** (`codex/w2-4-multi-location`, 2026-07-14; production pending MG gate)
 
 ---
 
@@ -968,7 +966,7 @@ selects one vendor across every answered line. The durable artifact is
 
 ---
 
-## Feature: W2-4 Multi-location UI - designed, MG signed off 2026-07-14
+## Feature: W2-4 Multi-location UI - built, production pending MG gate
 
 **Why**: `WAVE2_SCOPE.md` §4 W2-4 — the original Wave 2: location selector,
 location-aware dashboards, transfer recommendations. Especially relevant to storeroom.
@@ -983,15 +981,15 @@ scope; archive-only lifecycle with blocking checks; immediate atomic Wave 2 tran
 tenant-wide roles now with per-location assignments deferred to Wave 3. Full design:
 `docs/WAVE2_W2-4_MULTI_LOCATION_DESIGN.md`.
 
-**Acceptance criteria (forward contract):**
-- [ ] Operators can create, rename, make primary, and safely archive locations.
-- [ ] One-location tenants retain the quiet shell; multi-location tenants get a URL-backed
+**Acceptance criteria:**
+- [x] Operators can create, rename, make primary, and safely archive locations.
+- [x] One-location tenants retain the quiet shell; multi-location tenants get a URL-backed
       selector with `All locations` and concrete-location scopes.
-- [ ] Dashboards, inventory, valuation, forecast, policy, reorder, procurement, POs, holds,
+- [x] Dashboards, inventory, valuation, forecast, policy, reorder, procurement, POs, holds,
       issues, adjustments, and counts honor the selected scope.
-- [ ] `All locations` permits aggregate reads but never an ambiguous physical write.
-- [ ] Transfer recommendations respect source surplus and destination need.
-- [ ] Acting on a transfer recommendation posts paired `transfer_out` and `transfer_in`
+- [x] `All locations` permits aggregate reads but never an ambiguous physical write.
+- [x] Transfer recommendations respect source surplus and destination need.
+- [x] Acting on a transfer recommendation posts paired `transfer_out` and `transfer_in`
       movements atomically through the kernel.
 
 **What's memorable:** A chain-junction selector tightens the whole bench to one physical

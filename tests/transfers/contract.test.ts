@@ -1,0 +1,152 @@
+import type { Client } from 'pg';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { actAs, asSuperuser, connect } from '../helpers/db';
+import { seedTenant } from '../helpers/seed';
+
+const T = 'b4444444-4444-4444-4444-444444444444';
+const U = 'b4000000-0000-0000-0000-000000000044';
+let client: Client;
+let productId: string;
+let sourceId: string;
+let destinationId: string;
+
+async function errorOf(sql: string, params: unknown[]): Promise<string> {
+  await client.query('savepoint transfer_error');
+  try {
+    await client.query(sql, params);
+    return '';
+  } catch (error) {
+    return (error as Error).message;
+  } finally {
+    await client.query('rollback to savepoint transfer_error');
+  }
+}
+
+beforeAll(async () => {
+  client = await connect();
+  await client.query('begin');
+  await seedTenant(client, T, U, 'transfer');
+  const seeded = await client.query<{ product_id: string; location_id: string }>(
+    'select product_id, location_id from inventory_levels where tenant_id = $1 limit 1',
+    [T],
+  );
+  productId = seeded.rows[0]?.product_id ?? '';
+  sourceId = seeded.rows[0]?.location_id ?? '';
+  const destination = await client.query<{ id: string }>(
+    `insert into locations (tenant_id, name, type) values ($1, 'North', 'warehouse') returning id`,
+    [T],
+  );
+  destinationId = destination.rows[0]?.id ?? '';
+  await client.query(
+    `insert into inventory_levels
+       (tenant_id, product_id, location_id, on_hand, avg_unit_cost, avg_cost_provenance)
+     values ($1, $2, $3, 0, 20, 'posted')`,
+    [T, productId, destinationId],
+  );
+  await client.query(
+    `update inventory_levels set avg_unit_cost = 10, avg_cost_provenance = 'posted'
+     where tenant_id = $1 and product_id = $2 and location_id = $3`,
+    [T, productId, sourceId],
+  );
+});
+
+afterAll(async () => {
+  if (client) {
+    await asSuperuser(client);
+    await client.query('rollback');
+    await client.end();
+  }
+});
+
+describe('execute_stock_transfer', () => {
+  it('posts matched OUT/IN atomically and preserves tenant quantity and value', async () => {
+    await actAs(client, { sub: U, tenant_id: T, role: 'warehouse' });
+    const before = await client.query<{ qty: string; value: string }>(
+      `select sum(on_hand) qty, sum(on_hand * avg_unit_cost) value
+       from inventory_levels where tenant_id = $1 and product_id = $2`,
+      [T, productId],
+    );
+    const result = await client.query<{ out_applied: boolean; out_transfer_id: string }>(
+      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)',
+      [T, productId, sourceId, destinationId, 20, 'transfer-1'],
+    );
+    expect(result.rows[0]?.out_applied).toBe(true);
+
+    const after = await client.query<{ qty: string; value: string }>(
+      `select sum(on_hand) qty, sum(on_hand * avg_unit_cost) value
+       from inventory_levels where tenant_id = $1 and product_id = $2`,
+      [T, productId],
+    );
+    expect(Number(after.rows[0]?.qty)).toBe(Number(before.rows[0]?.qty));
+    expect(Number(after.rows[0]?.value)).toBeCloseTo(Number(before.rows[0]?.value), 6);
+    const movements = await client.query<{ type: string; quantity: string; source_ref: string }>(
+      `select type, quantity, source_ref from stock_movements
+       where tenant_id = $1 and source_ref like $2 order by occurred_at`,
+      [T, `transfer:${result.rows[0]?.out_transfer_id}%`],
+    );
+    expect(movements.rows.map((row) => [row.type, Number(row.quantity)])).toEqual([
+      ['transfer_out', -20],
+      ['transfer_in', 20],
+    ]);
+  });
+
+  it('replays the same key without a second movement', async () => {
+    await actAs(client, { sub: U, tenant_id: T, role: 'warehouse' });
+    const replay = await client.query<{ out_applied: boolean }>(
+      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)',
+      [T, productId, sourceId, destinationId, 20, 'transfer-1'],
+    );
+    expect(replay.rows[0]?.out_applied).toBe(false);
+    const count = await client.query<{ count: string }>(
+      `select count(*) from stock_movements where tenant_id = $1
+       and source_ref like 'transfer:%'`,
+      [T],
+    );
+    expect(Number(count.rows[0]?.count)).toBe(2);
+  });
+
+  it('rejects planner, same-location, and excessive moves with zero partial writes', async () => {
+    await actAs(client, { sub: U, tenant_id: T, role: 'planner' });
+    expect(
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
+        T,
+        productId,
+        sourceId,
+        destinationId,
+        1,
+        'planner',
+      ]),
+    ).toMatch(/not_authorized/i);
+
+    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
+    expect(
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
+        T,
+        productId,
+        sourceId,
+        sourceId,
+        1,
+        'same',
+      ]),
+    ).toMatch(/same_location/i);
+    const before = await client.query<{ count: string }>(
+      'select count(*) from stock_transfer_events where tenant_id = $1',
+      [T],
+    );
+    expect(
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
+        T,
+        productId,
+        sourceId,
+        destinationId,
+        10000,
+        'too-much',
+      ]),
+    ).toMatch(/insufficient_transferable_stock/i);
+    const after = await client.query<{ count: string }>(
+      'select count(*) from stock_transfer_events where tenant_id = $1',
+      [T],
+    );
+    expect(after.rows[0]?.count).toBe(before.rows[0]?.count);
+  });
+});

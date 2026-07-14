@@ -115,9 +115,11 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
   `FEATURES.md`; review evidence: `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`.
   The six production migrations, schema/security probes, main fast-forward, and live route
   smoke checks passed. Deployment evidence is recorded in the review file.
-- **W2-4: Multi-location.** The original Wave 2: location selector, location-aware dashboards,
-  transfer recommendations (the transfer_in / transfer_out movement types already exist).
-  Especially relevant to storeroom.
+- **W2-4: Multi-location (BUILT on review branch 2026-07-14; production pending MG gate).**
+  URL-backed location scope, location management and location-aware operational surfaces,
+  explicit-location forecast/policy computation, safe transfer recommendations, and atomic,
+  idempotent paired transfer posting through the inventory kernel. Full signed-off contract:
+  `docs/WAVE2_W2-4_MULTI_LOCATION_DESIGN.md`.
 
 **Deferred to later waves** (unchanged): full role + S&OP layer (Wave 3), barcode hardware
 scanning (Wave 4), Rutter / ERP-native adapters (Waves 5/7), ROI Impact Dashboard (Wave 6).

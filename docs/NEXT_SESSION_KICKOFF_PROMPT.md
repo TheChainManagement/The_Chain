@@ -413,3 +413,9 @@ mode-spine doc.
   W2-4a begins with location management and an explicit primary marker. Design:
   `docs/WAVE2_W2-4_MULTI_LOCATION_DESIGN.md`. Build branch:
   `codex/w2-4-multi-location`.
+- 2026-07-14: **W2-4a-d BUILT on the review branch; production remains behind the MG gate.**
+  Location lifecycle and URL-backed scope now propagate across operational reads and require
+  explicit active locations for physical writes. W2-4c scopes forecast replay, demand history,
+  eligibility, and policy derivation to the selected location. W2-4d adds safe transfer
+  recommendations plus a role-gated, atomic, idempotent database transfer that posts matched
+  OUT/IN movements through the inventory kernel while conserving quantity and valuation.
