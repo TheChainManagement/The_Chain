@@ -10,7 +10,12 @@ import { describe, expect, it, vi } from 'vitest';
  * here in CI so the relabel can't silently regress.
  */
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/today' }));
+const replace = vi.fn();
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/today',
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/app/(auth)/actions', () => ({ signOut: vi.fn() }));
 
 const { LeftRail } = await import('@/components/bench/LeftRail');
@@ -46,5 +51,31 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
     expect(queryByRole('link', { name: 'Inventory' })).toBeNull();
     expect(getByLabelText('Operating mode: Food service')).toBeInTheDocument();
     expect(getByText('demand from usage')).toBeInTheDocument();
+  });
+
+  it('suppresses location scope for one site and activates it for a network', () => {
+    const profile = getProfile('distribution');
+    const one = render(
+      <LeftRail
+        userEmail="op@thechain.test"
+        profile={profile}
+        locations={[{ id: 'l1', name: 'Main', isPrimary: true }]}
+      />,
+    );
+    expect(one.queryByRole('combobox', { name: 'Location scope' })).toBeNull();
+    one.unmount();
+
+    const network = render(
+      <LeftRail
+        userEmail="op@thechain.test"
+        profile={profile}
+        locations={[
+          { id: 'l1', name: 'Main', isPrimary: true },
+          { id: 'l2', name: 'North', isPrimary: false },
+        ]}
+      />,
+    );
+    expect(network.getByRole('combobox', { name: 'Location scope' })).toHaveValue('');
+    expect(network.getByRole('option', { name: 'All locations' })).toBeInTheDocument();
   });
 });
