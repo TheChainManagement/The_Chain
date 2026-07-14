@@ -188,7 +188,11 @@ export function RequisitionLines({
       {requisition.lines.map((line) => {
         const lineTotal = line.unitCost == null ? null : line.unitCost * line.qty;
         const linkCurrent =
-          line.unitCost != null && line.linkUnitCost != null && line.linkUnitCost === line.unitCost;
+          line.unitCost != null &&
+          line.linkUnitCost != null &&
+          line.linkUnitCost === line.unitCost &&
+          line.linkPurchaseUom === line.purchaseUom &&
+          line.linkFactor === line.factor;
         return (
           <div key={line.lineNo} className={styles.lineRow}>
             <span className={styles.lineNo}>{line.lineNo}</span>

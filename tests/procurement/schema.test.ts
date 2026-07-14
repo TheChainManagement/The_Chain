@@ -20,6 +20,8 @@ import { seedTenant } from '../helpers/seed';
 
 const T = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 const U = 'd0000000-0000-0000-0000-0000000000dd';
+const OTHER_T = 'd1dddddd-dddd-dddd-dddd-dddddddddddd';
+const OTHER_U = 'd1000000-0000-0000-0000-0000000000dd';
 
 let client: Client;
 
@@ -41,6 +43,7 @@ beforeAll(async () => {
   client = await connect();
   await client.query('begin');
   await seedTenant(client, T, U, 'd');
+  await seedTenant(client, OTHER_T, OTHER_U, 'd-other');
 }, 60_000);
 
 afterAll(async () => {
@@ -182,6 +185,26 @@ describe('role matrix on the procurement tables', () => {
 });
 
 describe('constraints and lineage', () => {
+  it('rejects a child row that claims this tenant but names another tenant parent', async () => {
+    await asSuperuser(client);
+    const ids = await one<{ other_rfq: string; own_product: string }>(
+      `select
+         (select id from rfqs where tenant_id = $1 limit 1) as other_rfq,
+         (select id from products where tenant_id = $2 limit 1) as own_product`,
+      [OTHER_T, T],
+    );
+    await as('owner');
+    await client.query('savepoint cross_tenant_parent');
+    await expect(
+      client.query(
+        `insert into rfq_lines (tenant_id, rfq_id, line_no, product_id, qty)
+         values ($1, $2, 88, $3, 1)`,
+        [T, ids.other_rfq, ids.own_product],
+      ),
+    ).rejects.toThrow(/foreign key/i);
+    await client.query('rollback to savepoint cross_tenant_parent');
+  });
+
   it('rejects non-positive quantities and factors', async () => {
     await asSuperuser(client);
     const ids = await one<{ rfq: string; prod: string; sup: string }>(

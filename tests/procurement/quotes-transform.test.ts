@@ -42,6 +42,11 @@ describe('validateQuoteInput', () => {
     expect(r.ok).toBe(false);
   });
 
+  it('requires a purchase unit when a factor is entered', () => {
+    const r = validateQuoteInput({ ...base, factor: '12' });
+    expect(r.ok).toBe(false);
+  });
+
   it('rejects negative cost, non-positive factor, fractional lead/moq', () => {
     expect(validateQuoteInput({ ...base, cost: '-1' }).ok).toBe(false);
     expect(validateQuoteInput({ ...base, purchaseUom: 'CS', factor: '0' }).ok).toBe(false);
@@ -133,6 +138,16 @@ describe('computeAward', () => {
     expect(r.lines[0]).toMatchObject({ qty: 4, unitCost: 24, purchaseUom: 'CS', factor: 12 });
     expect(r.lines[1]).toMatchObject({ qty: 10, unitCost: 5 });
     expect(r.total).toBe(4 * 24 + 10 * 5);
+  });
+
+  it('honors the quoted MOQ when it exceeds converted demand', () => {
+    const moqQuotes = new Map([[1, [{ ...cell('a', 20, 12), moq: 5 }]]]);
+    const r = computeAward([{ lineNo: 1, productId: 'p1', qty: 24 }], moqQuotes, [
+      { lineNo: 1, supplierId: 'a' },
+    ]);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.lines[0]).toMatchObject({ qty: 5, unitCost: 20, purchaseUom: 'CS', factor: 12 });
+    expect(r.total).toBe(100);
   });
 
   it('rejects an empty pick set and picks without quotes', () => {

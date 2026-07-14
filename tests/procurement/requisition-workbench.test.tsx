@@ -58,6 +58,8 @@ function requisition(overrides: Partial<RequisitionDetail> = {}): RequisitionDet
         purchaseUom: 'CS',
         factor: 12,
         linkUnitCost: 30,
+        linkPurchaseUom: 'CS',
+        linkFactor: 12,
       },
     ],
     purchaseOrders: [],

@@ -85,7 +85,8 @@ export function QuoteGrid({
       const cell = rows.get(lineNo)?.find((c) => c.supplierId === supplierId);
       const line = rfq.lines.find((l) => l.lineNo === lineNo);
       if (cell && line) {
-        total += (line.qty / (cell.factor ?? 1)) * cell.quotedUnitCost;
+        const purchaseQty = Math.max(line.qty / (cell.factor ?? 1), cell.moq ?? 0);
+        total += purchaseQty * cell.quotedUnitCost;
         count += 1;
       }
     }

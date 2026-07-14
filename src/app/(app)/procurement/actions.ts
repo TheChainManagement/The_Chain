@@ -410,14 +410,7 @@ export async function createRfqFromRecommendations(input: {
 // Slice 3 — quote entry + award (design §7.3)
 // ============================================================
 
-import {
-  type AwardPick,
-  buildQuoteRow,
-  canEnterQuotes,
-  computeAward,
-  type VendorQuoteCell,
-  validateQuoteInput,
-} from '@/lib/procurement/transform';
+import { type AwardPick, canEnterQuotes, validateQuoteInput } from '@/lib/procurement/transform';
 
 /**
  * Upsert one vendor's quote for one line, entered by the operator from the
@@ -559,102 +552,29 @@ export async function awardQuotesToRequisition(input: {
     return { ok: false, error: PERMISSION_MESSAGE };
   }
 
-  const { data: rfq } = await supabase
-    .from('rfqs')
-    .select(
-      `id, status, location_id,
-       rfq_lines!rfq_lines_rfq_id_fkey ( line_no, qty, product_id ),
-       rfq_vendor_quotes!rfq_vendor_quotes_rfq_id_fkey ( supplier_id, line_no, quoted_unit_cost, quoted_purchase_uom, purchase_to_stock_factor, lead_time_days, moq )`,
-    )
-    .eq('id', input.rfqId)
-    .maybeSingle<{
-      id: string;
-      status: string;
-      location_id: string;
-      rfq_lines: { line_no: number; qty: number; product_id: string }[];
-      rfq_vendor_quotes: {
-        supplier_id: string;
-        line_no: number;
-        quoted_unit_cost: number;
-        quoted_purchase_uom: string | null;
-        purchase_to_stock_factor: number | null;
-        lead_time_days: number | null;
-        moq: number | null;
-      }[];
-    }>();
-  if (!rfq) {
-    return { ok: false, error: 'That quote request no longer exists.' };
+  const { data, error } = await supabase.rpc('award_rfq_quotes_to_requisition', {
+    p_tenant: actor.tenantId,
+    p_rfq: input.rfqId,
+    p_picks: input.picks,
+  });
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
   }
-  const open = canEnterQuotes(rfq.status as Parameters<typeof canEnterQuotes>[0]);
-  if (!open.ok) {
-    return open;
-  }
-
-  const quotesByLine = new Map<number, VendorQuoteCell[]>();
-  for (const line of rfq.rfq_lines) {
-    quotesByLine.set(
-      line.line_no,
-      buildQuoteRow(
-        rfq.rfq_vendor_quotes
-          .filter((q) => q.line_no === line.line_no)
-          .map((q) => ({
-            supplierId: q.supplier_id,
-            quotedUnitCost: Number(q.quoted_unit_cost),
-            purchaseUom: q.quoted_purchase_uom,
-            factor: q.purchase_to_stock_factor == null ? null : Number(q.purchase_to_stock_factor),
-            leadTimeDays: q.lead_time_days,
-            moq: q.moq,
-          })),
-      ),
-    );
-  }
-  const award = computeAward(
-    rfq.rfq_lines.map((l) => ({ lineNo: l.line_no, productId: l.product_id, qty: Number(l.qty) })),
-    quotesByLine,
-    input.picks,
-  );
-  if (!award.ok) {
-    return award;
-  }
-
-  const { data: requisition, error: reqError } = await supabase
-    .from('requisitions')
-    .insert({
-      tenant_id: actor.tenantId,
-      location_id: rfq.location_id,
-      source_rfq_id: rfq.id,
-      requested_by_user_id: actor.userId,
-      total: award.total,
-    })
-    .select('id')
-    .single<{ id: string }>();
-  if (reqError || !requisition) {
-    return { ok: false, error: mapRfqWriteError(reqError?.code, reqError?.message ?? '') };
-  }
-
-  const { error: linesError } = await supabase.from('requisition_lines').insert(
-    award.lines.map((l) => ({
-      tenant_id: actor.tenantId,
-      requisition_id: requisition.id,
-      line_no: l.lineNo,
-      product_id: l.productId,
-      supplier_id: l.supplierId,
-      qty: l.qty,
-      unit_cost: l.unitCost,
-      purchase_uom: l.purchaseUom,
-      purchase_to_stock_factor: l.factor,
-      source_quote_line_no: l.sourceQuoteLineNo,
-    })),
-  );
-  if (linesError) {
-    // Leave no headless document behind.
-    await supabase.from('requisitions').delete().eq('id', requisition.id);
-    return { ok: false, error: mapRfqWriteError(linesError.code, linesError.message) };
+  const award = (data?.[0] ?? null) as {
+    out_requisition_id: string;
+    out_total: number | string;
+  } | null;
+  if (!award) {
+    return { ok: false, error: 'The requisition could not be drafted.' };
   }
 
   revalidatePath(`/procurement/rfqs/${input.rfqId}`);
   revalidatePath('/procurement');
-  return { ok: true, requisitionId: requisition.id, total: award.total };
+  return {
+    ok: true,
+    requisitionId: award.out_requisition_id,
+    total: Number(award.out_total),
+  };
 }
 
 // ============================================================
@@ -759,16 +679,12 @@ async function decideRequisition(
     return allowed;
   }
 
-  const { error } = await supabase
-    .from('requisitions')
-    .update({
-      status: decision,
-      approved_by_user_id: actor.userId,
-      decided_at: new Date().toISOString(),
-      rejection_note: rejectionNote,
-    })
-    .eq('id', requisitionId)
-    .eq('status', 'submitted');
+  const { error } = await supabase.rpc('decide_requisition', {
+    p_tenant: actor.tenantId,
+    p_requisition: requisitionId,
+    p_decision: decision,
+    p_rejection_note: rejectionNote,
+  });
   if (error) {
     return { ok: false, error: mapRfqWriteError(error.code, error.message) };
   }
@@ -889,15 +805,14 @@ export async function updateSupplierLinkPrice(input: {
     return { ok: false, error: 'This line has no awarded price to copy.' };
   }
 
-  const { error } = await supabase
-    .from('product_suppliers')
-    .update({
-      unit_cost: line.unit_cost,
-      purchase_uom: line.purchase_uom,
-      purchase_to_stock_factor: line.purchase_to_stock_factor,
-    })
-    .eq('product_id', line.product_id)
-    .eq('supplier_id', line.supplier_id);
+  const { error } = await supabase.from('product_suppliers').upsert({
+    tenant_id: actor.tenantId,
+    product_id: line.product_id,
+    supplier_id: line.supplier_id,
+    unit_cost: line.unit_cost,
+    purchase_uom: line.purchase_uom,
+    purchase_to_stock_factor: line.purchase_to_stock_factor,
+  });
   if (error) {
     return { ok: false, error: mapRfqWriteError(error.code, error.message) };
   }

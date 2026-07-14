@@ -16,6 +16,7 @@ import { seedTenant } from '../helpers/seed';
 
 const T = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
 const U = 'e0000000-0000-0000-0000-0000000000ee';
+const APPROVER = 'e1000000-0000-0000-0000-0000000000ee';
 
 let client: Client;
 let reqId = '';
@@ -31,6 +32,11 @@ beforeAll(async () => {
   client = await connect();
   await client.query('begin');
   await seedTenant(client, T, U, 'e');
+  await client.query(
+    `insert into auth.users (id, instance_id, email)
+     values ($1, '00000000-0000-0000-0000-000000000000', 'approver-e@example.test')`,
+    [APPROVER],
+  );
 
   // A second supplier so the requisition is mixed-vendor.
   const ids = await one<{ loc: string; prod: string; sup1: string }>(
@@ -79,8 +85,16 @@ describe('convert_requisition_to_po', () => {
   });
 
   it('fans an approved mixed-vendor requisition out to one draft PO per supplier, zero balance writes', async () => {
+    await as('owner');
+    await client.query('savepoint self_approval');
+    await expect(
+      client.query(`select * from decide_requisition($1, $2, 'approved', null)`, [T, reqId]),
+    ).rejects.toThrow(/self_approval_forbidden/);
+    await client.query('rollback to savepoint self_approval');
+
+    await actAs(client, { sub: APPROVER, tenant_id: T, role: 'manager' });
+    await client.query(`select * from decide_requisition($1, $2, 'approved', null)`, [T, reqId]);
     await asSuperuser(client);
-    await client.query(`update requisitions set status = 'approved' where id = $1`, [reqId]);
     const before = await one<{ levels: string; movements: string }>(
       `select
          (select coalesce(jsonb_agg(to_jsonb(il) order by il.product_id, il.location_id), '[]'::jsonb)
@@ -119,13 +133,21 @@ describe('convert_requisition_to_po', () => {
     const totals = pos.rows.map((p) => Number(p.total)).sort((a, b) => a - b);
     expect(totals).toEqual([50, 96]); // 10 × $5 and 4 CS × $24
 
-    const lines = await client.query(
-      `select pol.ordered_qty, pol.unit_cost from purchase_order_lines pol
+    const lines = await client.query<{
+      ordered_qty: string;
+      unit_cost: string;
+      purchase_uom: string | null;
+      purchase_to_stock_factor: string | null;
+    }>(
+      `select pol.ordered_qty, pol.unit_cost, pol.purchase_uom, pol.purchase_to_stock_factor
+       from purchase_order_lines pol
        join purchase_orders po on po.id = pol.po_id
        where po.requisition_id = $1 order by pol.ordered_qty`,
       [reqId],
     );
     expect(lines.rows).toHaveLength(2);
+    expect(lines.rows.some((line) => line.purchase_uom === 'CS')).toBe(true);
+    expect(lines.rows.some((line) => Number(line.purchase_to_stock_factor) === 12)).toBe(true);
 
     const after = await one<{ levels: string; movements: string }>(
       `select
@@ -153,6 +175,40 @@ describe('convert_requisition_to_po', () => {
       [reqId],
     );
     expect(Number(count.n)).toBe(2);
+  });
+
+  it('approval uses the PO-line factor snapshot even after the supplier link changes', async () => {
+    await asSuperuser(client);
+    const line = await one<{ po_id: string; product_id: string; ordered_qty: string }>(
+      `select pol.po_id, pol.product_id, pol.ordered_qty
+       from purchase_order_lines pol
+       join purchase_orders po on po.id = pol.po_id
+       where po.requisition_id = $1 and pol.purchase_to_stock_factor = 12`,
+      [reqId],
+    );
+    const po = await one<{ supplier_id: string; location_id: string }>(
+      `select supplier_id, location_id from purchase_orders where id = $1`,
+      [line.po_id],
+    );
+    await client.query(
+      `update product_suppliers set purchase_to_stock_factor = 99
+       where tenant_id = $1 and product_id = $2 and supplier_id = $3`,
+      [T, line.product_id, po.supplier_id],
+    );
+    const before = await one<{ in_transit: string }>(
+      `select in_transit from inventory_levels
+       where tenant_id = $1 and product_id = $2 and location_id = $3`,
+      [T, line.product_id, po.location_id],
+    );
+    await client.query(`select * from apply_po_approval($1, $2, 'exported')`, [T, line.po_id]);
+    const after = await one<{ in_transit: string }>(
+      `select in_transit from inventory_levels
+       where tenant_id = $1 and product_id = $2 and location_id = $3`,
+      [T, line.product_id, po.location_id],
+    );
+    expect(Number(after.in_transit) - Number(before.in_transit)).toBe(
+      Number(line.ordered_qty) * 12,
+    );
   });
 });
 

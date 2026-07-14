@@ -247,6 +247,12 @@ export function validateQuoteInput(
       error: 'A purchase unit needs its conversion factor (1 unit = ? stock units).',
     };
   }
+  if (!purchaseUom && factor != null) {
+    return {
+      ok: false,
+      error: 'Name the purchase unit that uses this conversion factor.',
+    };
+  }
   let leadTimeDays: number | null = null;
   if (input.leadTimeDays.trim()) {
     leadTimeDays = Number(input.leadTimeDays.trim());
@@ -358,7 +364,7 @@ export function computeAward(
     if (!cell) {
       return { ok: false, error: `That vendor has not quoted line ${pick.lineNo}.` };
     }
-    const qty = line.qty / (cell.factor ?? 1);
+    const qty = Math.max(line.qty / (cell.factor ?? 1), cell.moq ?? 0);
     drafts.push({
       lineNo: i + 1,
       productId: line.productId,

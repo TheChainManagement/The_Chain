@@ -73,6 +73,8 @@ export interface RawPurchaseOrderLine {
   ordered_qty: number | string;
   received_qty: number | string;
   unit_cost: number | string | null;
+  purchase_uom: string | null;
+  purchase_to_stock_factor: number | string | null;
   products: {
     sku: string | null;
     name: string | null;
@@ -133,9 +135,13 @@ export function mapPurchaseOrderDetail(raw: RawPurchaseOrderDetail): PurchaseOrd
         receivedQty: Number(l.received_qty),
         unitCost: l.unit_cost == null ? null : Number(l.unit_cost),
         stockUom: l.products?.unit_of_measure ?? null,
-        purchaseUom: link?.purchase_uom ?? null,
+        purchaseUom: l.purchase_uom ?? link?.purchase_uom ?? null,
         purchaseToStockFactor:
-          link?.purchase_to_stock_factor == null ? null : Number(link.purchase_to_stock_factor),
+          l.purchase_to_stock_factor != null
+            ? Number(l.purchase_to_stock_factor)
+            : link?.purchase_to_stock_factor == null
+              ? null
+              : Number(link.purchase_to_stock_factor),
       };
     })
     .sort((a, b) => a.lineNo - b.lineNo);

@@ -91,8 +91,8 @@ begin
     values (t, v_rfq, v_sup, 1, 24.00, 'CS', 12, 5, u);
   insert into requisitions (tenant_id, id, location_id, status, source_rfq_id, requested_by_user_id, total)
     values (t, v_req, v_loc, 'draft', v_rfq, u, 60.00);
-  insert into requisition_lines (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost, purchase_uom, purchase_to_stock_factor, source_quote_line_no)
-    values (t, v_req, 1, v_prod, v_sup, 30, 24.00, 'CS', 12, 1);
+  insert into requisition_lines (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost, purchase_uom, purchase_to_stock_factor, source_quote_rfq_id, source_quote_line_no)
+    values (t, v_req, 1, v_prod, v_sup, 30, 24.00, 'CS', 12, v_rfq, 1);
 end $$;`;
 }
 

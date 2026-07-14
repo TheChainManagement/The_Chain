@@ -357,6 +357,8 @@ export interface RequisitionLineDetail {
   factor: number | null;
   /** The supplier link's CURRENT cost, for the update-link affordance (design §8). */
   linkUnitCost: number | null;
+  linkPurchaseUom: string | null;
+  linkFactor: number | null;
 }
 
 export interface ConvertedPoRow {
@@ -444,6 +446,8 @@ export async function getRequisitionDetail(
       purchaseUom: l.purchase_uom,
       factor: l.purchase_to_stock_factor == null ? null : Number(l.purchase_to_stock_factor),
       linkUnitCost: null,
+      linkPurchaseUom: null,
+      linkFactor: null,
     }))
     .sort((a, b) => a.lineNo - b.lineNo);
 
@@ -452,13 +456,16 @@ export async function getRequisitionDetail(
   if (productIds.length > 0) {
     const { data: links } = await supabase
       .from('product_suppliers')
-      .select('product_id, supplier_id, unit_cost')
+      .select('product_id, supplier_id, unit_cost, purchase_uom, purchase_to_stock_factor')
       .in('product_id', productIds);
     for (const line of lines) {
       const link = (links ?? []).find(
         (k) => k.product_id === line.productId && k.supplier_id === line.supplierId,
       );
       line.linkUnitCost = link?.unit_cost == null ? null : Number(link.unit_cost);
+      line.linkPurchaseUom = link?.purchase_uom ?? null;
+      line.linkFactor =
+        link?.purchase_to_stock_factor == null ? null : Number(link.purchase_to_stock_factor);
     }
   }
 
