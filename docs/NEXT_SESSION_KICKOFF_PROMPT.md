@@ -385,3 +385,15 @@ mode-spine doc.
   quote UX with per-line picks. Build proceeds per the doc's §10 slice order on a fresh
   feature branch: migration slice first (5 tables + RLS + audit + zero-balance-writes
   probe).
+- 2026-07-13: **Item 3 (W2-3 procurement) REVIEW-CLEAN and pushed to the MG merge gate.**
+  Full adversarial review found and fixed tenant-unsafe parent FKs, non-atomic award
+  creation, approval bypass through direct PostgREST updates, missing PO-line UoM/factor
+  snapshots, ignored quoted MOQ, and incomplete supplier-link refresh/current checks.
+  Award and decision now use row-locked database RPCs; conversion locks its source lines,
+  fans out idempotently, and preserves immutable conversion snapshots through PO approval
+  and receipt. Clean local DB reset replayed every migration. Suite 879/879; TypeScript,
+  Biome, craft, and diff checks green. Evidence:
+  `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`. **NEXT ACTION belongs to MG:**
+  walkthrough the branch, apply the six W2-3 migrations to production in filename order,
+  re-probe production schema/security, fast-forward merge to main, and probe the deploy.
+  Nothing was applied to production and main was not touched.

@@ -710,8 +710,8 @@ build.*
 - W2-1. Data-model cleanup: UoM dropdown + supplier link import lane — **SHIPPED** (main, 2026-06-28)
 - Item 0. Password reset / auth recovery — **SHIPPED to prod** (`f1c18b6`, 2026-07-07)
 - W2-2. Storeroom operations — **SHIPPED to prod** (`9d50726`, 2026-07-09)
-- W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) — **BUILT, at merge gate** (`feature/item2-w2-2-5-core-hardening`)
-- W2-3. Procurement (RFQ, requisition, PO) — planned, gated on W2-2.5 merge + MG design sign-off
+- W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) - **SHIPPED to prod** (`7df9ee8`, 2026-07-12)
+- W2-3. Procurement (RFQ, requisition, PO) - **BUILT, review-clean, at MG merge gate** (`feature/item3-w2-3-procurement`)
 - W2-4. Multi-location UI — planned
 
 ---
@@ -861,7 +861,7 @@ that touches in_transit).
 **Dependencies:** W2-2 (posting RPCs, enum), W2-1 (UoM registry, import lanes),
 Block 11 receive path.
 
-**What shipped (contract as built, branch `feature/item2-w2-2-5-core-hardening`):**
+**What shipped (contract as built, production `7df9ee8`, 2026-07-12):**
 1. **Posting kernel** (`post_stock_movement()` SQL + TS façade): validates
    type-specific rules, inserts the movement, updates `inventory_levels` including
    avg-cost + on-hold effects, fires audit. All writers reposted through it (receive,
@@ -889,8 +889,8 @@ Block 11 receive path.
 - [x] Every balance mutation flows through the posting service; ledger-replay test
       proves ledger/balance agreement.
 - [x] Suite 809/809, tsc/biome/craft clean, Codex round-1 fixed.
-- [ ] Merge gate: 3 migrations applied to prod in order (a → b → c, FINAL files), prod
-      schema re-probed, ff-merge, deploy probed. **Pending MG walkthrough + go.**
+- [x] Merge gate completed 2026-07-12: 3 migrations applied to production in order,
+      production schema re-probed, fast-forward merge completed, and deploy probed.
 
 **What's memorable:** The conversion rail: as the operator types a purchase quantity
 the rail lights dim→mid and answers `× 12 → 300 ea` live; a non-whole result raises the
@@ -900,7 +900,7 @@ FRACTIONAL flag. Artifact:
 
 ---
 
-## Feature: W2-3 Procurement (RFQ, requisition, PO) — planned
+## Feature: W2-3 Procurement (RFQ, requisition, PO) - built, at MG merge gate
 
 **Why**: `WAVE2_SCOPE.md` §4 W2-3 + operator-eval Scenario A — RFQ to one OR multiple
 vendors (user's choice per RFQ, both from the start, §5 decision 3), capture returned
@@ -908,26 +908,61 @@ vendor prices in purchase UoM (exists as of W2-2.5), requisition as an approvabl
 document that becomes a PO. The deepest Wave 2 build; the first true satellite module
 on the inventory kernel.
 
-**Dependencies:** W2-2.5 MERGED (purchase UoM + posting kernel). New tables
-(`rfqs`, `rfq_lines`, `rfq_vendor_quotes`, `requisitions`, `requisition_lines`) follow
-the header/line + RLS + audit pattern.
+**Dependencies:** W2-2.5 shipped to production (purchase UoM + posting kernel). Six new
+tables (`rfqs`, `rfq_lines`, `rfq_vendors`, `rfq_vendor_quotes`, `requisitions`,
+`requisition_lines`) follow the header/line + tenant-scoped RLS + audit pattern.
 
 **Hard constraint:** W2-3 must not write balances at all — only the PO receive path
 posts, through the kernel. (This is the first proof of the kernel contract; also the
 natural checkpoint to revisit MG's reserved veto on `apply_po_approval` staying
 kernel-surface.)
 
-**⛔ MG DECIDES before build:** approval rules (who approves a requisition, single-step
-vs threshold), RFQ email-from-app vs export-for-manual-send, quote-to-line matching UX.
-Bring a short written design for sign-off first, like the mode-spine doc.
+**MG decisions locked 2026-07-12:** single-step approval by owner or manager with no
+self-approval; export-for-manual-send; comparison grid with per-line picks and award
+column. Thresholds remain Wave 3. Email delivery is a fast-follow ticket.
 
-**Acceptance criteria (forward contract, refine at design sign-off):**
-- [ ] RFQ to 1..N vendors; returned quotes captured in purchase UoM per vendor.
-- [ ] Requisition → approval → PO flow, audit-logged at each transition.
-- [ ] Zero direct balance writes anywhere in the module (probe test).
+**What shipped:**
+1. RFQ bench and detail flow, created by hand or from fenced reorder selections, with
+   one or many vendors, draft locking, status chain, per-vendor CSV, and print sheet.
+2. Manual quote entry in purchase UoM. The comparison grid normalizes every offer to
+   stock-unit cost, highlights the cheapest cells, captures lead time and MOQ, and
+   assembles per-line or whole-column awards.
+3. Atomic award RPC. Stock demand converts to purchase quantity using the quote factor,
+   fractional quantities are retained, quoted MOQ is honored, and the exact quote
+   snapshot is carried into the requisition.
+4. Requisition bench and detail flow with submit, approve, reject, resubmit, cancel,
+   and explicit supplier-link price/UoM refresh. The database decision RPC row-locks
+   the document and enforces owner/manager plus no-self-approval.
+5. Idempotent, row-locked requisition conversion that fans mixed vendors out to one PO
+   each, preserves totals and UoM/factor snapshots on PO lines, stamps the requisition
+   back-reference, and leaves balances untouched.
+6. Tenant-scoped composite FKs across every new parent relationship, RLS on all six
+   tables, audit triggers, PostgREST FK hints, and zero-balance-write probes.
 
-**What's memorable:** TBD at design sign-off (candidate: the quote-comparison surface —
-"get three quotes" answered on one bench).
+**Acceptance criteria (verified in the W2-3 evidence trail):**
+- [x] RFQ to 1..N vendors; returned quotes captured in purchase UoM per vendor.
+- [x] Export-for-manual-send produces a per-vendor CSV and print document; no app email.
+- [x] Cheapest quote math compares stock-unit cost; award math converts to purchase UoM,
+      permits fractional quantities, and honors quoted MOQ.
+- [x] Requisition submit, single-step approval/rejection, resubmit, cancel, and PO
+      conversion are audit-logged. The requester cannot decide their own document at
+      the database boundary.
+- [x] Mixed-vendor conversion is row-locked and idempotent, creates one PO per supplier,
+      preserves line snapshots and fan-out totals, and carries `requisition_id` backrefs.
+- [x] All six tables pass role-matrix and cross-tenant probes.
+- [x] Zero direct balance writes anywhere in W2-3; award and conversion leave
+      `inventory_levels` and `stock_movements` byte-identical.
+- [x] Full suite 879/879; TypeScript, Biome, craft, clean migration replay green on
+      2026-07-13.
+
+**Intentional deferrals:** direct no-RFQ creation UI, direct requisition line editing,
+email-from-app, and a one-award/versioned re-award policy. Dated tickets are in
+`_reviews/_tickets.md`.
+
+**What's memorable:** The quote comparison grid answers "get three quotes" on one bench.
+Cheapest normalized cells ignite cobalt, picks assemble the award tray, and award column
+selects one vendor across every answered line. The durable artifact is
+`tests/procurement/quote-grid.memorable.test.tsx`.
 
 ---
 
