@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 /**
@@ -77,5 +77,25 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
     );
     expect(network.getByRole('combobox', { name: 'Location scope' })).toHaveValue('');
     expect(network.getByRole('option', { name: 'All locations' })).toBeInTheDocument();
+  });
+
+  it('writes a concrete location selection into the URL', () => {
+    replace.mockClear();
+    const view = render(
+      <LeftRail
+        userEmail="op@thechain.test"
+        profile={getProfile('distribution')}
+        locations={[
+          { id: 'l1', name: 'Main', isPrimary: true },
+          { id: 'l2', name: 'North', isPrimary: false },
+        ]}
+      />,
+    );
+
+    fireEvent.change(view.getByRole('combobox', { name: 'Location scope' }), {
+      target: { value: 'l2' },
+    });
+
+    expect(replace).toHaveBeenCalledWith('/today?location=l2');
   });
 });

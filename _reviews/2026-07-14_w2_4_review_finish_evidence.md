@@ -31,10 +31,29 @@
 - Focused Vitest run: 7 files, 63 tests passed.
 - Transfer database contracts cover matched movements, conservation, idempotent replay, role
   denial, same-location denial, excess-quantity denial, and absence of partial event writes.
-- Full Vitest run after the kernel-only valuation amendment: 126 files, 897 tests passed.
+- Final full Vitest run after the live walkthrough and selector interaction guard: 126 files,
+  898 tests passed.
 - `npm run typecheck`: passed.
 - `npm run lint`: 345 source files checked, passed.
 - `npm run check:craft`: token discipline and trust hierarchy guard passed.
+
+## Live local walkthrough (2026-07-15)
+
+- Created a throwaway authenticated tenant through the real signup/onboarding route and created
+  `Main Warehouse` plus `North Warehouse` through `/settings/locations` without database access.
+- Confirmed the selector stays suppressed at one location, appears at two, presents `All
+  locations`, marks the primary, and renders a concrete URL scope across bench navigation.
+- Added an interaction regression asserting a concrete selector change calls
+  `router.replace('/today?location=l2')`. The browser driver's native-select helper changes the
+  DOM value without dispatching React's handler; the component-level interaction test covers the
+  event contract, while the real scoped URL verified the server/client rendered state.
+- Seeded one local-only demonstration SKU through `post_stock_movement`. `/transfers` displayed
+  source surplus 90, destination need 45, and suggested move 45.
+- Executed the transfer through the real Server Action/RPC. The recommendation resolved to the
+  empty safe-transfer state; a database read confirmed Main 55, North 50, identical unit costs,
+  and matched `transfer_out -45` / `transfer_in +45` rows sharing one transfer UUID.
+- Opened `/inventory?location=<north>` and confirmed the selector, all navigation links, SKU
+  detail link, inventory quantity 50, and valuation $500 remained scoped to North Warehouse.
 
 ## Review disposition
 
