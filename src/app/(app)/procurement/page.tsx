@@ -7,6 +7,7 @@ import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { locationHref } from '@/lib/locations/href';
 import { resolveLocationScope } from '@/lib/locations/scope';
 import {
+  listDirectRequisitionOptions,
   listLocationOptions,
   listRequisitions,
   listRfqs,
@@ -14,6 +15,7 @@ import {
   type RfqListRow,
 } from '@/lib/procurement/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { NewRequisition } from './NewRequisition';
 import { NewRfq } from './NewRfq';
 import styles from './procurement.module.css';
 import { RequisitionChainTrack, RfqChainTrack } from './RfqChainTrack';
@@ -32,10 +34,11 @@ export default async function ProcurementPage({
 }): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
   const locationId = await resolveLocationScope(supabase, (await searchParams).location);
-  const [rfqs, requisitions, locations] = await Promise.all([
+  const [rfqs, requisitions, locations, directOptions] = await Promise.all([
     listRfqs(supabase, locationId),
     listRequisitions(supabase, locationId),
     listLocationOptions(supabase),
+    listDirectRequisitionOptions(supabase),
   ]);
 
   return (
@@ -69,13 +72,23 @@ export default async function ProcurementPage({
         </div>
       )}
 
-      <PageHeader eyebrow="Procurement · approval before ordering" title="Requisitions" />
+      <PageHeader
+        eyebrow="Procurement · approval before ordering"
+        title="Requisitions"
+        actions={
+          <NewRequisition
+            locations={locations}
+            options={directOptions}
+            selectedLocationId={locationId}
+          />
+        }
+      />
       {requisitions.length === 0 ? (
         <Panel
           prefix="Procurement"
           title="No requisitions yet"
           empty
-          emptyMessage="Award quotes on a request and the draft requisition lands here for approval."
+          emptyMessage="Award quotes on a request, or draft a direct requisition when you already know what needs approval."
         />
       ) : (
         <div className={styles.ledger}>

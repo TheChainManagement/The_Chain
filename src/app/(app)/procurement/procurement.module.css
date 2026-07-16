@@ -186,6 +186,11 @@
   display: flex;
   justify-content: flex-end;
 }
+.addHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-dim);
+}
 .formError {
   margin: 0;
   font-family: var(--font-body);

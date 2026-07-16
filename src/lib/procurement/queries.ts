@@ -295,6 +295,46 @@ export async function listLocationOptions(supabase: SupabaseClient): Promise<Loc
   return data ?? [];
 }
 
+export interface DirectRequisitionOption {
+  productId: string;
+  supplierId: string;
+  sku: string;
+  productName: string;
+  supplierName: string;
+  unitCost: number | null;
+  purchaseUom: string | null;
+  factor: number | null;
+}
+
+/** Active product-supplier pairs are the valid direct-requisition line choices. */
+export async function listDirectRequisitionOptions(
+  supabase: SupabaseClient,
+): Promise<DirectRequisitionOption[]> {
+  const { data, error } = await supabase
+    .from('product_suppliers')
+    .select(
+      `product_id, supplier_id, unit_cost, purchase_uom, purchase_to_stock_factor,
+       products!inner ( sku, name, status ), suppliers!inner ( name, status )`,
+    )
+    .eq('products.status', 'active')
+    .eq('suppliers.status', 'active');
+  if (error) {
+    throw new Error(`listDirectRequisitionOptions failed: ${error.message}`);
+  }
+  return (data ?? [])
+    .map((row) => ({
+      productId: row.product_id as string,
+      supplierId: row.supplier_id as string,
+      sku: (row.products as unknown as { sku: string }).sku,
+      productName: (row.products as unknown as { name: string }).name,
+      supplierName: (row.suppliers as unknown as { name: string }).name,
+      unitCost: row.unit_cost == null ? null : Number(row.unit_cost),
+      purchaseUom: (row.purchase_uom as string | null) ?? null,
+      factor: row.purchase_to_stock_factor == null ? null : Number(row.purchase_to_stock_factor),
+    }))
+    .sort((a, b) => a.sku.localeCompare(b.sku) || a.supplierName.localeCompare(b.supplierName));
+}
+
 // ============================================================
 // Slice 4 — requisition reads
 // ============================================================

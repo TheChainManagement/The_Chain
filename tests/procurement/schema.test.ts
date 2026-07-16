@@ -128,6 +128,104 @@ describe('zero balance writes — the kernel contract for satellite modules', ()
   });
 });
 
+describe('direct requisition creation', () => {
+  it('atomically snapshots the supplier conversion rail without touching stock', async () => {
+    await asSuperuser(client);
+    const ids = await one<{ loc: string; prod: string; sup: string }>(
+      `select
+         (select id from locations where tenant_id = $1 limit 1) as loc,
+         (select id from products where tenant_id = $1 limit 1) as prod,
+         (select id from suppliers where tenant_id = $1 limit 1) as sup`,
+      [T],
+    );
+    await client.query(
+      `update product_suppliers
+          set purchase_uom = 'case', purchase_to_stock_factor = 12
+        where tenant_id = $1 and product_id = $2 and supplier_id = $3`,
+      [T, ids.prod, ids.sup],
+    );
+    const before = await one<{ levels: string; movements: string }>(
+      `select
+         (select coalesce(jsonb_agg(to_jsonb(il) order by il.product_id, il.location_id), '[]'::jsonb)
+            from inventory_levels il where il.tenant_id = $1)::text as levels,
+         (select count(*) from stock_movements where tenant_id = $1)::text as movements`,
+      [T],
+    );
+
+    await as('planner');
+    const created = await one<{ out_requisition_id: string; out_total: string }>(
+      `select * from create_direct_requisition($1, $2, $3, $4, 4, 120, $5)`,
+      [T, ids.loc, ids.prod, ids.sup, U],
+    );
+
+    await asSuperuser(client);
+    const document = await one<{
+      source_rfq_id: string | null;
+      requested_by_user_id: string;
+      total: string;
+      qty: string;
+      unit_cost: string;
+      purchase_uom: string;
+      factor: string;
+      source_quote_rfq_id: string | null;
+      source_quote_line_no: number | null;
+    }>(
+      `select r.source_rfq_id, r.requested_by_user_id, r.total,
+              rl.qty, rl.unit_cost, rl.purchase_uom,
+              rl.purchase_to_stock_factor as factor,
+              rl.source_quote_rfq_id, rl.source_quote_line_no
+         from requisitions r
+         join requisition_lines rl on rl.tenant_id = r.tenant_id and rl.requisition_id = r.id
+        where r.tenant_id = $1 and r.id = $2`,
+      [T, created.out_requisition_id],
+    );
+    const after = await one<{ levels: string; movements: string }>(
+      `select
+         (select coalesce(jsonb_agg(to_jsonb(il) order by il.product_id, il.location_id), '[]'::jsonb)
+            from inventory_levels il where il.tenant_id = $1)::text as levels,
+         (select count(*) from stock_movements where tenant_id = $1)::text as movements`,
+      [T],
+    );
+
+    expect(created.out_total).toBe('480.00');
+    expect(document).toMatchObject({
+      source_rfq_id: null,
+      requested_by_user_id: U,
+      total: '480.00',
+      qty: '4.00',
+      unit_cost: '120.00',
+      purchase_uom: 'case',
+      factor: '12.0000',
+      source_quote_rfq_id: null,
+      source_quote_line_no: null,
+    });
+    expect(after).toEqual(before);
+  });
+
+  it('cannot create a document with another tenant\'s location or catalog rows', async () => {
+    await asSuperuser(client);
+    const other = await one<{ loc: string; prod: string; sup: string }>(
+      `select
+         (select id from locations where tenant_id = $1 limit 1) as loc,
+         (select id from products where tenant_id = $1 limit 1) as prod,
+         (select id from suppliers where tenant_id = $1 limit 1) as sup`,
+      [OTHER_T],
+    );
+    await as('owner');
+    await client.query('savepoint direct_requisition_cross_tenant');
+    await expect(
+      client.query(`select * from create_direct_requisition($1, $2, $3, $4, 1, 10, $5)`, [
+        OTHER_T,
+        other.loc,
+        other.prod,
+        other.sup,
+        U,
+      ]),
+    ).rejects.toThrow('active_location_not_found');
+    await client.query('rollback to savepoint direct_requisition_cross_tenant');
+  });
+});
+
 describe('role matrix on the procurement tables', () => {
   it('planner CAN insert and update rfqs and requisitions', async () => {
     await asSuperuser(client);

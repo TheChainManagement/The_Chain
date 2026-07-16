@@ -26,6 +26,11 @@ export type RfqActionState = { ok: true; rfqId: string } | { ok: false; error: s
 
 export type RfqEditState = { ok: true } | { ok: false; error: string } | null;
 
+export type DirectRequisitionState =
+  | { ok: true; requisitionId: string; total: number }
+  | { ok: false; error: string }
+  | null;
+
 type Server = Awaited<ReturnType<typeof createSupabaseServer>>;
 
 async function resolveActor(
@@ -39,6 +44,56 @@ async function resolveActor(
     return null;
   }
   return { tenantId, userId, role };
+}
+
+export async function createDirectRequisition(
+  _prev: DirectRequisitionState,
+  formData: FormData,
+): Promise<DirectRequisitionState> {
+  const locationId = String(formData.get('location_id') ?? '').trim();
+  const pair = String(formData.get('product_supplier') ?? '').split(':');
+  const productId = pair[0]?.trim() ?? '';
+  const supplierId = pair[1]?.trim() ?? '';
+  const qty = Number(formData.get('qty'));
+  const unitCost = Number(formData.get('unit_cost'));
+  if (!locationId || !productId || !supplierId) {
+    return { ok: false, error: 'Choose a location and a supplier-linked SKU.' };
+  }
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return { ok: false, error: 'Enter an order quantity greater than zero.' };
+  }
+  if (!Number.isFinite(unitCost) || unitCost < 0) {
+    return { ok: false, error: 'Enter a valid unit cost.' };
+  }
+
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor?.userId) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
+  const { data, error } = await supabase.rpc('create_direct_requisition', {
+    p_tenant: actor.tenantId,
+    p_location: locationId,
+    p_product: productId,
+    p_supplier: supplierId,
+    p_qty: qty,
+    p_unit_cost: unitCost,
+    p_actor: actor.userId,
+  });
+  if (error) {
+    return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  }
+  const row = (data?.[0] ?? null) as {
+    out_requisition_id: string;
+    out_total: number | string;
+  } | null;
+  if (!row) return { ok: false, error: 'The requisition could not be drafted.' };
+  revalidatePath('/procurement');
+  return {
+    ok: true,
+    requisitionId: row.out_requisition_id,
+    total: Number(row.out_total),
+  };
 }
 
 async function loadRfqState(

@@ -17,3 +17,15 @@ this work.
   link unit cost 120 per case.
 - Gate after the slice: clean `supabase db reset`; 127 Vitest files and 906 tests passed;
   `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.
+
+## Slice 2: direct requisition creation
+
+- Added an owner, manager, and planner create surface on `/procurement`. A user chooses an active
+  location and an existing active SKU-supplier link, then enters purchase quantity and unit cost.
+- Added `create_direct_requisition` as a `SECURITY INVOKER`, documents-only RPC. It atomically
+  creates the draft header and first line, keeps `source_rfq_id` and quote lineage null, snapshots
+  the supplier link's purchase UoM and conversion factor, and calculates the header total.
+- Contract probes verify the direct lineage, actor, total, conversion snapshot, cross-tenant RLS
+  rejection, and byte-identical `inventory_levels` plus unchanged `stock_movements` count.
+- Gate after the slice: clean `supabase db reset`; 127 Vitest files and 908 tests passed;
+  `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.
