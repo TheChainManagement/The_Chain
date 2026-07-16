@@ -467,19 +467,22 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
 
 - [ ] W2-2.5 (Codex 2026-07-09): browser-level Playwright page-flow test for /inventory hold/release + PO receive conversion rail (jsdom RTL exists; page-level flow does not). Pairs with the standing Lighthouse-on-Preview ticket.
 - [x] W2-2.5 (Codex 2026-07-09): MG decision — Wave-2 feature contract home: kickoff doc vs FEATURES.md backfill. **RESOLVED 2026-07-11: FEATURES.md backfilled (Wave 2 section, commit `7df9ee8`); kickoff doc stays the session log.**
-- [ ] W2-2.5 (walkthrough 2026-07-12): extend `scripts/seed-storeroom-demo.mjs` with a case-packed open PO (purchase_uom + factor on the supplier link) so the receive conversion rail is walkable on the demo tenant — MG's walkthrough had no PO data to exercise it.
+- [x] W2-2.5 (walkthrough 2026-07-12): extend `scripts/seed-storeroom-demo.mjs` with a case-packed open PO (purchase_uom + factor on the supplier link) so the receive conversion rail is walkable on the demo tenant. **DONE 2026-07-15 on `codex/w2-fast-follows`; `DEMO-CASE-PO` carries `case x 12`.**
 
 ## W2-3 procurement deferrals (2026-07-13)
 
 - [ ] **Email RFQs from the app.** The signed-off W2-3 delivery mode is
   export-for-manual-send. Add sender-domain/deliverability work, per-tenant reply-to, and
   delivery/audit state only when MG opens the fast-follow.
-- [ ] **Direct requisition creation UI.** The schema supports a requisition without an RFQ,
+- [x] **Direct requisition creation UI.** The schema supports a requisition without an RFQ,
   but Scenario A and W2-3 ship the quote-award creation path. Design the direct form when a
-  real operator case requires "I know what I want approved."
-- [ ] **Direct requisition line editing.** The RFQ award is the W2-3 editor. Rejected
+  real operator case requires "I know what I want approved." **DONE 2026-07-15 on
+  `codex/w2-fast-follows`; direct drafts snapshot the supplier conversion rail and stay documents-only.**
+- [x] **Direct requisition line editing.** The RFQ award is the W2-3 editor. Rejected
   documents can resubmit unchanged; changed sourcing or quantities use cancel plus re-award.
-  Add line editing with total recalculation and quote-lineage rules before promising it.
+  Add line editing with total recalculation and quote-lineage rules before promising it. **DONE
+  2026-07-15 on `codex/w2-fast-follows`; DRAFT/REJECTED add/edit recalculates totals and clears
+  quote lineage on edit.**
 - [ ] **Re-award versioning or one-award lock.** W2-3 intentionally permits a new draft
   requisition for each award while the RFQ remains open. Revisit when MG chooses between an
   immutable award history, superseded-version links, or a one-award lock.

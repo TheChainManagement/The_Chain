@@ -45,3 +45,13 @@ this work.
   rejection, editor visibility, and unchanged balances plus ledger.
 - Gate after the slice: clean `supabase db reset`; 127 Vitest files and 912 tests passed;
   `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.
+
+## Decision checkpoint and Playwright assessment
+
+- Wrote the required three-option re-award brief and recommended versioned re-awards. No re-award
+  behavior changed pending MG's A, B, or C decision.
+- Wrote the Resend sender, reply-to, delivery-state, and configuration design. No email provider,
+  schema, or send path was added pending MG sign-off and domain setup.
+- Deferred Playwright wiring as a dedicated infrastructure slice. The repo currently lacks the
+  dependency, authenticated browser state, isolated browser tenant lifecycle, server orchestration,
+  and CI artifact contract needed for stable mutation-heavy page flows.
