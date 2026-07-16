@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
-import { getRequisitionDetail } from '@/lib/procurement/queries';
+import { getRequisitionDetail, listDirectRequisitionOptions } from '@/lib/procurement/queries';
 import { createSupabaseServer } from '@/lib/supabase/server';
 import { RequisitionChainTrack } from '../../RfqChainTrack';
 import { RequisitionActions, RequisitionLines } from './RequisitionWorkbench';
@@ -23,7 +23,10 @@ export default async function RequisitionDetailPage({
 }): Promise<ReactNode> {
   const { requisitionId } = await params;
   const supabase = await createSupabaseServer();
-  const requisition = await getRequisitionDetail(supabase, requisitionId);
+  const [requisition, lineOptions] = await Promise.all([
+    getRequisitionDetail(supabase, requisitionId),
+    listDirectRequisitionOptions(supabase),
+  ]);
   if (!requisition) {
     notFound();
   }
@@ -74,7 +77,7 @@ export default async function RequisitionDetailPage({
         </div>
       ) : null}
 
-      <RequisitionLines requisition={requisition} />
+      <RequisitionLines requisition={requisition} options={lineOptions} />
 
       {requisition.purchaseOrders.length > 0 ? (
         <div className={styles.pos}>

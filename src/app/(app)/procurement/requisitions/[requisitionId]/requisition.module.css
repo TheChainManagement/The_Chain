@@ -68,6 +68,55 @@
   background: var(--color-surface);
   border: 1px solid var(--color-hairline);
 }
+
+.editBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lineEditor {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) 8rem 8rem auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+}
+
+.lineEditor select,
+.lineEditor input {
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.editorActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 800px) {
+  .lineEditor {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lineEditor select,
+  .editorActions {
+    grid-column: 1 / -1;
+  }
+}
 .linesHead,
 .lineRow {
   display: grid;

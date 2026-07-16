@@ -226,6 +226,107 @@ describe('direct requisition creation', () => {
   });
 });
 
+describe('direct requisition line editing', () => {
+  it('edits rejected lines, clears quote lineage, recalculates totals, and never writes stock', async () => {
+    await asSuperuser(client);
+    const ids = await one<{ req: string; line_no: number; prod: string; sup: string }>(
+      `select
+         (select id from requisitions where tenant_id = $1 and source_rfq_id is not null limit 1) as req,
+         (select rl.line_no from requisition_lines rl
+           join requisitions r on r.tenant_id = rl.tenant_id and r.id = rl.requisition_id
+          where r.tenant_id = $1 and r.source_rfq_id is not null limit 1) as line_no,
+         (select id from products where tenant_id = $1 limit 1) as prod,
+         (select id from suppliers where tenant_id = $1 limit 1) as sup`,
+      [T],
+    );
+    await client.query(
+      `update requisitions set status = 'rejected', rejection_note = 'Revise quantity'
+        where tenant_id = $1 and id = $2`,
+      [T, ids.req],
+    );
+    const before = await one<{ levels: string; movements: string }>(
+      `select
+         (select coalesce(jsonb_agg(to_jsonb(il) order by il.product_id, il.location_id), '[]'::jsonb)
+            from inventory_levels il where il.tenant_id = $1)::text as levels,
+         (select count(*) from stock_movements where tenant_id = $1)::text as movements`,
+      [T],
+    );
+
+    await as('planner');
+    const edited = await one<{ out_line_no: number; out_total: string }>(
+      `select * from save_requisition_line($1, $2, $3, $4, $5, 5, 11)`,
+      [T, ids.req, ids.line_no, ids.prod, ids.sup],
+    );
+    const added = await one<{ out_line_no: number; out_total: string }>(
+      `select * from save_requisition_line($1, $2, null, $3, $4, 2, 7.50)`,
+      [T, ids.req, ids.prod, ids.sup],
+    );
+    await asSuperuser(client);
+    const document = await one<{
+      total: string;
+      source_quote_rfq_id: string | null;
+      source_quote_line_no: number | null;
+      line_count: number;
+    }>(
+      `select r.total, rl.source_quote_rfq_id, rl.source_quote_line_no,
+              (select count(*)::int from requisition_lines x
+                where x.tenant_id = r.tenant_id and x.requisition_id = r.id) as line_count
+         from requisitions r
+         join requisition_lines rl on rl.tenant_id = r.tenant_id
+          and rl.requisition_id = r.id and rl.line_no = $3
+        where r.tenant_id = $1 and r.id = $2`,
+      [T, ids.req, ids.line_no],
+    );
+    const after = await one<{ levels: string; movements: string }>(
+      `select
+         (select coalesce(jsonb_agg(to_jsonb(il) order by il.product_id, il.location_id), '[]'::jsonb)
+            from inventory_levels il where il.tenant_id = $1)::text as levels,
+         (select count(*) from stock_movements where tenant_id = $1)::text as movements`,
+      [T],
+    );
+    expect(edited).toEqual({ out_line_no: ids.line_no, out_total: '55.00' });
+    expect(added.out_total).toBe('70.00');
+    expect(document).toEqual({
+      total: '70.00',
+      source_quote_rfq_id: null,
+      source_quote_line_no: null,
+      line_count: 2,
+    });
+    expect(after).toEqual(before);
+  });
+
+  it('rejects line changes after submission', async () => {
+    await asSuperuser(client);
+    const ids = await one<{ req: string; prod: string; sup: string }>(
+      `select
+         (select id from requisitions where tenant_id = $1 limit 1) as req,
+         (select id from products where tenant_id = $1 limit 1) as prod,
+         (select id from suppliers where tenant_id = $1 limit 1) as sup`,
+      [T],
+    );
+    await client.query(`update requisitions set status = 'submitted' where tenant_id = $1 and id = $2`, [
+      T,
+      ids.req,
+    ]);
+    await as('owner');
+    await client.query('savepoint submitted_line_edit');
+    await expect(
+      client.query(`select * from save_requisition_line($1, $2, 1, $3, $4, 2, 10)`, [
+        T,
+        ids.req,
+        ids.prod,
+        ids.sup,
+      ]),
+    ).rejects.toThrow('requisition_not_editable');
+    await client.query('rollback to savepoint submitted_line_edit');
+    await asSuperuser(client);
+    await client.query(`update requisitions set status = 'draft' where tenant_id = $1 and id = $2`, [
+      T,
+      ids.req,
+    ]);
+  });
+});
+
 describe('role matrix on the procurement tables', () => {
   it('planner CAN insert and update rfqs and requisitions', async () => {
     await asSuperuser(client);

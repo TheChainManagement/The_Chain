@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
-import type { RequisitionDetail } from '@/lib/procurement/queries';
+import type { DirectRequisitionOption, RequisitionDetail } from '@/lib/procurement/queries';
 import { canDecideRequisition } from '@/lib/procurement/transform';
 import {
   approveRequisition,
@@ -12,6 +12,7 @@ import {
   convertRequisition,
   type RfqEditState,
   rejectRequisition,
+  saveRequisitionLine,
   submitRequisition,
   updateSupplierLinkPrice,
 } from '../../actions';
@@ -154,12 +155,16 @@ export function RequisitionActions({
 
 export function RequisitionLines({
   requisition,
+  options = [],
 }: {
   requisition: RequisitionDetail;
+  options?: DirectRequisitionOption[];
 }): React.ReactNode {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<number | 'new' | null>(null);
+  const editable = requisition.status === 'draft' || requisition.status === 'rejected';
 
   function updateLink(lineNo: number) {
     setError(null);
@@ -185,6 +190,31 @@ export function RequisitionLines({
         <span>Link</span>
       </div>
 
+      {editable ? (
+        <div className={styles.editBar}>
+          <span>Draft lines can be changed. Saving an awarded line clears its quote snapshot.</span>
+          <button type="button" className={styles.linkBtn} onClick={() => setEditing('new')}>
+            Add line
+          </button>
+        </div>
+      ) : null}
+
+      {editing === 'new' ? (
+        <LineEditor
+          requisitionId={requisition.id}
+          lineNo={null}
+          options={options}
+          pending={pending}
+          onCancel={() => setEditing(null)}
+          onError={setError}
+          onSaved={() => {
+            setEditing(null);
+            router.refresh();
+          }}
+          startTransition={startTransition}
+        />
+      ) : null}
+
       {requisition.lines.map((line) => {
         const lineTotal = line.unitCost == null ? null : line.unitCost * line.qty;
         const linkCurrent =
@@ -193,7 +223,25 @@ export function RequisitionLines({
           line.linkUnitCost === line.unitCost &&
           line.linkPurchaseUom === line.purchaseUom &&
           line.linkFactor === line.factor;
-        return (
+        return editing === line.lineNo ? (
+          <LineEditor
+            key={line.lineNo}
+            requisitionId={requisition.id}
+            lineNo={line.lineNo}
+            initialPair={`${line.productId}:${line.supplierId}`}
+            initialQty={line.qty}
+            initialCost={line.unitCost ?? 0}
+            options={options}
+            pending={pending}
+            onCancel={() => setEditing(null)}
+            onError={setError}
+            onSaved={() => {
+              setEditing(null);
+              router.refresh();
+            }}
+            startTransition={startTransition}
+          />
+        ) : (
           <div key={line.lineNo} className={styles.lineRow}>
             <span className={styles.lineNo}>{line.lineNo}</span>
             <span className={styles.lineSku}>
@@ -210,7 +258,15 @@ export function RequisitionLines({
             <span className={styles.num}>
               <StatNumber value={lineTotal == null ? null : `$${lineTotal.toFixed(2)}`} />
             </span>
-            {line.unitCost == null ? (
+            {editable ? (
+              <button
+                type="button"
+                className={styles.linkBtn}
+                onClick={() => setEditing(line.lineNo)}
+              >
+                Edit line
+              </button>
+            ) : line.unitCost == null ? (
               <span />
             ) : linkCurrent ? (
               <span className={styles.linkDone}>Link current</span>
@@ -238,6 +294,99 @@ export function RequisitionLines({
           {error}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function LineEditor({
+  requisitionId,
+  lineNo,
+  options,
+  initialPair = '',
+  initialQty = 1,
+  initialCost = 0,
+  pending,
+  onCancel,
+  onError,
+  onSaved,
+  startTransition,
+}: {
+  requisitionId: string;
+  lineNo: number | null;
+  options: DirectRequisitionOption[];
+  initialPair?: string;
+  initialQty?: number;
+  initialCost?: number;
+  pending: boolean;
+  onCancel: () => void;
+  onError: (error: string | null) => void;
+  onSaved: () => void;
+  startTransition: React.TransitionStartFunction;
+}): React.ReactNode {
+  const [pair, setPair] = useState(
+    initialPair || `${options[0]?.productId}:${options[0]?.supplierId}`,
+  );
+  const [qty, setQty] = useState(String(initialQty));
+  const [cost, setCost] = useState(String(initialCost));
+
+  function save() {
+    const [productId = '', supplierId = ''] = pair.split(':');
+    onError(null);
+    startTransition(async () => {
+      const res = await saveRequisitionLine({
+        requisitionId,
+        lineNo,
+        productId,
+        supplierId,
+        qty: Number(qty),
+        unitCost: Number(cost),
+      });
+      if (res && !res.ok) {
+        onError(res.error);
+        return;
+      }
+      onSaved();
+    });
+  }
+
+  return (
+    <div className={styles.lineEditor} data-testid="requisition-line-editor">
+      <select value={pair} onChange={(event) => setPair(event.target.value)} disabled={pending}>
+        {options.map((option) => (
+          <option
+            key={`${option.productId}:${option.supplierId}`}
+            value={`${option.productId}:${option.supplierId}`}
+          >
+            {option.sku} · {option.supplierName}
+          </option>
+        ))}
+      </select>
+      <input
+        aria-label="Purchase quantity"
+        type="number"
+        min="0.01"
+        step="0.01"
+        value={qty}
+        onChange={(event) => setQty(event.target.value)}
+        disabled={pending}
+      />
+      <input
+        aria-label="Unit cost"
+        type="number"
+        min="0"
+        step="0.01"
+        value={cost}
+        onChange={(event) => setCost(event.target.value)}
+        disabled={pending}
+      />
+      <div className={styles.editorActions}>
+        <button type="button" className={styles.linkBtn} onClick={onCancel} disabled={pending}>
+          Cancel
+        </button>
+        <ActionButton onClick={save} loading={pending}>
+          Save line
+        </ActionButton>
+      </div>
     </div>
   );
 }

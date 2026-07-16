@@ -31,6 +31,15 @@ export type DirectRequisitionState =
   | { ok: false; error: string }
   | null;
 
+export type RequisitionLineInput = {
+  requisitionId: string;
+  lineNo: number | null;
+  productId: string;
+  supplierId: string;
+  qty: number;
+  unitCost: number;
+};
+
 type Server = Awaited<ReturnType<typeof createSupabaseServer>>;
 
 async function resolveActor(
@@ -662,6 +671,36 @@ async function loadRequisition(
 function revalidateRequisition(requisitionId: string): void {
   revalidatePath('/procurement');
   revalidatePath(`/procurement/requisitions/${requisitionId}`);
+}
+
+/** Draft/rejected line mutation. The RPC owns lineage invalidation and total recalculation. */
+export async function saveRequisitionLine(input: RequisitionLineInput): Promise<RfqEditState> {
+  if (!input.productId || !input.supplierId || !Number.isFinite(input.qty) || input.qty <= 0) {
+    return { ok: false, error: 'Choose a supplier-linked SKU and enter a positive quantity.' };
+  }
+  if (!Number.isFinite(input.unitCost) || input.unitCost < 0) {
+    return { ok: false, error: 'Enter a valid unit cost.' };
+  }
+  const supabase = await createSupabaseServer();
+  const actor = await resolveActor(supabase);
+  if (!actor) return { ok: false, error: PERMISSION_MESSAGE };
+  const req = await loadRequisition(supabase, input.requisitionId);
+  if (!req) return { ok: false, error: 'That requisition no longer exists.' };
+  if (!canSubmitRequisition(req.status).ok) {
+    return { ok: false, error: 'Only draft or rejected requisitions can be edited.' };
+  }
+  const { error } = await supabase.rpc('save_requisition_line', {
+    p_tenant: actor.tenantId,
+    p_requisition: input.requisitionId,
+    p_line_no: input.lineNo,
+    p_product: input.productId,
+    p_supplier: input.supplierId,
+    p_qty: input.qty,
+    p_unit_cost: input.unitCost,
+  });
+  if (error) return { ok: false, error: mapRfqWriteError(error.code, error.message) };
+  revalidateRequisition(input.requisitionId);
+  return { ok: true };
 }
 
 /** Draft (or rejected) → submitted. Any procurement writer may submit. */

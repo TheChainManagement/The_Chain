@@ -15,11 +15,13 @@ import { describe, expect, it, vi } from 'vitest';
 const approveRequisition = vi.hoisted(() => vi.fn());
 const rejectRequisition = vi.hoisted(() => vi.fn());
 const convertRequisition = vi.hoisted(() => vi.fn());
+const saveRequisitionLine = vi.hoisted(() => vi.fn());
 const updateSupplierLinkPrice = vi.hoisted(() => vi.fn());
 vi.mock('@/app/(app)/procurement/actions', () => ({
   approveRequisition,
   rejectRequisition,
   convertRequisition,
+  saveRequisitionLine,
   updateSupplierLinkPrice,
   submitRequisition: vi.fn(),
   cancelRequisition: vi.fn(),
@@ -151,5 +153,43 @@ describe('convert + the link-price affordance', () => {
     render(<RequisitionLines requisition={req} />);
     expect(screen.queryByRole('button', { name: 'Update link price' })).not.toBeInTheDocument();
     expect(screen.getByText('Link current')).toBeInTheDocument();
+  });
+});
+
+describe('draft and rejected line editing', () => {
+  const options = [
+    {
+      productId: 'p1',
+      supplierId: 's1',
+      sku: 'BLT-M12-50',
+      productName: 'Hex bolt',
+      supplierName: 'Acme Supply',
+      unitCost: 24,
+      purchaseUom: 'CS',
+      factor: 12,
+    },
+  ];
+
+  it('saves an edited rejected line through the guarded action', async () => {
+    saveRequisitionLine.mockResolvedValue({ ok: true });
+    render(<RequisitionLines requisition={requisition({ status: 'rejected' })} options={options} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Edit line' }));
+    await userEvent.clear(screen.getByLabelText('Purchase quantity'));
+    await userEvent.type(screen.getByLabelText('Purchase quantity'), '6');
+    await userEvent.click(screen.getByRole('button', { name: 'Save line' }));
+    expect(saveRequisitionLine).toHaveBeenCalledWith({
+      requisitionId: 'req-1',
+      lineNo: 1,
+      productId: 'p1',
+      supplierId: 's1',
+      qty: 6,
+      unitCost: 24,
+    });
+  });
+
+  it('does not expose line editing after submission', () => {
+    render(<RequisitionLines requisition={requisition()} options={options} />);
+    expect(screen.queryByRole('button', { name: 'Edit line' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add line' })).not.toBeInTheDocument();
   });
 });

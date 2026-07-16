@@ -29,3 +29,19 @@ this work.
   rejection, and byte-identical `inventory_levels` plus unchanged `stock_movements` count.
 - Gate after the slice: clean `supabase db reset`; 127 Vitest files and 908 tests passed;
   `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.
+
+## Slice 3: direct requisition line editing
+
+- Added inline add/edit controls to DRAFT and REJECTED requisitions. SUBMITTED, APPROVED,
+  CONVERTED, and CANCELED documents remain immutable through both UI and server gates.
+- Added `save_requisition_line` as a `SECURITY INVOKER`, documents-only RPC. It locks and checks
+  the requisition status, requires an active supplier-linked SKU, snapshots the current purchase
+  UoM conversion, and recalculates the header total in the same transaction.
+- Editing an RFQ-awarded line clears both quote-lineage fields. The edited values are no longer
+  represented as an authoritative quote snapshot. Newly added lines also carry null quote lineage.
+- Kept deletion outside this slice because the house RLS contract reserves procurement-row deletes
+  for owners. This avoids weakening table RLS or adding a privileged delete bypass for a polish item.
+- Database and UI probes cover rejected editing, add-line totals, lineage clearing, submitted-state
+  rejection, editor visibility, and unchanged balances plus ledger.
+- Gate after the slice: clean `supabase db reset`; 127 Vitest files and 912 tests passed;
+  `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.
