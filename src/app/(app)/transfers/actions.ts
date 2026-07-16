@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
 export type TransferResult =
@@ -8,7 +9,6 @@ export type TransferResult =
   | { ok: false; error: string };
 
 const ERROR_MAP: Record<string, string> = {
-  not_authorized: 'Only an owner, manager, or warehouse operator can move stock.',
   same_location: 'Source and destination must be different locations.',
   bad_qty: 'Enter a transfer quantity greater than zero.',
   missing_idempotency_key: 'Refresh the page and try the transfer again.',
@@ -17,6 +17,9 @@ const ERROR_MAP: Record<string, string> = {
   insufficient_transferable_stock:
     'Source stock changed and no longer has enough unheld surplus for this transfer.',
 };
+
+const OPERATOR_ROLES = new Set(['owner', 'manager', 'warehouse']);
+const PERMISSION_MESSAGE = 'Only an owner, manager, or warehouse operator can move stock.';
 
 export async function executeTransfer(input: {
   productId: string;
@@ -34,15 +37,21 @@ export async function executeTransfer(input: {
   const supabase = await createSupabaseServer();
   const { data: claims } = await supabase.auth.getClaims();
   const tenantId = claims?.claims?.tenant_id as string | undefined;
-  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  const role = claims?.claims?.tenant_role as string | undefined;
+  const userId = claims?.claims?.sub as string | undefined;
+  if (!tenantId || !userId || !role) {
+    return { ok: false, error: 'Your session expired. Sign in again.' };
+  }
+  if (!OPERATOR_ROLES.has(role)) return { ok: false, error: PERMISSION_MESSAGE };
 
-  const { data, error } = await supabase.rpc('execute_stock_transfer', {
+  const { data, error } = await createSupabaseAdmin().rpc('execute_stock_transfer', {
     p_tenant: tenantId,
     p_product: input.productId,
     p_source: input.sourceLocationId,
     p_destination: input.destinationLocationId,
     p_quantity: input.quantity,
     p_idempotency_key: input.idempotencyKey,
+    p_actor: userId,
   });
   if (error) {
     const code = Object.keys(ERROR_MAP).find((key) => error.message.includes(key));

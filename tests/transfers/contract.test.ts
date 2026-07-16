@@ -1,6 +1,6 @@
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { actAs, asSuperuser, connect } from '../helpers/db';
+import { asSuperuser, connect } from '../helpers/db';
 import { seedTenant } from '../helpers/seed';
 
 const T = 'b4444444-4444-4444-4444-444444444444';
@@ -38,7 +38,7 @@ beforeAll(async () => {
   );
   destinationId = destination.rows[0]?.id ?? '';
   await client.query(
-     `insert into inventory_levels
+    `insert into inventory_levels
        (tenant_id, product_id, location_id, on_hand, avg_unit_cost, avg_cost_provenance)
      values ($1, $2, $3, 10, 20, 'posted')`,
     [T, productId, destinationId],
@@ -60,15 +60,14 @@ afterAll(async () => {
 
 describe('execute_stock_transfer', () => {
   it('posts matched OUT/IN atomically and preserves tenant quantity and value', async () => {
-    await actAs(client, { sub: U, tenant_id: T, role: 'warehouse' });
     const before = await client.query<{ qty: string; value: string }>(
       `select sum(on_hand) qty, sum(on_hand * avg_unit_cost) value
        from inventory_levels where tenant_id = $1 and product_id = $2`,
       [T, productId],
     );
     const result = await client.query<{ out_applied: boolean; out_transfer_id: string }>(
-      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)',
-      [T, productId, sourceId, destinationId, 20, 'transfer-1'],
+      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6,$7)',
+      [T, productId, sourceId, destinationId, 20, 'transfer-1', U],
     );
     expect(result.rows[0]?.out_applied).toBe(true);
 
@@ -97,12 +96,17 @@ describe('execute_stock_transfer', () => {
       ['transfer_out', -20],
       ['transfer_in', 20],
     ]);
+    const event = await client.query<{ actor_user_id: string }>(
+      'select actor_user_id from stock_transfer_events where tenant_id = $1 and id = $2',
+      [T, result.rows[0]?.out_transfer_id],
+    );
+    expect(event.rows[0]?.actor_user_id).toBe(U);
   });
 
   it('delegates destination valuation to the posting kernel', async () => {
     const definition = await client.query<{ definition: string }>(
       `select pg_get_functiondef(
-         'execute_stock_transfer(uuid,uuid,uuid,uuid,numeric,text)'::regprocedure
+         'execute_stock_transfer(uuid,uuid,uuid,uuid,numeric,text,uuid)'::regprocedure
        ) definition`,
     );
     expect(definition.rows[0]?.definition).not.toMatch(/update\s+public\.inventory_levels/i);
@@ -111,11 +115,23 @@ describe('execute_stock_transfer', () => {
     );
   });
 
+  it('replaces the old definer overload with one SECURITY INVOKER function', async () => {
+    const functions = await client.query<{ identity_args: string; security_definer: boolean }>(
+      `select pg_get_function_identity_arguments(p.oid) identity_args,
+              p.prosecdef security_definer
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'execute_stock_transfer'`,
+    );
+    expect(functions.rows).toHaveLength(1);
+    expect(functions.rows[0]?.identity_args).toContain('p_actor uuid');
+    expect(functions.rows[0]?.security_definer).toBe(false);
+  });
+
   it('replays the same key without a second movement', async () => {
-    await actAs(client, { sub: U, tenant_id: T, role: 'warehouse' });
     const replay = await client.query<{ out_applied: boolean }>(
-      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)',
-      [T, productId, sourceId, destinationId, 20, 'transfer-1'],
+      'select * from execute_stock_transfer($1,$2,$3,$4,$5,$6,$7)',
+      [T, productId, sourceId, destinationId, 20, 'transfer-1', U],
     );
     expect(replay.rows[0]?.out_applied).toBe(false);
     const count = await client.query<{ count: string }>(
@@ -126,28 +142,16 @@ describe('execute_stock_transfer', () => {
     expect(Number(count.rows[0]?.count)).toBe(2);
   });
 
-  it('rejects planner, same-location, and excessive moves with zero partial writes', async () => {
-    await actAs(client, { sub: U, tenant_id: T, role: 'planner' });
+  it('rejects same-location and excessive moves with zero partial writes', async () => {
     expect(
-      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
-        T,
-        productId,
-        sourceId,
-        destinationId,
-        1,
-        'planner',
-      ]),
-    ).toMatch(/not_authorized/i);
-
-    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
-    expect(
-      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6,$7)', [
         T,
         productId,
         sourceId,
         sourceId,
         1,
         'same',
+        U,
       ]),
     ).toMatch(/same_location/i);
     const before = await client.query<{ count: string }>(
@@ -155,13 +159,14 @@ describe('execute_stock_transfer', () => {
       [T],
     );
     expect(
-      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6)', [
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6,$7)', [
         T,
         productId,
         sourceId,
         destinationId,
         10000,
         'too-much',
+        U,
       ]),
     ).toMatch(/insufficient_transferable_stock/i);
     const after = await client.query<{ count: string }>(
