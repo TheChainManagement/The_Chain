@@ -97,5 +97,83 @@ for (const [sku, name, uom, onHand] of SHELF) {
   );
 }
 
-console.log(JSON.stringify({ tenantId, userId, locationId, email: EMAIL, skus: SHELF.length }));
+// Walkthrough PO: four cases of bearings, 12 each per case. Approve it through
+// the real kernel surface so the PO detail shows both the purchase-UoM receive
+// conversion rail and the matching stock-UoM in-transit quantity.
+const bearing = await c.query(
+  `select id from products where tenant_id = $1 and sku = 'BRG-6204'`,
+  [tenantId],
+);
+const productId = bearing.rows[0].id;
+let supplier = await c.query(
+  `select id from suppliers where tenant_id = $1 and name = 'Gulf Bearing Supply' limit 1`,
+  [tenantId],
+);
+if (!supplier.rows[0]) {
+  supplier = await c.query(
+    `insert into suppliers (tenant_id, name, default_lead_time_days, status)
+     values ($1, 'Gulf Bearing Supply', 7, 'active') returning id`,
+    [tenantId],
+  );
+}
+const supplierId = supplier.rows[0].id;
+await c.query(
+  `insert into product_suppliers
+     (tenant_id, product_id, supplier_id, supplier_sku, unit_cost, lead_time_days,
+      is_primary, purchase_uom, purchase_to_stock_factor)
+   values ($1, $2, $3, 'GBS-6204-CS', 120, 7, true, 'case', 12)
+   on conflict (tenant_id, product_id, supplier_id) do update set
+     supplier_sku = excluded.supplier_sku,
+     unit_cost = excluded.unit_cost,
+     lead_time_days = excluded.lead_time_days,
+     is_primary = excluded.is_primary,
+     purchase_uom = excluded.purchase_uom,
+     purchase_to_stock_factor = excluded.purchase_to_stock_factor`,
+  [tenantId, productId, supplierId],
+);
+
+let purchaseOrder = await c.query(
+  `select id, status from purchase_orders
+   where tenant_id = $1 and external_reference = 'DEMO-CASE-PO' limit 1`,
+  [tenantId],
+);
+if (!purchaseOrder.rows[0]) {
+  purchaseOrder = await c.query(
+    `insert into purchase_orders
+       (tenant_id, supplier_id, location_id, status, recommended_by, created_by_user_id,
+        total, expected_delivery_at, external_reference)
+     values ($1, $2, $3, 'draft', 'user', $4, 480, now() + interval '7 days',
+             'DEMO-CASE-PO')
+     returning id, status`,
+    [tenantId, supplierId, locationId, userId],
+  );
+}
+const poId = purchaseOrder.rows[0].id;
+await c.query(
+  `insert into purchase_order_lines
+     (tenant_id, po_id, line_no, product_id, recommended_qty, ordered_qty, received_qty,
+      unit_cost, purchase_uom, purchase_to_stock_factor)
+   values ($1, $2, 1, $3, 4, 4, 0, 120, 'case', 12)
+   on conflict (po_id, line_no) do update set
+     ordered_qty = excluded.ordered_qty,
+     unit_cost = excluded.unit_cost,
+     purchase_uom = excluded.purchase_uom,
+     purchase_to_stock_factor = excluded.purchase_to_stock_factor`,
+  [tenantId, poId, productId],
+);
+await c.query(
+  `select * from apply_po_approval($1, $2, 'sent', null, 'DEMO-CASE-PO', null)`,
+  [tenantId, poId],
+);
+
+console.log(
+  JSON.stringify({
+    tenantId,
+    userId,
+    locationId,
+    email: EMAIL,
+    skus: SHELF.length,
+    casePackedPoId: poId,
+  }),
+);
 await c.end();
