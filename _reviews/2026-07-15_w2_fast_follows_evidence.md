@@ -55,3 +55,12 @@ this work.
 - Deferred Playwright wiring as a dedicated infrastructure slice. The repo currently lacks the
   dependency, authenticated browser state, isolated browser tenant lifecycle, server orchestration,
   and CI artifact contract needed for stable mutation-heavy page flows.
+
+## MG decision addendum
+
+- MG approved Option C, versioned re-awards. Superseded requisitions are immutable, and only the
+  current version may submit, approve, or convert. Implementation remains a separate guarded slice.
+- MG rejected a shared The Chain sender for vendor RFQs. Export/manual send remains permanent;
+  integrated sending must use a customer-owned Google Workspace or Microsoft 365 mailbox connected
+  through OAuth. The first release is send plus audit with manual quote upload/entry. Reply syncing
+  and review-before-save extraction are later scopes.

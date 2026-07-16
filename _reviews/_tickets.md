@@ -473,7 +473,9 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
 
 - [ ] **Email RFQs from the app.** The signed-off W2-3 delivery mode is
   export-for-manual-send. Add sender-domain/deliverability work, per-tenant reply-to, and
-  delivery/audit state only when MG opens the fast-follow.
+  delivery/audit state only when MG opens the fast-follow. **DIRECTION LOCKED 2026-07-15: retain
+  export/manual send; integrated sending must use a customer-owned Google Workspace or Microsoft
+  365 mailbox via OAuth, never a shared The Chain sender. See the dated decision brief.**
 - [x] **Direct requisition creation UI.** The schema supports a requisition without an RFQ,
   but Scenario A and W2-3 ship the quote-award creation path. Design the direct form when a
   real operator case requires "I know what I want approved." **DONE 2026-07-15 on
@@ -485,4 +487,6 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   quote lineage on edit.**
 - [ ] **Re-award versioning or one-award lock.** W2-3 intentionally permits a new draft
   requisition for each award while the RFQ remains open. Revisit when MG chooses between an
-  immutable award history, superseded-version links, or a one-award lock.
+  immutable award history, superseded-version links, or a one-award lock. **DECIDED 2026-07-15:
+  Option C, versioned re-awards. Superseded versions are immutable and only the current version can
+  submit, approve, or convert. Implementation remains open.**
