@@ -2,7 +2,8 @@
 
 Branch: `codex/w2-fast-follows`
 
-These decisions are recorded requirements. Neither feature is implemented on this branch.
+These decisions are recorded requirements. Versioned re-awards were implemented on this branch on
+2026-07-16. Customer-mailbox email remains a separate design and implementation slice.
 Production and `main` remain unchanged.
 
 ## Decision 1: RFQ re-award policy
@@ -41,8 +42,10 @@ approved, or converted to purchase orders. The UI must show the version history 
 the current version. The implementation needs an atomic re-award RPC, lifecycle guards, migration,
 cross-tenant coverage, and conversion/idempotency tests.
 
-Until that complete contract is built, retain the current behavior rather than introducing a partial
-lock.
+Implemented 2026-07-16: the award RPC now creates an atomic version chain, converted awards cannot be
+superseded, historical headers and lines are database-immutable, and only the current version exposes
+submit, approve, edit, cancel, price-link, or PO-conversion actions. RFQ and requisition pages show the
+ordered version history and identify the current award.
 
 ## Decision 2: email RFQs from the app
 

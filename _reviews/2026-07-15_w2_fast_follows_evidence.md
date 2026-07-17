@@ -64,3 +64,22 @@ this work.
   integrated sending must use a customer-owned Google Workspace or Microsoft 365 mailbox connected
   through OAuth. The first release is send plus audit with manual quote upload/entry. Reply syncing
   and review-before-save extraction are later scopes.
+
+## Slice 4: versioned RFQ re-awards (2026-07-16)
+
+- Added RFQ-scoped award version, predecessor, and current-version metadata with a unique current
+  award per tenant and RFQ. Existing repeated awards backfill into their chronological chain.
+- Replaced the award RPC with an atomic re-award path: it locks the RFQ and current award, snapshots
+  the selected quotes into the next version, and supersedes the predecessor in one transaction.
+  Converted awards reject re-award attempts to prevent duplicate purchase-order facts.
+- Database triggers make superseded requisition headers and lines immutable. Decision and PO
+  conversion RPCs explicitly reject historical versions; Server Actions mirror the gate with an
+  operator-readable error.
+- RFQ detail shows ordered award history and labels the next action `Create re-award`. Requisition
+  detail marks the current version, links the full history, and presents superseded versions as
+  read-only with a direct route to the current award.
+- Contract probes cover atomic predecessor linkage, one-current semantics, header and line
+  immutability, cross-tenant rejection, converted-award protection, and unchanged inventory/ledger
+  behavior. Interaction probes cover the re-award label and historical read-only surface.
+- Gate after the slice: clean `supabase db reset`; 127 Vitest files and 917 tests passed;
+  `npm run build`, `npx tsc --noEmit`, `npm run lint`, and `node scripts/check-craft.mjs` passed.

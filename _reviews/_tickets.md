@@ -485,8 +485,10 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   Add line editing with total recalculation and quote-lineage rules before promising it. **DONE
   2026-07-15 on `codex/w2-fast-follows`; DRAFT/REJECTED add/edit recalculates totals and clears
   quote lineage on edit.**
-- [ ] **Re-award versioning or one-award lock.** W2-3 intentionally permits a new draft
+- [x] **Re-award versioning or one-award lock.** W2-3 intentionally permits a new draft
   requisition for each award while the RFQ remains open. Revisit when MG chooses between an
   immutable award history, superseded-version links, or a one-award lock. **DECIDED 2026-07-15:
   Option C, versioned re-awards. Superseded versions are immutable and only the current version can
-  submit, approve, or convert. Implementation remains open.**
+  submit, approve, or convert. **DONE 2026-07-16 on `codex/w2-fast-follows`; atomic RFQ award
+  versions, lifecycle guards, read-only history UI, cross-tenant probe, and converted-award safety
+  stop are implemented.**

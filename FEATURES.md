@@ -955,9 +955,12 @@ column. Thresholds remain Wave 3. Email delivery is a fast-follow ticket.
 - [x] Six migrations applied to production; schema, RLS, security advisor, Vercel Ready,
       canonical routes, auth boundary, and webhook method gate probed on 2026-07-13.
 
-**Intentional deferrals:** direct no-RFQ creation UI, direct requisition line editing,
-email-from-app, and a one-award/versioned re-award policy. Dated tickets are in
-`_reviews/_tickets.md`.
+**Fast-follows shipped on `codex/w2-fast-follows`:** direct no-RFQ creation, draft/rejected
+line editing, and versioned RFQ re-awards with immutable history and one current version.
+
+**Intentional deferral:** integrated email delivery. Export/manual send remains universal;
+future sending must use a customer-owned Google Workspace or Microsoft 365 mailbox through
+OAuth. The dated direction and security-design ticket are in `_reviews/`.
 
 **What's memorable:** The quote comparison grid answers "get three quotes" on one bench.
 Cheapest normalized cells ignite cobalt, picks assemble the award tray, and award column
