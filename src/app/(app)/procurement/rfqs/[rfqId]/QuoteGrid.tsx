@@ -397,7 +397,9 @@ export function QuoteGrid({
             </span>
           </span>
           <ActionButton onClick={award} loading={pending} disabled={pickedCells.count === 0}>
-            Draft requisition
+            {rfq.draftedRequisitions.some((row) => row.isCurrentVersion)
+              ? 'Create re-award'
+              : 'Draft requisition'}
           </ActionButton>
         </div>
       ) : null}

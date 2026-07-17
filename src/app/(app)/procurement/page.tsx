@@ -116,7 +116,9 @@ function RequisitionRow({
   row: RequisitionListRow;
   locationId: string | null;
 }): ReactNode {
-  const title = row.sourceRfqTitle ? `From: ${row.sourceRfqTitle}` : 'Direct requisition';
+  const title = row.sourceRfqTitle
+    ? `From: ${row.sourceRfqTitle} · V${row.awardVersion}${row.isCurrentVersion ? '' : ' · Superseded'}`
+    : 'Direct requisition';
   return (
     <Link
       href={locationHref(`/procurement/requisitions/${row.id}`, locationId)}

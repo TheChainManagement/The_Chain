@@ -36,6 +36,7 @@ export default async function RequisitionDetailPage({
     userId: (claims?.claims?.sub as string | undefined) ?? null,
     role: (claims?.claims?.tenant_role as string | undefined) ?? '',
   };
+  const currentAward = requisition.versionHistory.find((version) => version.isCurrentVersion);
 
   return (
     <div className={pageStyles.stack}>
@@ -62,6 +63,15 @@ export default async function RequisitionDetailPage({
         </div>
         {requisition.sourceRfqId ? (
           <div className={styles.metaItem}>
+            <span className={styles.metaKey}>Award</span>
+            <span className={styles.metaValue}>
+              V{requisition.awardVersion} ·{' '}
+              {requisition.isCurrentVersion ? 'current' : 'superseded'}
+            </span>
+          </div>
+        ) : null}
+        {requisition.sourceRfqId ? (
+          <div className={styles.metaItem}>
             <span className={styles.metaKey}>Source</span>
             <Link href={`/procurement/rfqs/${requisition.sourceRfqId}`} className={styles.metaLink}>
               Quote request
@@ -69,6 +79,39 @@ export default async function RequisitionDetailPage({
           </div>
         ) : null}
       </div>
+
+      {!requisition.isCurrentVersion ? (
+        <div className={styles.superseded} role="status">
+          <span>
+            This award version is preserved as read-only history. Continue from the current version.
+          </span>
+          {currentAward ? (
+            <Link href={`/procurement/requisitions/${currentAward.id}`} className={styles.metaLink}>
+              Open current award
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+
+      {requisition.versionHistory.length > 1 ? (
+        <div className={styles.versions}>
+          <div className={styles.versionsHead}>Award history</div>
+          <div className={styles.versionLinks}>
+            {requisition.versionHistory.map((version) => (
+              <Link
+                key={version.id}
+                href={`/procurement/requisitions/${version.id}`}
+                className={
+                  version.id === requisition.id ? styles.versionActive : styles.versionLink
+                }
+              >
+                V{version.awardVersion} · {version.isCurrentVersion ? 'CURRENT' : 'SUPERSEDED'} ·{' '}
+                {version.status.toUpperCase()}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {requisition.status === 'rejected' && requisition.rejectionNote ? (
         <div className={styles.rejection} role="status">

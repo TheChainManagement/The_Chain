@@ -84,4 +84,138 @@ describe('award_rfq_quotes_to_requisition', () => {
     );
     expect(after.rows[0]).toEqual(before.rows[0]);
   });
+
+  it('creates an immutable version chain and leaves only the newest award actionable', async () => {
+    await asSuperuser(client);
+    const quoteResult = await client.query<{ rfq_id: string; supplier_id: string }>(
+      `select q.rfq_id, q.supplier_id
+       from rfq_vendor_quotes q where q.tenant_id = $1 limit 1`,
+      [T],
+    );
+    const quote = quoteResult.rows[0];
+    if (!quote) throw new Error('seed quote missing');
+    const prior = await client.query<{ id: string; award_version: number }>(
+      `select id, award_version from requisitions
+       where tenant_id = $1 and source_rfq_id = $2 and is_current_version`,
+      [T, quote.rfq_id],
+    );
+    const priorId = prior.rows[0]?.id;
+    const priorVersion = prior.rows[0]?.award_version;
+    if (!priorId) throw new Error('first award missing');
+    if (!priorVersion) throw new Error('first award version missing');
+
+    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
+    const reaward = await client.query<{ out_requisition_id: string }>(
+      `select * from award_rfq_quotes_to_requisition($1, $2, $3::jsonb)`,
+      [T, quote.rfq_id, JSON.stringify([{ lineNo: 1, supplierId: quote.supplier_id }])],
+    );
+    const currentId = reaward.rows[0]?.out_requisition_id;
+    if (!currentId) throw new Error('re-award missing');
+
+    await asSuperuser(client);
+    const versions = await client.query<{
+      id: string;
+      award_version: number;
+      supersedes_requisition_id: string | null;
+      is_current_version: boolean;
+    }>(
+      `select id, award_version, supersedes_requisition_id, is_current_version
+       from requisitions where tenant_id = $1 and id in ($2, $3)
+       order by award_version`,
+      [T, priorId, currentId],
+    );
+    expect(versions.rows).toEqual([
+      {
+        id: priorId,
+        award_version: priorVersion,
+        supersedes_requisition_id: versions.rows[0]?.supersedes_requisition_id ?? null,
+        is_current_version: false,
+      },
+      {
+        id: currentId,
+        award_version: priorVersion + 1,
+        supersedes_requisition_id: priorId,
+        is_current_version: true,
+      },
+    ]);
+
+    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
+    await client.query('savepoint immutable_header');
+    await expect(
+      client.query(`update requisitions set total = total where tenant_id = $1 and id = $2`, [
+        T,
+        priorId,
+      ]),
+    ).rejects.toThrow('requisition_superseded');
+    await client.query('rollback to savepoint immutable_header');
+
+    await client.query('savepoint immutable_lines');
+    await expect(
+      client.query(
+        `update requisition_lines set qty = qty
+         where tenant_id = $1 and requisition_id = $2`,
+        [T, priorId],
+      ),
+    ).rejects.toThrow('requisition_superseded');
+    await client.query('rollback to savepoint immutable_lines');
+
+    await client.query('savepoint immutable_convert');
+    await expect(
+      client.query(`select * from convert_requisition_to_po($1, $2)`, [T, priorId]),
+    ).rejects.toThrow('requisition_superseded');
+    await client.query('rollback to savepoint immutable_convert');
+  });
+
+  it('does not reveal or mutate another tenant through the re-award RPC', async () => {
+    await asSuperuser(client);
+    const quote = await client.query<{ rfq_id: string; supplier_id: string }>(
+      `select rfq_id, supplier_id from rfq_vendor_quotes where tenant_id = $1 limit 1`,
+      [T],
+    );
+    const target = quote.rows[0];
+    if (!target) throw new Error('seed quote missing');
+    await actAs(client, {
+      sub: 'c0000000-0000-0000-0000-0000000000cb',
+      tenant_id: 'cccccccc-cccc-cccc-cccc-cccccccccccb',
+      role: 'owner',
+    });
+    await client.query('savepoint cross_tenant_reaward');
+    await expect(
+      client.query(
+        `select * from award_rfq_quotes_to_requisition($1, $2, $3::jsonb)`,
+        [T, target.rfq_id, JSON.stringify([{ lineNo: 1, supplierId: target.supplier_id }])],
+      ),
+    ).rejects.toThrow('rfq_not_found');
+    await client.query('rollback to savepoint cross_tenant_reaward');
+  });
+
+  it('refuses a re-award after the current version has become purchase orders', async () => {
+    await asSuperuser(client);
+    const current = await client.query<{ id: string; source_rfq_id: string }>(
+      `select id, source_rfq_id from requisitions
+       where tenant_id = $1 and source_rfq_id is not null and is_current_version limit 1`,
+      [T],
+    );
+    const target = current.rows[0];
+    if (!target) throw new Error('current award missing');
+    const quote = await client.query<{ supplier_id: string }>(
+      `select supplier_id from rfq_vendor_quotes
+       where tenant_id = $1 and rfq_id = $2 and line_no = 1 limit 1`,
+      [T, target.source_rfq_id],
+    );
+    const supplierId = quote.rows[0]?.supplier_id;
+    if (!supplierId) throw new Error('seed quote missing');
+
+    await client.query('savepoint converted_reaward');
+    await client.query(`update requisitions set status = 'converted' where id = $1`, [target.id]);
+    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
+    await expect(
+      client.query(`select * from award_rfq_quotes_to_requisition($1, $2, $3::jsonb)`, [
+        T,
+        target.source_rfq_id,
+        JSON.stringify([{ lineNo: 1, supplierId }]),
+      ]),
+    ).rejects.toThrow('converted_award_cannot_be_superseded');
+    await client.query('rollback to savepoint converted_reaward');
+  });
 });

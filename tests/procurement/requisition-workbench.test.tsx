@@ -47,6 +47,9 @@ function requisition(overrides: Partial<RequisitionDetail> = {}): RequisitionDet
     rejectionNote: null,
     total: 146,
     createdAt: new Date(0).toISOString(),
+    awardVersion: 1,
+    isCurrentVersion: true,
+    versionHistory: [],
     lines: [
       {
         lineNo: 1,
@@ -191,5 +194,19 @@ describe('draft and rejected line editing', () => {
     render(<RequisitionLines requisition={requisition()} options={options} />);
     expect(screen.queryByRole('button', { name: 'Edit line' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add line' })).not.toBeInTheDocument();
+  });
+
+  it('makes a superseded draft read only', () => {
+    const req = requisition({ status: 'draft', isCurrentVersion: false });
+    render(
+      <>
+        <RequisitionActions requisition={req} viewer={{ userId: 'requester', role: 'owner' }} />
+        <RequisitionLines requisition={req} options={options} />
+      </>,
+    );
+    expect(screen.getByText('Superseded award · read only')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit for approval' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit line' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Update link price' })).not.toBeInTheDocument();
   });
 });

@@ -134,6 +134,28 @@ describe('the comparison grid', () => {
     expect(screen.getByText(`$${(48 * 3 + 10 * 5).toFixed(2)}`)).toBeInTheDocument();
   });
 
+  it('names a subsequent award as a re-award', () => {
+    render(
+      <QuoteGrid
+        rfq={{
+          ...rfq,
+          draftedRequisitions: [
+            {
+              id: 'req-1',
+              status: 'draft',
+              total: 146,
+              createdAt: new Date(0).toISOString(),
+              awardVersion: 1,
+              isCurrentVersion: true,
+            },
+          ],
+        }}
+        linkDefaults={[]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Create re-award' })).toBeDisabled();
+  });
+
   it('an unanswered cell is the entry affordance and opens the pre-filled panel', async () => {
     render(
       <QuoteGrid

@@ -74,8 +74,8 @@ export default async function RfqDetailPage({
         <div className={gridStyles.drafted} role="status">
           <span className={gridStyles.draftedText}>
             {rfq.draftedRequisitions.length === 1
-              ? 'A requisition has been drafted from this request:'
-              : `${rfq.draftedRequisitions.length} requisitions have been drafted from this request:`}
+              ? 'Award history:'
+              : `${rfq.draftedRequisitions.length} award versions:`}
           </span>
           <span className={gridStyles.draftedMeta}>
             {rfq.draftedRequisitions.map((r, i) => (
@@ -84,6 +84,7 @@ export default async function RfqDetailPage({
                 href={`/procurement/requisitions/${r.id}`}
                 className={gridStyles.draftedLink}
               >
+                V{r.awardVersion} · {r.isCurrentVersion ? 'CURRENT' : 'SUPERSEDED'} ·{' '}
                 {r.status.toUpperCase()}
                 {r.total != null ? ` · $${r.total.toFixed(2)}` : ''}
                 {i < rfq.draftedRequisitions.length - 1 ? '  ·  ' : ''}

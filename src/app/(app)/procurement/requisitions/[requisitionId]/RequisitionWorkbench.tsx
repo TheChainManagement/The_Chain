@@ -76,6 +76,10 @@ export function RequisitionActions({
 
   const status = requisition.status;
 
+  if (!requisition.isCurrentVersion) {
+    return <span className={styles.poMeta}>Superseded award · read only</span>;
+  }
+
   return (
     <div className={styles.headerActions}>
       {error ? (
@@ -164,7 +168,9 @@ export function RequisitionLines({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<number | 'new' | null>(null);
-  const editable = requisition.status === 'draft' || requisition.status === 'rejected';
+  const editable =
+    requisition.isCurrentVersion &&
+    (requisition.status === 'draft' || requisition.status === 'rejected');
 
   function updateLink(lineNo: number) {
     setError(null);
@@ -266,7 +272,7 @@ export function RequisitionLines({
               >
                 Edit line
               </button>
-            ) : line.unitCost == null ? (
+            ) : line.unitCost == null || !requisition.isCurrentVersion ? (
               <span />
             ) : linkCurrent ? (
               <span className={styles.linkDone}>Link current</span>

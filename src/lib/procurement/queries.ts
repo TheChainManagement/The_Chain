@@ -95,6 +95,8 @@ export interface DraftedRequisitionRow {
   status: string;
   total: number | null;
   createdAt: string;
+  awardVersion: number;
+  isCurrentVersion: boolean;
 }
 
 export interface RfqDetail {
@@ -150,6 +152,8 @@ interface RawRfqDetail {
     status: string;
     total: number | null;
     created_at: string;
+    award_version: number;
+    is_current_version: boolean;
   }[];
 }
 
@@ -165,7 +169,7 @@ export async function getRfqDetail(
        rfq_lines!rfq_lines_rfq_id_fkey ( line_no, qty, note, products ( id, sku, name, unit_of_measure ) ),
        rfq_vendors!rfq_vendors_rfq_id_fkey ( supplier_id, status, sent_at, suppliers ( name ) ),
        rfq_vendor_quotes!rfq_vendor_quotes_rfq_id_fkey ( supplier_id, line_no, quoted_unit_cost, quoted_purchase_uom, purchase_to_stock_factor, lead_time_days, moq, note ),
-       requisitions!requisitions_source_rfq_id_fkey ( id, status, total, created_at )`,
+       requisitions!requisitions_source_rfq_id_fkey ( id, status, total, created_at, award_version, is_current_version )`,
     )
     .eq('id', rfqId)
     .maybeSingle<RawRfqDetail>();
@@ -220,8 +224,10 @@ export async function getRfqDetail(
         status: r.status,
         total: r.total == null ? null : Number(r.total),
         createdAt: r.created_at,
+        awardVersion: r.award_version,
+        isCurrentVersion: r.is_current_version,
       }))
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      .sort((a, b) => b.awardVersion - a.awardVersion),
   };
 }
 
@@ -350,6 +356,8 @@ export interface RequisitionListRow {
   vendorCount: number;
   total: number | null;
   createdAt: string;
+  awardVersion: number;
+  isCurrentVersion: boolean;
 }
 
 interface RawRequisitionListRow {
@@ -357,6 +365,8 @@ interface RawRequisitionListRow {
   status: RequisitionStatus;
   total: number | null;
   created_at: string;
+  award_version: number;
+  is_current_version: boolean;
   locations: { name: string } | null;
   rfqs: { title: string | null } | null;
   requisition_lines: { supplier_id: string }[];
@@ -369,7 +379,7 @@ export async function listRequisitions(
   let query = supabase
     .from('requisitions')
     .select(
-      `id, status, total, created_at,
+      `id, status, total, created_at, award_version, is_current_version,
        locations ( name ),
        rfqs!requisitions_source_rfq_id_fkey ( title ),
        requisition_lines ( supplier_id )`,
@@ -389,6 +399,8 @@ export async function listRequisitions(
     vendorCount: new Set(r.requisition_lines.map((l) => l.supplier_id)).size,
     total: r.total == null ? null : Number(r.total),
     createdAt: r.created_at,
+    awardVersion: r.award_version,
+    isCurrentVersion: r.is_current_version,
   }));
 }
 
@@ -426,8 +438,20 @@ export interface RequisitionDetail {
   rejectionNote: string | null;
   total: number | null;
   createdAt: string;
+  awardVersion: number;
+  isCurrentVersion: boolean;
+  versionHistory: RequisitionVersionRow[];
   lines: RequisitionLineDetail[];
   purchaseOrders: ConvertedPoRow[];
+}
+
+export interface RequisitionVersionRow {
+  id: string;
+  status: RequisitionStatus;
+  awardVersion: number;
+  isCurrentVersion: boolean;
+  total: number | null;
+  createdAt: string;
 }
 
 interface RawRequisitionDetail {
@@ -438,6 +462,8 @@ interface RawRequisitionDetail {
   rejection_note: string | null;
   total: number | null;
   created_at: string;
+  award_version: number;
+  is_current_version: boolean;
   locations: { name: string } | null;
   rfqs: { title: string | null } | null;
   requisition_lines: {
@@ -466,6 +492,7 @@ export async function getRequisitionDetail(
     .from('requisitions')
     .select(
       `id, status, source_rfq_id, requested_by_user_id, rejection_note, total, created_at,
+       award_version, is_current_version,
        locations ( name ),
        rfqs!requisitions_source_rfq_id_fkey ( title ),
        requisition_lines ( line_no, qty, unit_cost, purchase_uom, purchase_to_stock_factor, supplier_id,
@@ -479,6 +506,26 @@ export async function getRequisitionDetail(
   }
   if (!data) {
     return null;
+  }
+
+  let versionHistory: RequisitionVersionRow[] = [];
+  if (data.source_rfq_id) {
+    const { data: versions, error: versionsError } = await supabase
+      .from('requisitions')
+      .select('id, status, award_version, is_current_version, total, created_at')
+      .eq('source_rfq_id', data.source_rfq_id)
+      .order('award_version', { ascending: false });
+    if (versionsError) {
+      throw new Error(`getRequisitionDetail history failed: ${versionsError.message}`);
+    }
+    versionHistory = (versions ?? []).map((row) => ({
+      id: row.id,
+      status: row.status as RequisitionStatus,
+      awardVersion: row.award_version,
+      isCurrentVersion: row.is_current_version,
+      total: row.total == null ? null : Number(row.total),
+      createdAt: row.created_at,
+    }));
   }
 
   const lines: RequisitionLineDetail[] = data.requisition_lines
@@ -527,6 +574,9 @@ export async function getRequisitionDetail(
     rejectionNote: data.rejection_note,
     total: data.total == null ? null : Number(data.total),
     createdAt: data.created_at,
+    awardVersion: data.award_version,
+    isCurrentVersion: data.is_current_version,
+    versionHistory,
     lines,
     purchaseOrders: data.purchase_orders.map((po) => ({
       id: po.id,

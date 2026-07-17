@@ -98,20 +98,13 @@ describe('zero balance writes — the kernel contract for satellite modules', ()
        values ($1, $2, $3, 1, 19.75, 'CS', 24, 7, $4)`,
       [T, rfq.id, ids.sup, U],
     );
-    const req = await one<{ id: string }>(
-      `insert into requisitions (tenant_id, location_id, source_rfq_id, requested_by_user_id, total)
-       values ($1, $2, $3, $4, 948.00) returning id`,
-      [T, ids.loc, rfq.id, U],
-    );
-    await client.query(
-      `insert into requisition_lines
-         (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost, purchase_uom, purchase_to_stock_factor, source_quote_line_no)
-       values ($1, $2, 1, $3, $4, 48, 19.75, 'CS', 24, 1)`,
-      [T, req.id, ids.prod, ids.sup],
+    const req = await one<{ out_requisition_id: string }>(
+      `select * from award_rfq_quotes_to_requisition($1, $2, $3::jsonb)`,
+      [T, rfq.id, JSON.stringify([{ lineNo: 1, supplierId: ids.sup }])],
     );
     await client.query(
       `update requisitions set status = 'submitted' where tenant_id = $1 and id = $2`,
-      [T, req.id],
+      [T, req.out_requisition_id],
     );
 
     await asSuperuser(client);

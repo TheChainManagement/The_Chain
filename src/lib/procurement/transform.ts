@@ -190,6 +190,12 @@ export function mapRfqWriteError(code: string | undefined, message: string): str
   if (code === '23514') {
     return 'Quantity must be greater than zero.';
   }
+  if (/requisition_superseded/i.test(message)) {
+    return 'This award has been superseded. Open the current version to continue.';
+  }
+  if (/converted_award_cannot_be_superseded/i.test(message)) {
+    return 'This award already became purchase orders and cannot be re-awarded.';
+  }
   return 'Could not save the quote request. Please try again.';
 }
 

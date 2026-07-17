@@ -656,17 +656,31 @@ import {
 async function loadRequisition(
   supabase: Server,
   requisitionId: string,
-): Promise<{ status: RequisitionStatus; requestedByUserId: string | null } | null> {
+): Promise<{
+  status: RequisitionStatus;
+  requestedByUserId: string | null;
+  isCurrentVersion: boolean;
+} | null> {
   const { data } = await supabase
     .from('requisitions')
-    .select('status, requested_by_user_id')
+    .select('status, requested_by_user_id, is_current_version')
     .eq('id', requisitionId)
-    .maybeSingle<{ status: RequisitionStatus; requested_by_user_id: string | null }>();
+    .maybeSingle<{
+      status: RequisitionStatus;
+      requested_by_user_id: string | null;
+      is_current_version: boolean;
+    }>();
   if (!data) {
     return null;
   }
-  return { status: data.status, requestedByUserId: data.requested_by_user_id };
+  return {
+    status: data.status,
+    requestedByUserId: data.requested_by_user_id,
+    isCurrentVersion: data.is_current_version,
+  };
 }
+
+const SUPERSEDED_MESSAGE = 'This award has been superseded. Open the current version to continue.';
 
 function revalidateRequisition(requisitionId: string): void {
   revalidatePath('/procurement');
@@ -686,6 +700,7 @@ export async function saveRequisitionLine(input: RequisitionLineInput): Promise<
   if (!actor) return { ok: false, error: PERMISSION_MESSAGE };
   const req = await loadRequisition(supabase, input.requisitionId);
   if (!req) return { ok: false, error: 'That requisition no longer exists.' };
+  if (!req.isCurrentVersion) return { ok: false, error: SUPERSEDED_MESSAGE };
   if (!canSubmitRequisition(req.status).ok) {
     return { ok: false, error: 'Only draft or rejected requisitions can be edited.' };
   }
@@ -714,6 +729,7 @@ export async function submitRequisition(input: { requisitionId: string }): Promi
   if (!req) {
     return { ok: false, error: 'That requisition no longer exists.' };
   }
+  if (!req.isCurrentVersion) return { ok: false, error: SUPERSEDED_MESSAGE };
   const allowed = canSubmitRequisition(req.status);
   if (!allowed.ok) {
     return allowed;
@@ -763,6 +779,7 @@ async function decideRequisition(
   if (!req) {
     return { ok: false, error: 'That requisition no longer exists.' };
   }
+  if (!req.isCurrentVersion) return { ok: false, error: SUPERSEDED_MESSAGE };
   const allowed = canDecideRequisition({
     status: req.status,
     role: actor.role,
@@ -796,6 +813,7 @@ export async function cancelRequisition(input: { requisitionId: string }): Promi
   if (!req) {
     return { ok: false, error: 'That requisition no longer exists.' };
   }
+  if (!req.isCurrentVersion) return { ok: false, error: SUPERSEDED_MESSAGE };
   const allowed = canCancelRequisition(req.status);
   if (!allowed.ok) {
     return allowed;
@@ -833,6 +851,7 @@ export async function convertRequisition(input: {
   if (!req) {
     return { ok: false, error: 'That requisition no longer exists.' };
   }
+  if (!req.isCurrentVersion) return { ok: false, error: SUPERSEDED_MESSAGE };
   const allowed = canConvertRequisition(req.status);
   if (!allowed.ok) {
     return allowed;
