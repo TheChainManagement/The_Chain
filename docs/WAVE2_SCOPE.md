@@ -115,7 +115,7 @@ Each is its own build with the normal gate (build, screenshot, MG review, code r
   `FEATURES.md`; review evidence: `_reviews/2026-07-13_item3_w2_3_review_finish_evidence.md`.
   The six production migrations, schema/security probes, main fast-forward, and live route
   smoke checks passed. Deployment evidence is recorded in the review file.
-- **W2-4: Multi-location (BUILT on review branch 2026-07-14; production pending MG gate).**
+- **W2-4: Multi-location (MERGED TO MAIN by 2026-07-16, baseline `362137d`).**
   URL-backed location scope, location management and location-aware operational surfaces,
   explicit-location forecast/policy computation, safe transfer recommendations, and atomic,
   idempotent paired transfer posting through the inventory kernel. Full signed-off contract:

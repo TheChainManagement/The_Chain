@@ -9,6 +9,10 @@ export default function SettingsPage() {
   return (
     <div className={pageStyles.stack}>
       <PageHeader eyebrow="Network · team · plan" title="Settings" />
+      <Panel prefix="Company" title="Team access">
+        <p>Create accounts, assign authority, and revoke access.</p>
+        <Link href="/settings/team">Manage team</Link>
+      </Panel>
       <Panel prefix="Network" title="Locations">
         <p>Create physical nodes, choose the default location, and safely archive sites.</p>
         <Link href="/settings/locations">Manage locations</Link>

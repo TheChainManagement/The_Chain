@@ -30,6 +30,14 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
     return { ok: false, error: 'That email and password do not match.' };
   }
 
+  // A provisional account is authenticated but intentionally has no membership
+  // claims yet. Existing members can also have a second company waiting. In
+  // both cases activation takes precedence over the bench.
+  const { data: pending } = await supabase.rpc('my_pending_tenant_access');
+  if (Array.isArray(pending) && pending.length > 0) {
+    redirect('/activate-account');
+  }
+
   redirect('/today');
 }
 
@@ -189,5 +197,64 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
     console.error('password reset audit write failed', auditError);
   }
 
+  redirect('/today');
+}
+
+export async function activateProvision(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const provisionId = String(formData.get('provision_id') ?? '');
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+  if (!provisionId) return { ok: false, error: 'That access record is unavailable.' };
+
+  const supabase = await createSupabaseServer();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Sign in again with the credentials you were given.' };
+
+  const { data: pending, error: pendingError } = await supabase.rpc('my_pending_tenant_access');
+  const provision = Array.isArray(pending)
+    ? pending.find((row) => row.provision_id === provisionId)
+    : null;
+  if (pendingError || !provision) return { ok: false, error: 'That access record is unavailable.' };
+
+  if (provision.requires_password_change) {
+    if (password.length < 6)
+      return { ok: false, error: 'Use a password with at least 6 characters.' };
+    if (password !== confirm)
+      return { ok: false, error: 'Those passwords do not match. Type the same one twice.' };
+    const expiry = new Date(String(provision.credential_expires_at ?? '')).getTime();
+    if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+      return {
+        ok: false,
+        error: 'That temporary password expired. Ask an owner or manager to create a new one.',
+      };
+    }
+    const { error: passwordError } = await supabase.auth.updateUser({ password });
+    if (passwordError) {
+      return {
+        ok: false,
+        error: /different from the old password/i.test(passwordError.message)
+          ? 'Choose a password different from the temporary password.'
+          : 'We could not update your password. Please try again.',
+      };
+    }
+    const admin = createSupabaseAdmin();
+    const { data: marked, error: markError } = await admin.rpc(
+      'mark_provisional_password_replaced',
+      { p_provision: provisionId, p_auth_user: user.id },
+    );
+    if (markError || marked !== true) {
+      return { ok: false, error: 'The credential expired before activation. Ask for a new one.' };
+    }
+  }
+
+  const { error: activationError } = await supabase.rpc('activate_tenant_access', {
+    p_provision: provisionId,
+  });
+  if (activationError) {
+    return { ok: false, error: 'We could not activate company access. Please try again.' };
+  }
+  await supabase.auth.refreshSession();
   redirect('/today');
 }

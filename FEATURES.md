@@ -710,7 +710,7 @@ trail. Shipped blocks record the contract the code was verified against.*
 - W2-2. Storeroom operations — **SHIPPED to prod** (`9d50726`, 2026-07-09)
 - W2-2.5. Inventory-core hardening (posting kernel, UoM conversion, valuation, on-hold) - **SHIPPED to prod** (`7df9ee8`, 2026-07-12)
 - W2-3. Procurement (RFQ, requisition, PO) - **SHIPPED to prod** (`0058367`, 2026-07-13)
-- W2-4. Multi-location UI — **BUILT on review branch** (`codex/w2-4-multi-location`, 2026-07-14; production pending MG gate)
+- W2-4. Multi-location UI — **MERGED TO MAIN** (`026c4ef`, merged baseline `362137d`, 2026-07-16)
 
 ---
 
@@ -998,6 +998,33 @@ tenant-wide roles now with per-location assignments deferred to Wave 3. Full des
 **What's memorable:** A chain-junction selector tightens the whole bench to one physical
 node. The transfer tray shows safe source surplus flowing into destination need, then resolves
 to matched OUT and IN ledger stamps without creating or destroying inventory.
+
+---
+
+## Feature: W3-0/W3-1 Role spine + provisional team accounts - built
+
+**Why:** Wave 3 turns the single-owner workshop into a real operating team. Authority must be
+enforced in PostgreSQL, and an owner-created account must remain isolated until its temporary
+password has been replaced.
+
+**What shipped:**
+
+1. A shared six-role capability registry and guarded membership mutation functions. Owners manage
+   other members at every role; managers manage lower roles only; self-mutation and final-owner
+   removal are blocked.
+2. Owner/manager-created provisional access with cryptographic one-time temporary passwords,
+   24-hour expiry, rotation, revocation, and audited lifecycle state. Passwords are never stored.
+3. Forced first-login password replacement backed by a service-only proof before atomic membership
+   activation. Existing Chain users retain their current password when another company adds them.
+4. A Team access bench for account creation, pending-access administration, role changes, and
+   removals. Provisional users have no tenant claims and cannot enter the main bench.
+
+**Acceptance:** clean migration replay; database hierarchy and activation-abuse probes; one-time
+credential component probes; 132 files and 940 tests; production build, TypeScript, Biome, craft
+guard, and local browser verification green.
+
+**What's memorable:** The temporary credential burns bright exactly once, then the first login
+stops at a locked activation plate until the user forges their own password.
 
 ---
 
