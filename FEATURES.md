@@ -1098,6 +1098,44 @@ chain or energize only named sites, and the member's entire bench physically nar
 
 ---
 
+## Feature: W3-4 Shared 30-day plan + role-emphasized Today - built
+
+**Why:** Every function needs one operating truth for the next month, while each role needs its
+daily bench to foreground the work it actually owns. Separate departmental dashboards would create
+separate answers; a shared snapshot with role-selected emphasis keeps the chain aligned.
+
+**Contract and decisions:**
+
+1. `/plan` computes one live, timestamped 30-day demand-coverage snapshot over the member's
+   authorized active locations and active SKUs. Coverage is covered forecast units divided by
+   usable forecast demand; zero demand says “No planned demand,” and missing forecasts are excluded
+   and counted as data-quality gaps.
+2. Physical availability derives from the canonical inventory position helper, removes its
+   `in_transit` bucket, and then adds only remaining stock-UoM quantities on committed POs due
+   inside the horizon. This prevents an approved PO from being counted once in
+   `inventory_levels.in_transit` and again as confirmed incoming.
+3. The shared plan exposes uncovered units, average-cost at-risk value, inventory value, open PO
+   commitment, confirmed incoming, unvalued gaps, and the top SKU/location coverage breaks.
+   Tenant-wide forecasts follow the engine's existing primary-location fallback.
+4. Every role sees Plan in the rail and the same underlying snapshot. Its next-read link changes by
+   capability only; no plan surface creates a new mutation path.
+5. `/today` remains one component tree. Owner/manager see coverage, commitments, and approvals;
+   planner sees stockout/forecast/reorder work; warehouse sees due receipts, holds/counts, and safe
+   transfers; finance sees value/commitment/supplier exposure; viewer sees read-only network health.
+   Every drill-down retains the selected authorized location.
+
+**Acceptance:** pure calculation probes cover no-double-count, PO conversion factors, horizon and
+status filtering, latest/primary forecast selection, zero-vs-missing demand, and at-risk valuation;
+six-role emphasis and location-preserving drill-down probes green; TypeScript, Biome, and an
+authenticated owner browser walkthrough of `/today` and `/plan` console-clean at desktop and mobile
+breakpoints.
+
+**What's memorable:** One large coverage number anchors the room, with a timestamp and denominator
+in plain sight. The same plan then turns its face toward each role without changing the facts under
+their hands.
+
+---
+
 ## How to add a feature mid-project
 1. Add a new `## Feature:` block above (matching the template structure including the "What's memorable" line + the Phase 6 visible-craft gate in the Codex review checklist).
 2. Update `MASTER_PROMPT.md` if the new feature requires new project-wide rules.

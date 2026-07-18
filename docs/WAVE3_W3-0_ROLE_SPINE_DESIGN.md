@@ -5,8 +5,8 @@ roadmap in `docs/WAVE2_SCOPE.md`, the identity and RLS contracts in `SYSTEM_DESI
 the shipped W2-4 location boundary, and a fresh code/schema audit on merged `main` at
 `362137d`.*
 
-*Status: **SIGNED OFF 2026-07-17.** All decisions in §11 are locked. W3-0 through W3-3 are built
-on `codex/w3-role-spine`; W3-4 shared planning is next.*
+*Status: **SIGNED OFF 2026-07-17.** All decisions in §11 are locked. W3-0 through W3-4 are built
+on `codex/w3-role-spine`; W3-5 approval policy is next.*
 
 ## 1. Outcome
 
@@ -231,7 +231,7 @@ first shared view.
    nav/action visibility, role landing tests.
 4. **W3-3 — location assignments (BUILT 2026-07-18):** mapping table, `can_access_location`, RLS/RPC rollout across
    every location-scoped surface, URL-tamper and cross-location probes.
-5. **W3-4 — shared plan + daily emphasis:** 30-day coverage read model, `/plan`, role-emphasized
+5. **W3-4 — shared plan + daily emphasis (BUILT 2026-07-18):** 30-day coverage read model, `/plan`, role-emphasized
    `/today`, finance/planner/warehouse drill-downs.
 6. **W3-5 — approval policy:** owner-configured requester auto-approval modes/limits and approver
    authority routing over the existing requisition decision trail.

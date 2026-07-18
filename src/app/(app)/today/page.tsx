@@ -7,8 +7,10 @@ import { ReorderInsightPanel } from '@/components/InsightPanel/ReorderInsightPan
 import { WeeklyChangeInsightPanel } from '@/components/InsightPanel/WeeklyChangeInsightPanel';
 import { MetricCell } from '@/components/MetricCell/MetricCell';
 import { Panel } from '@/components/Panel/Panel';
+import { isMemberRole, type MemberRole } from '@/lib/access';
 import { listOpenAlerts } from '@/lib/alerts/queue';
 import { countActiveProducts, loadSupplierOtif } from '@/lib/dashboard/queries';
+import { buildTodayFocusFacts } from '@/lib/dashboard/role-focus';
 import {
   dashboardStage,
   mostUsedSupplier,
@@ -21,11 +23,14 @@ import { locationHref } from '@/lib/locations/href';
 import { resolveLocationScope } from '@/lib/locations/scope';
 import { loadOnboardingState } from '@/lib/onboarding/queries';
 import { onboardingComplete } from '@/lib/onboarding/state';
+import { loadPlanSnapshot } from '@/lib/plan/queries';
 import { listPurchaseOrders } from '@/lib/purchase-orders/queries';
 import { buildOrderChain, openPoCount, orderConnector } from '@/lib/purchase-orders/transform';
 import { loadReorderQueue } from '@/lib/reorder/queue';
 import { createSupabaseServer } from '@/lib/supabase/server';
+import { loadTransferRecommendations } from '@/lib/transfers/recommend';
 import { RecentAlerts } from './RecentAlerts';
+import { RoleTodayPanel } from './RoleTodayPanel';
 import { ThroughputRuler } from './ThroughputRuler';
 import { type ChainStepView, TodayChain } from './TodayChain';
 import styles from './today.module.css';
@@ -61,6 +66,10 @@ export default async function TodayPage(
   },
 ): Promise<ReactNode> {
   const supabase = await createSupabaseServer();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const roleClaim = claimsData?.claims?.tenant_role;
+  if (!claimsData?.claims?.tenant_id) redirect('/signin');
+  const role: MemberRole = isMemberRole(roleClaim) ? roleClaim : 'viewer';
   const locationId = await resolveLocationScope(supabase, (await searchParams).location);
   const [pos, groups, alerts, otifBySupplier, productCount, onboarding] = await Promise.all([
     listPurchaseOrders(supabase, locationId),
@@ -139,12 +148,72 @@ export default async function TodayPage(
     );
   }
 
+  const capturedAt = new Date().toISOString();
+  const [plan, approvalsResult, countResult, transferRecommendations] = await Promise.all([
+    loadPlanSnapshot(supabase, { capturedAt, locationId }),
+    supabase
+      .from('requisitions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'submitted'),
+    (() => {
+      let query = supabase
+        .from('cycle_count_sessions')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['open', 'in_progress']);
+      if (locationId) query = query.eq('location_id', locationId);
+      return query;
+    })(),
+    role === 'warehouse' ? loadTransferRecommendations(supabase) : Promise.resolve([]),
+  ]);
+  if (approvalsResult.error) {
+    throw new Error(`today approvals failed: ${approvalsResult.error.message}`);
+  }
+  if (countResult.error) {
+    throw new Error(`today cycle counts failed: ${countResult.error.message}`);
+  }
+
   const mostPressing = pickMostPressingOpenPo(pos);
   const stockouts = stockoutCount(groups);
   const worst = worstDaysOfSupply(groups);
   const supplier = mostUsedSupplier(pos, otifBySupplier);
   const buckets = throughputLast7Days(pos, nowMs);
   const topAlert = alerts[0] ?? null;
+  const reorderCount = groups.reduce((sum, group) => sum + group.rows.length, 0);
+  const dueCutoff = nowMs + 7 * 24 * 60 * 60 * 1000;
+  const receiptsDue = pos.filter((po) => {
+    if (!['approved', 'exported', 'sent', 'partial_received'].includes(po.status)) return false;
+    if (!po.expectedDeliveryAt) return false;
+    return new Date(po.expectedDeliveryAt).getTime() <= dueCutoff;
+  }).length;
+  const scopedTransfers = locationId
+    ? transferRecommendations.filter(
+        (row) => row.sourceLocationId === locationId || row.destinationLocationId === locationId,
+      )
+    : transferRecommendations;
+  const supplierExposure = new Set(
+    pos
+      .filter((po) => ['approved', 'exported', 'sent', 'partial_received'].includes(po.status))
+      .map((po) => po.supplierId),
+  ).size;
+  const focusFacts = buildTodayFocusFacts(
+    role,
+    {
+      coveragePct: plan.coveragePct,
+      commitment: plan.openPoCommitment,
+      approvals: approvalsResult.count ?? 0,
+      stockouts,
+      missingForecasts: plan.dataQualityCount,
+      reorderCount,
+      receiptsDue,
+      heldUnits: plan.heldUnits,
+      cycleCounts: countResult.count ?? 0,
+      transfers: scopedTransfers.length,
+      inventoryValue: plan.inventoryValue,
+      supplierExposure,
+      uncoveredUnits: plan.uncoveredDemandUnits,
+    },
+    locationId,
+  );
 
   let steps: ChainStepView[] = [];
   let activeIndex = -1;
@@ -208,6 +277,8 @@ export default async function TodayPage(
           <MetricCell label="OPEN ORDERS" value={openPoCount(pos)} />
         </Link>
       </div>
+
+      <RoleTodayPanel role={role} facts={focusFacts} planHref={locationHref('/plan', locationId)} />
 
       <div className={styles.body}>
         <div className={styles.main}>

@@ -31,6 +31,7 @@ describe('LeftRail hides nav and stamps identity by member role', () => {
       <LeftRail userEmail="owner@thechain.test" role="owner" profile={distribution} />,
     );
     expect(getByRole('link', { name: 'Integrations' })).toBeInTheDocument();
+    expect(getByRole('link', { name: 'Plan' })).toBeInTheDocument();
     expect(getByRole('link', { name: 'Settings' })).toBeInTheDocument();
     expect(getByText('Owner')).toBeInTheDocument();
   });
@@ -42,6 +43,7 @@ describe('LeftRail hides nav and stamps identity by member role', () => {
     expect(queryByRole('link', { name: 'Integrations' })).toBeNull();
     expect(queryByRole('link', { name: 'Settings' })).toBeNull();
     expect(getByRole('link', { name: 'Forecasts' })).toBeInTheDocument();
+    expect(getByRole('link', { name: 'Plan' })).toBeInTheDocument();
     expect(getByRole('link', { name: 'Procurement' })).toBeInTheDocument();
     expect(getByText('Planner')).toBeInTheDocument();
   });
@@ -52,6 +54,7 @@ describe('LeftRail hides nav and stamps identity by member role', () => {
     );
     expect(getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
     expect(getByRole('link', { name: 'Transfers' })).toBeInTheDocument();
+    expect(getByRole('link', { name: 'Plan' })).toBeInTheDocument();
     for (const hidden of ['Forecasts', 'Suppliers', 'Procurement', 'Reorder', 'Settings']) {
       expect(queryByRole('link', { name: hidden })).toBeNull();
     }
@@ -63,6 +66,7 @@ describe('LeftRail hides nav and stamps identity by member role', () => {
       <LeftRail userEmail="viewer@thechain.test" role="viewer" profile={distribution} />,
     );
     expect(getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
+    expect(getByRole('link', { name: 'Plan' })).toBeInTheDocument();
     expect(queryByRole('link', { name: 'Settings' })).toBeNull();
     expect(queryByRole('link', { name: 'Integrations' })).toBeNull();
     expect(getByText('Viewer')).toBeInTheDocument();

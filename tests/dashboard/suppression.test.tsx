@@ -14,7 +14,19 @@ import type { ReorderGroup } from '@/lib/reorder/queue';
  */
 
 vi.mock('@/lib/supabase/server', () => ({
-  createSupabaseServer: async () => ({}),
+  createSupabaseServer: async () => ({
+    auth: {
+      getClaims: async () => ({
+        data: { claims: { tenant_id: 'tenant-1', tenant_role: 'owner' } },
+      }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: async () => ({ count: 0, error: null }),
+        in: async () => ({ count: 0, error: null }),
+      }),
+    }),
+  }),
 }));
 
 const po: PurchaseOrderListRow = {
@@ -88,6 +100,30 @@ vi.mock('@/lib/dashboard/queries', () => ({
 // Legacy tenant (no onboarding_state row, has a catalog) → past the Block 2 guard.
 vi.mock('@/lib/onboarding/queries', () => ({
   loadOnboardingState: async () => null,
+}));
+vi.mock('@/lib/plan/queries', () => ({
+  loadPlanSnapshot: async () => ({
+    capturedAt: '2026-06-15T00:00:00.000Z',
+    horizonEndsAt: '2026-07-15',
+    coveragePct: 80,
+    coveredDemandUnits: 80,
+    forecastDemandUnits: 100,
+    uncoveredDemandUnits: 20,
+    uncoveredDemandValue: 100,
+    unvaluedGapUnits: 0,
+    inventoryValue: 1_000,
+    heldUnits: 0,
+    openPoCommitment: 500,
+    confirmedIncomingUnits: 20,
+    dataQualityCount: 0,
+    activeSkuCount: 3,
+    authorizedLocationCount: 1,
+    committedPoCount: 1,
+    topGaps: [],
+  }),
+}));
+vi.mock('@/lib/transfers/recommend', () => ({
+  loadTransferRecommendations: async () => [],
 }));
 // Stub the lazy AI panels (they pull server-only insight deps) and the action.
 vi.mock('@/components/InsightPanel/ReorderInsightPanel', () => ({

@@ -6,6 +6,7 @@
 
 export const NAV_ITEMS = [
   { href: '/today', label: 'Today' },
+  { href: '/plan', label: 'Plan' },
   { href: '/inventory', label: 'Inventory' },
   { href: '/forecasts', label: 'Forecasts' },
   { href: '/suppliers', label: 'Suppliers' },
