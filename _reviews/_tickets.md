@@ -492,3 +492,13 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
   submit, approve, or convert. **DONE 2026-07-16 on `codex/w2-fast-follows`; atomic RFQ award
   versions, lifecycle guards, read-only history UI, cross-tenant probe, and converted-award safety
   stop are implemented.**
+
+## Wave 3 (2026-07-18)
+
+- [ ] **Full end-to-end demo/test data for a complete operational run-through.** MG (2026-07-18)
+  created warehouse/requester members on the W3 team bench and wants to eventually run the whole
+  system start to finish, but the demo tenant has no operable catalog. Seed vendors + SKUs (and the
+  supplier links / costs / UoM factors, plus enough on-hand and an open PO) so a fresh tenant can go
+  forecast → reorder → RFQ → award → requisition → approve → PO → receive → transfer without hand
+  seeding. Extend `scripts/seed-*.mjs`. **DEFERRED by MG until we're further along; do this before
+  the first full end-to-end walkthrough, not now.**

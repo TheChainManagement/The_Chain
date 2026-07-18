@@ -24,7 +24,7 @@ const { getProfile } = await import('@/lib/modes/profiles');
 describe('LeftRail fits nav + badge to the operating mode', () => {
   it('distribution: baseline inventory link + "demand from sales"', () => {
     const { getByRole, queryByRole, getByLabelText, getByText } = render(
-      <LeftRail userEmail="op@thechain.test" profile={getProfile('distribution')} />,
+      <LeftRail userEmail="op@thechain.test" role="owner" profile={getProfile('distribution')} />,
     );
     expect(getByRole('link', { name: 'Inventory' })).toBeInTheDocument();
     expect(queryByRole('link', { name: 'Storeroom' })).toBeNull();
@@ -34,7 +34,7 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
 
   it('storeroom: inventory link becomes "Storeroom" + "demand from issues"', () => {
     const { getByRole, queryByRole, getByLabelText, getByText } = render(
-      <LeftRail userEmail="op@thechain.test" profile={getProfile('storeroom')} />,
+      <LeftRail userEmail="op@thechain.test" role="owner" profile={getProfile('storeroom')} />,
     );
     // The /inventory slot is renamed in place — the baseline link is gone.
     expect(getByRole('link', { name: 'Storeroom' })).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
 
   it('food: inventory link becomes "Stock" + "demand from usage"', () => {
     const { getByRole, queryByRole, getByLabelText, getByText } = render(
-      <LeftRail userEmail="op@thechain.test" profile={getProfile('food')} />,
+      <LeftRail userEmail="op@thechain.test" role="owner" profile={getProfile('food')} />,
     );
     expect(getByRole('link', { name: 'Stock' })).toBeInTheDocument();
     expect(queryByRole('link', { name: 'Inventory' })).toBeNull();
@@ -58,6 +58,7 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
     const one = render(
       <LeftRail
         userEmail="op@thechain.test"
+        role="owner"
         profile={profile}
         locations={[{ id: 'l1', name: 'Main', isPrimary: true }]}
       />,
@@ -68,6 +69,7 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
     const network = render(
       <LeftRail
         userEmail="op@thechain.test"
+        role="owner"
         profile={profile}
         locations={[
           { id: 'l1', name: 'Main', isPrimary: true },
@@ -84,6 +86,7 @@ describe('LeftRail fits nav + badge to the operating mode', () => {
     const view = render(
       <LeftRail
         userEmail="op@thechain.test"
+        role="owner"
         profile={getProfile('distribution')}
         locations={[
           { id: 'l1', name: 'Main', isPrimary: true },

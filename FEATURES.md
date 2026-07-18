@@ -1028,6 +1028,35 @@ stops at a locked activation plate until the user forges their own password.
 
 ---
 
+## Feature: W3-2 Tenant switch + role-aware chrome - built
+
+**Why:** The role rows and provisional accounts exist, but every role still saw the owner's rail,
+and a person in two companies had no clean way to move between them. Chrome should fit the role, and
+switching context must prove membership before it changes anything.
+
+**What shipped:**
+
+1. The left rail hides nav the operating mode OR the member role cannot use (mode hiddenNav ∪ role
+   hiddenNav) and stamps the member's role by their identity. Nav hiding is chrome; the server
+   guards and RLS remain the authorization boundary, so a hidden route reached by direct URL still
+   resolves through them.
+2. `switch_active_tenant()` — membership in the target tenant is the gate; the RPC only moves
+   `profiles.active_tenant_id`, then the caller refreshes its session so the access-token hook
+   re-mints `tenant_id`/`tenant_role`. A `my_tenant_memberships()` definer helper lists the caller's
+   tenants across boundaries without loosening any policy.
+3. A company switcher in the rail, shown only when the person belongs to more than one tenant.
+
+**Acceptance:** role nav-hiding component probes; switch/list DB probes (membership required,
+cross-tenant/unauthenticated rejected, active tenant unchanged on failure); 134 files and 949 tests;
+TypeScript, Biome, craft guard, and local browser verification (planner rail collapses; a two-company
+user switches owner↔warehouse and the rail + role badge re-mint) green.
+
+**What's memorable:** One person, one session, switches company in the rail and the whole bench
+re-roles in place — owner nav collapses to warehouse and the badge flips — because the token itself
+was re-minted, not because the UI faked it.
+
+---
+
 ## How to add a feature mid-project
 1. Add a new `## Feature:` block above (matching the template structure including the "What's memorable" line + the Phase 6 visible-craft gate in the Codex review checklist).
 2. Update `MASTER_PROMPT.md` if the new feature requires new project-wide rules.

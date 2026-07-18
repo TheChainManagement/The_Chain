@@ -3,6 +3,7 @@ import { type ReactNode, Suspense } from 'react';
 import { BenchAtmosphere } from '@/components/bench/BenchAtmosphere';
 import { LeftRail } from '@/components/bench/LeftRail';
 import { RightRail } from '@/components/bench/RightRail';
+import { isMemberRole, type MemberRole } from '@/lib/access';
 import { hasAppAccess } from '@/lib/billing/plans';
 import { loadSubscription } from '@/lib/billing/subscription';
 import { listLocations } from '@/lib/locations/queries';
@@ -47,6 +48,13 @@ async function BenchGate({ children }: { children: ReactNode }) {
     redirect('/signin');
   }
 
+  // Role drives which nav the rail shows (W3-2). The hook mints tenant_role
+  // alongside tenant_id for a real membership; fail closed to the most
+  // restrictive role for chrome if it is ever absent — the server-side gates,
+  // not the rail, are the authorization boundary.
+  const roleClaim = claimsData?.claims?.tenant_role;
+  const role: MemberRole = isMemberRole(roleClaim) ? roleClaim : 'viewer';
+
   const { count } = await supabase
     .from('tenant_members')
     .select('tenant_id', { count: 'exact', head: true })
@@ -75,9 +83,24 @@ async function BenchGate({ children }: { children: ReactNode }) {
     .filter((location) => location.active)
     .map(({ id, name, isPrimary }) => ({ id, name, isPrimary }));
 
+  // W3-2: the rail offers a company switcher only when the person belongs to
+  // more than one tenant. Membership names come from a definer helper so the
+  // cross-tenant read needs no policy loosening.
+  const { data: membershipRows } = await supabase.rpc('my_tenant_memberships');
+  const memberships = Array.isArray(membershipRows)
+    ? membershipRows.map((row) => ({ tenantId: row.tenant_id, tenantName: row.tenant_name }))
+    : [];
+
   return (
     <>
-      <LeftRail userEmail={user.email ?? ''} profile={profile} locations={locations} />
+      <LeftRail
+        userEmail={user.email ?? ''}
+        role={role}
+        profile={profile}
+        locations={locations}
+        memberships={memberships}
+        activeTenantId={tenantId}
+      />
       <main className={styles.surface}>{children}</main>
       <RightRail />
       <div className={styles.throughput} aria-hidden="true">

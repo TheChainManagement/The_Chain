@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { switchActiveTenant } from '@/app/(app)/tenant-actions';
 import { signOut } from '@/app/(auth)/actions';
 import { ChainGlyph } from '@/components/brand/ChainGlyph';
+import { type MemberRole, ROLE_PROFILES } from '@/lib/access';
 import { NAV_ITEMS } from '@/lib/modes/nav';
 import type { OperatingProfile } from '@/lib/modes/types';
 import styles from './bench-rails.module.css';
@@ -13,18 +15,27 @@ import styles from './bench-rails.module.css';
  * LeftRail — bench navigation. Client component for the active-route highlight
  * (the single cobalt selected state for the rail region). Sign-out posts the
  * server action. W2-0: the layout resolves the tenant's operating profile and
- * passes it in; the rail fits nav labels (and, later, which items show) and
- * surfaces a mode badge under the brand.
+ * passes it in; the rail fits nav labels and surfaces a mode badge under the
+ * brand. W3-2: it also takes the member role — the rail hides nav the role
+ * cannot use (mode hiddenNav ∪ role hiddenNav) and shows the role by identity.
+ * Nav hiding is chrome, not authorization: RLS and server-side guards remain the
+ * boundary, so a hidden route reached by direct URL still resolves through them.
  */
 
 export function LeftRail({
   userEmail,
+  role,
   profile,
   locations = [],
+  memberships = [],
+  activeTenantId,
 }: {
   userEmail: string;
+  role: MemberRole;
   profile: OperatingProfile;
   locations?: { id: string; name: string; isPrimary: boolean }[];
+  memberships?: { tenantId: string; tenantName: string }[];
+  activeTenantId?: string;
 }): ReactNode {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,7 +48,11 @@ export function LeftRail({
     if (!validSelection) return href;
     return `${href}?location=${encodeURIComponent(validSelection)}`;
   };
-  const items = NAV_ITEMS.filter((item) => !profile.hiddenNav.includes(item.href)).map((item) => ({
+  // Hide nav the operating mode OR the member role cannot use. Union, not
+  // either/or: a warehouse role hides planning/procurement even in a mode that
+  // shows them, and a mode hides its own surfaces regardless of role.
+  const hidden = new Set<string>([...profile.hiddenNav, ...ROLE_PROFILES[role].hiddenNav]);
+  const items = NAV_ITEMS.filter((item) => !hidden.has(item.href)).map((item) => ({
     href: item.href,
     label: profile.navLabels[item.href] ?? item.label,
   }));
@@ -53,6 +68,24 @@ export function LeftRail({
         <span className={styles.modeLabel}>{profile.label}</span>
         <span className={styles.modeHint}>demand from {profile.demandNoun}</span>
       </div>
+
+      {memberships.length > 1 ? (
+        <form action={switchActiveTenant} className={styles.locationScope}>
+          <span>Company</span>
+          <select
+            name="tenant_id"
+            aria-label="Active company"
+            defaultValue={activeTenantId}
+            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+          >
+            {memberships.map((membership) => (
+              <option key={membership.tenantId} value={membership.tenantId}>
+                {membership.tenantName}
+              </option>
+            ))}
+          </select>
+        </form>
+      ) : null}
 
       {locations.length > 1 ? (
         <label className={styles.locationScope}>
@@ -97,7 +130,10 @@ export function LeftRail({
       </div>
 
       <div className={styles.footer}>
-        {userEmail ? <span className={styles.who}>{userEmail}</span> : null}
+        <div className={styles.identity}>
+          {userEmail ? <span className={styles.who}>{userEmail}</span> : null}
+          <span className={styles.role}>{ROLE_PROFILES[role].label}</span>
+        </div>
         <form action={signOut}>
           <button type="submit" className={styles.signout}>
             Close the workshop
