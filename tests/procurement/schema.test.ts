@@ -393,7 +393,7 @@ describe('constraints and lineage', () => {
          values ($1, $2, 88, $3, 1)`,
         [T, ids.other_rfq, ids.own_product],
       ),
-    ).rejects.toThrow(/foreign key/i);
+    ).rejects.toThrow(/foreign key|row-level security/i);
     await client.query('rollback to savepoint cross_tenant_parent');
   });
 

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
+import { Panel } from '@/components/Panel/Panel';
+import { isMemberRole, roleCan } from '@/lib/access';
 import { qboEnv } from '@/lib/env';
 import { getQboStatus } from '@/lib/qbo/connection';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -22,6 +24,17 @@ export default async function QuickBooksPage({
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
+  const roleClaim = data?.claims?.tenant_role;
+  if (!isMemberRole(roleClaim) || !roleCan(roleClaim, 'integrations.manage')) {
+    return (
+      <div className={pageStyles.stack}>
+        <PageHeader eyebrow="Integrations · native two-way sync" title="QuickBooks Online" />
+        <Panel prefix="Restricted" title="Connection access is limited">
+          <p>Only owners and managers can connect or inspect QuickBooks.</p>
+        </Panel>
+      </div>
+    );
+  }
 
   const status = tenantId ? await getQboStatus(supabase, tenantId) : { connected: false };
 

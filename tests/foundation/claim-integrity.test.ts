@@ -129,6 +129,14 @@ describe('the access-token hook only mints tenant claims when membership is real
 describe('a PO cannot reference another tenant’s recommendation', () => {
   it('rejects a purchase_order whose recommendation_id belongs to tenant B', async () => {
     await asSuperuser(client);
+    // The preceding stale-claim probe deliberately removed UA. Restore a real
+    // membership here because this probe is about the recommendation FK, not
+    // the now-stricter current-membership location gate.
+    await client.query(
+      `insert into public.tenant_members (tenant_id, user_id, role)
+       values ($1, $2, 'owner') on conflict do nothing`,
+      [A, UA],
+    );
     const aIds = await client.query<{ s: string; l: string }>(
       `select (select id from suppliers where tenant_id = $1 limit 1) as s,
               (select id from locations where tenant_id = $1 limit 1) as l`,

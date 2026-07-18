@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { memberCanAccessEveryLocation } from '@/lib/access/location-access';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -44,7 +45,17 @@ export async function executeTransfer(input: {
   }
   if (!OPERATOR_ROLES.has(role)) return { ok: false, error: PERMISSION_MESSAGE };
 
-  const { data, error } = await createSupabaseAdmin().rpc('execute_stock_transfer', {
+  const admin = createSupabaseAdmin();
+  if (
+    !(await memberCanAccessEveryLocation(admin, tenantId, userId, [
+      input.sourceLocationId,
+      input.destinationLocationId,
+    ]))
+  ) {
+    return { ok: false, error: 'You do not have access to both transfer locations.' };
+  }
+
+  const { data, error } = await admin.rpc('execute_stock_transfer', {
     p_tenant: tenantId,
     p_product: input.productId,
     p_source: input.sourceLocationId,

@@ -503,7 +503,18 @@ async function writeStockMovements(
   // A location is required; greenfield tenants have none, so provision a single
   // "Primary" one (system action via admin — the warehouse role can write
   // movements but not locations).
-  const locationId = await ensurePrimaryLocation(admin, tenantId);
+  // Pick from the caller's RLS-visible locations. A restricted warehouse user
+  // must never have an admin client silently route imported history to another
+  // site. Owners/managers can still provision Primary for a greenfield tenant.
+  const { data: visibleLocation } = await tenantClient
+    .from('locations')
+    .select('id')
+    .eq('active', true)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  const locationId = visibleLocation?.id ?? (await ensurePrimaryLocation(admin, tenantId));
   const located = rows.map((r) => ({ ...r, location_id: locationId }));
 
   // W2-2.5: historical movements enter through the kernel's ingestion door

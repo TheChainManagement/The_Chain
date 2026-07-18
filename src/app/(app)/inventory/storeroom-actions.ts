@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { memberCanAccessLocation } from '@/lib/access/location-access';
 import { postStockHold } from '@/lib/inventory/post-movement';
 import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { isDemandRefType } from '@/lib/storeroom/constants';
@@ -76,6 +77,11 @@ export async function issueStock(input: {
   }
 
   const admin = createSupabaseAdmin();
+  if (
+    !(await memberCanAccessLocation(admin, operator.tenantId, operator.userId, input.locationId))
+  ) {
+    return { ok: false, error: 'You do not have access to that location.' };
+  }
   if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
     return { ok: false, error: 'Select an active location before moving stock.' };
   }
@@ -123,6 +129,11 @@ export async function adjustStock(input: {
   }
 
   const admin = createSupabaseAdmin();
+  if (
+    !(await memberCanAccessLocation(admin, operator.tenantId, operator.userId, input.locationId))
+  ) {
+    return { ok: false, error: 'You do not have access to that location.' };
+  }
   if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
     return { ok: false, error: 'Select an active location before moving stock.' };
   }
@@ -174,6 +185,11 @@ export async function holdStock(input: {
   }
 
   const admin = createSupabaseAdmin();
+  if (
+    !(await memberCanAccessLocation(admin, operator.tenantId, operator.userId, input.locationId))
+  ) {
+    return { ok: false, error: 'You do not have access to that location.' };
+  }
   if (!(await isActiveTenantLocation(admin, operator.tenantId, input.locationId))) {
     return { ok: false, error: 'Select an active location before moving stock.' };
   }

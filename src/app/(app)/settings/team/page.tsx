@@ -30,10 +30,15 @@ export default async function TeamPage() {
   }
   const actorRole: MemberRole = roleValue;
 
-  const [{ data: memberData }, { data: provisionData }] = await Promise.all([
+  const [
+    { data: memberData },
+    { data: provisionData },
+    { data: locationData },
+    { data: assignmentData },
+  ] = await Promise.all([
     supabase
       .from('tenant_members')
-      .select('user_id, role, created_at')
+      .select('user_id, role, created_at, all_locations')
       .eq('tenant_id', tenantId)
       .order('created_at'),
     supabase
@@ -44,7 +49,25 @@ export default async function TeamPage() {
       .eq('tenant_id', tenantId)
       .eq('status', 'pending')
       .order('created_at'),
+    supabase
+      .from('locations')
+      .select('id, name')
+      .eq('tenant_id', tenantId)
+      .eq('active', true)
+      .order('name'),
+    supabase
+      .from('tenant_member_locations')
+      .select('user_id, location_id')
+      .eq('tenant_id', tenantId),
   ]);
+
+  const locations = (locationData ?? []).map((row) => ({ id: row.id, name: row.name }));
+  const assignedByUser = new Map<string, string[]>();
+  for (const row of assignmentData ?? []) {
+    const current = assignedByUser.get(row.user_id) ?? [];
+    current.push(row.location_id);
+    assignedByUser.set(row.user_id, current);
+  }
 
   const admin = createSupabaseAdmin();
   const members: TeamMemberRow[] = await Promise.all(
@@ -56,6 +79,8 @@ export default async function TeamPage() {
         role: row.role as MemberRole,
         createdAt: row.created_at,
         isCurrentUser: row.user_id === currentUserId,
+        allLocations: row.all_locations,
+        locationIds: assignedByUser.get(row.user_id) ?? [],
       };
     }),
   );
@@ -92,7 +117,7 @@ export default async function TeamPage() {
       <section className={styles.grid} aria-label="Active team members">
         <h2 className={styles.sectionTitle}>Active team</h2>
         {members.map((row) => (
-          <MemberCard key={row.userId} row={row} actorRole={actorRole} />
+          <MemberCard key={row.userId} row={row} actorRole={actorRole} locations={locations} />
         ))}
       </section>
     </div>

@@ -13,6 +13,7 @@ export async function requireMember(): Promise<{
   userId: string;
   email: string | null;
   tenantId: string;
+  role: string;
 }> {
   const supabase = await createSupabaseServer();
   const {
@@ -24,12 +25,13 @@ export async function requireMember(): Promise<{
   const tenantId = claims?.claims?.tenant_id as string | undefined;
   if (!tenantId) redirect('/signin');
 
-  const { count } = await supabase
+  const { data: membership } = await supabase
     .from('tenant_members')
-    .select('tenant_id', { count: 'exact', head: true })
+    .select('role')
     .eq('user_id', user.id)
-    .eq('tenant_id', tenantId);
-  if (!count || count < 1) redirect('/signin');
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (!membership) redirect('/signin');
 
-  return { userId: user.id, email: user.email ?? null, tenantId };
+  return { userId: user.id, email: user.email ?? null, tenantId, role: membership.role };
 }

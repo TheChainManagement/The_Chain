@@ -18,7 +18,23 @@ vi.mock('@/lib/reorder/generate', () => ({
 vi.mock('@/lib/reorder/convert', () => ({
   convertRecommendationsToPo: (...a: unknown[]) => convertMock(...a),
 }));
-vi.mock('@/lib/supabase/admin', () => ({ createSupabaseAdmin: () => ({}) }));
+vi.mock('@/lib/supabase/admin', () => ({
+  createSupabaseAdmin: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          in: async (_column: string, ids: string[]) => ({
+            data: ids.map(() => ({ location_id: 'L1' })),
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  }),
+}));
+vi.mock('@/lib/access/location-access', () => ({
+  memberCanAccessEveryLocation: async () => true,
+}));
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServer: async () => ({ auth: { getClaims: async () => ({ data: { claims } }) } }),
 }));

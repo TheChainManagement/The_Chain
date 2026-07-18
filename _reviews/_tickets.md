@@ -495,6 +495,12 @@ Evidence `_reviews/2026-06-16_feature_today_dashboard.md`; Codex round-1
 
 ## Wave 3 (2026-07-18)
 
+- [ ] **Quarantined provisional Auth-identity cleanup.** W3-2 review removed eager Auth deletion
+  after provision failure/revocation because Auth and Postgres cannot share the membership
+  transaction; another tenant can begin using the identity between the zero-reference check and
+  deletion. If dormant identities become operationally costly, add a scheduled janitor with a long
+  quarantine, `chain_provisional` marker, and immediate rechecks for zero memberships and zero
+  pending provisions before deletion. Never run it inline with revocation.
 - [ ] **Full end-to-end demo/test data for a complete operational run-through.** MG (2026-07-18)
   created warehouse/requester members on the W3 team bench and wants to eventually run the whole
   system start to finish, but the demo tenant has no operable catalog. Seed vendors + SKUs (and the

@@ -26,7 +26,15 @@ const h = vi.hoisted(() => ({
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServer: async () => ({
     auth: { getClaims: async () => ({ data: { claims: h.claims } }) },
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: { id: 's1' } }) }),
+      }),
+    }),
   }),
+}));
+vi.mock('@/lib/access/location-access', () => ({
+  memberCanAccessLocation: async () => true,
 }));
 vi.mock('@/lib/supabase/admin', () => ({ createSupabaseAdmin: () => ({}) }));
 vi.mock('@/lib/storeroom/post', () => ({

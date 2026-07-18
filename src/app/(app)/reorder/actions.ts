@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { memberCanAccessEveryLocation } from '@/lib/access/location-access';
 import { convertRecommendationsToPo } from '@/lib/reorder/convert';
 import { type GenerateSummary, generateReorderRecommendations } from '@/lib/reorder/generate';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -50,13 +51,33 @@ export async function convertSelectedToPo(input: {
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
   const role = data?.claims?.tenant_role as string | undefined;
+  const userId = data?.claims?.sub as string | undefined;
 
-  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  if (!tenantId || !userId) return { ok: false, error: 'Your session expired. Sign in again.' };
   if (!role || !PLANNER.has(role)) {
     return { ok: false, error: 'You do not have permission to create purchase orders.' };
   }
 
-  const result = await convertRecommendationsToPo(createSupabaseAdmin(), {
+  const admin = createSupabaseAdmin();
+  const { data: rows, error: rowsError } = await admin
+    .from('reorder_recommendations')
+    .select('location_id')
+    .eq('tenant_id', tenantId)
+    .in('id', input.recommendationIds);
+  if (
+    rowsError ||
+    (rows?.length ?? 0) !== new Set(input.recommendationIds).size ||
+    !(await memberCanAccessEveryLocation(
+      admin,
+      tenantId,
+      userId,
+      (rows ?? []).map((row) => row.location_id),
+    ))
+  ) {
+    return { ok: false, error: 'One or more recommendations are outside your location access.' };
+  }
+
+  const result = await convertRecommendationsToPo(admin, {
     tenantId,
     recommendationIds: input.recommendationIds,
   });

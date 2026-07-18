@@ -9,6 +9,7 @@ import {
   removeMember,
   revokePendingAccess,
   rotateTemporaryPassword,
+  setMemberLocationAccess,
   type TeamActionState,
 } from './actions';
 import styles from './team.module.css';
@@ -118,8 +119,17 @@ export function PendingAccessCard({ row }: { row: PendingProvisionRow }) {
   );
 }
 
-export function MemberCard({ row, actorRole }: { row: TeamMemberRow; actorRole: MemberRole }) {
+export function MemberCard({
+  row,
+  actorRole,
+  locations,
+}: {
+  row: TeamMemberRow;
+  actorRole: MemberRole;
+  locations: { id: string; name: string }[];
+}) {
   const [roleState, roleAction, changing] = useActionState(changeMemberRole, null);
+  const [locationState, locationAction, assigning] = useActionState(setMemberLocationAccess, null);
   const [removeState, removeAction, removing] = useActionState(removeMember, null);
   const editable = !row.isCurrentUser && canManageRole(actorRole, row.role, row.role);
   const nextRoles = MEMBER_ROLES.filter((role) => canManageRole(actorRole, row.role, role));
@@ -136,25 +146,68 @@ export function MemberCard({ row, actorRole }: { row: TeamMemberRow; actorRole: 
         <small>Active</small>
       </header>
       {editable ? (
-        <div className={styles.actions}>
-          <form action={roleAction} className={styles.roleForm}>
-            <input type="hidden" name="member_id" value={row.userId} />
-            <select name="role" defaultValue={row.role} aria-label={`Role for ${row.email}`}>
-              {nextRoles.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_PROFILES[role].label}
-                </option>
-              ))}
-            </select>
-            <Button>{changing ? 'Saving…' : 'Change role'}</Button>
-          </form>
-          <form action={removeAction}>
-            <input type="hidden" name="member_id" value={row.userId} />
-            <Button danger>{removing ? 'Removing…' : 'Remove access'}</Button>
-          </form>
+        <div className={styles.memberControls}>
+          <div className={styles.actions}>
+            <form action={roleAction} className={styles.roleForm}>
+              <input type="hidden" name="member_id" value={row.userId} />
+              <select name="role" defaultValue={row.role} aria-label={`Role for ${row.email}`}>
+                {nextRoles.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_PROFILES[role].label}
+                  </option>
+                ))}
+              </select>
+              <Button>{changing ? 'Saving…' : 'Change role'}</Button>
+            </form>
+            <form action={removeAction}>
+              <input type="hidden" name="member_id" value={row.userId} />
+              <Button danger>{removing ? 'Removing…' : 'Remove access'}</Button>
+            </form>
+          </div>
+          {!['owner', 'manager'].includes(row.role) ? (
+            <form action={locationAction} className={styles.locationForm}>
+              <input type="hidden" name="member_id" value={row.userId} />
+              <fieldset>
+                <legend>Location access</legend>
+                <label className={styles.scopeOption}>
+                  <input
+                    type="radio"
+                    name="location_scope"
+                    value="all"
+                    defaultChecked={row.allLocations}
+                  />
+                  All company locations
+                </label>
+                <label className={styles.scopeOption}>
+                  <input
+                    type="radio"
+                    name="location_scope"
+                    value="selected"
+                    defaultChecked={!row.allLocations}
+                  />
+                  Selected locations
+                </label>
+                <div className={styles.locationChecks}>
+                  {locations.map((location) => (
+                    <label key={location.id}>
+                      <input
+                        type="checkbox"
+                        name="location_id"
+                        value={location.id}
+                        defaultChecked={row.locationIds.includes(location.id)}
+                      />
+                      {location.name}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <Button>{assigning ? 'Saving…' : 'Save locations'}</Button>
+            </form>
+          ) : null}
         </div>
       ) : null}
       <Message state={roleState} />
+      <Message state={locationState} />
       <Message state={removeState} />
     </article>
   );

@@ -19,6 +19,13 @@ export async function switchActiveTenant(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc('switch_active_tenant', { p_tenant: tenantId });
   if (error) return;
 
-  await supabase.auth.refreshSession();
+  const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+  const { data: claimsData } = await supabase.auth.getClaims(refreshed.session?.access_token);
+  if (refreshError || !refreshed.session || claimsData?.claims?.tenant_id !== tenantId) {
+    // Never render a destination bench under stale claims. The profile remains
+    // on the membership-gated target; the next full sign-in will mint it cleanly.
+    await supabase.auth.signOut({ scope: 'local' });
+    redirect('/signin?error=tenant_switch_refresh');
+  }
   redirect('/today');
 }

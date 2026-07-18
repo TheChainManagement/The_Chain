@@ -37,6 +37,11 @@ beforeAll(async () => {
      values ($1, '00000000-0000-0000-0000-000000000000', 'approver-e@example.test')`,
     [APPROVER],
   );
+  await client.query(
+    `insert into tenant_members (tenant_id, user_id, role)
+     values ($1, $2, 'manager')`,
+    [T, APPROVER],
+  );
 
   // A second supplier so the requisition is mixed-vendor.
   const ids = await one<{ loc: string; prod: string; sup1: string }>(

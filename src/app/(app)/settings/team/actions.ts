@@ -118,7 +118,6 @@ export async function createTeamAccess(
       p_department: null,
     });
     if (error) {
-      if (createdAuthUser && authUserId) await admin.auth.admin.deleteUser(authUserId);
       return { ok: false, error: mapProvisionError(error.message) };
     }
 
@@ -136,7 +135,6 @@ export async function createTeamAccess(
         'This email already has a Chain account. Ask them to sign in with their current password to activate this company.',
     };
   } catch (error) {
-    if (createdAuthUser && authUserId) await admin.auth.admin.deleteUser(authUserId);
     console.error('team access creation failed', error);
     return { ok: false, error: 'We could not create access. Please try again.' };
   }
@@ -192,24 +190,10 @@ export async function revokePendingAccess(
   if (error) return { ok: false, error: mapProvisionError(error.message) };
 
   const result = Array.isArray(data) ? data[0] : null;
-  if (result?.out_revoked && result.out_created_auth_user && result.out_auth_user_id) {
-    const admin = createSupabaseAdmin();
-    const [{ count: memberships }, { count: otherPending }] = await Promise.all([
-      admin
-        .from('tenant_members')
-        .select('tenant_id', { count: 'exact', head: true })
-        .eq('user_id', result.out_auth_user_id),
-      admin
-        .from('tenant_access_provisions')
-        .select('id', { count: 'exact', head: true })
-        .eq('auth_user_id', result.out_auth_user_id)
-        .eq('status', 'pending'),
-    ]);
-    if (!memberships && !otherPending) {
-      const { error: deleteError } = await admin.auth.admin.deleteUser(result.out_auth_user_id);
-      if (deleteError) console.error('revoked provisional auth cleanup failed', deleteError);
-    }
-  }
+  // Do not delete the Auth identity here. Auth and Postgres cannot share the
+  // revocation transaction; another tenant may have provisioned this same user
+  // after our guarded check. A dormant identity has no tenant claims or data
+  // access, while deleting a now-shared identity would lock out a real member.
   refreshTeam();
   return {
     ok: true,
@@ -234,6 +218,29 @@ export async function changeMemberRole(
   if (error) return { ok: false, error: mapProvisionError(error.message) };
   refreshTeam();
   return { ok: true, message: 'Role updated.' };
+}
+
+export async function setMemberLocationAccess(
+  _prev: TeamActionState,
+  formData: FormData,
+): Promise<TeamActionState> {
+  const memberId = String(formData.get('member_id') ?? '');
+  const scope = String(formData.get('location_scope') ?? 'all');
+  const locationIds = formData.getAll('location_id').map(String).filter(Boolean);
+  const auth = await actor();
+  if (!auth || !memberId) return { ok: false, error: 'That member is unavailable.' };
+  if (scope === 'selected' && locationIds.length === 0) {
+    return { ok: false, error: 'Select at least one active location.' };
+  }
+  const { error } = await auth.supabase.rpc('set_tenant_member_location_access', {
+    p_tenant: auth.tenantId,
+    p_member: memberId,
+    p_all_locations: scope === 'all',
+    p_location_ids: locationIds,
+  });
+  if (error) return { ok: false, error: mapProvisionError(error.message) };
+  refreshTeam();
+  return { ok: true, message: 'Location access updated.' };
 }
 
 export async function removeMember(

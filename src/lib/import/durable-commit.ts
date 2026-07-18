@@ -43,6 +43,8 @@ export interface RunDurableParams {
   mapping: ColumnMapping;
   /** Pre-created by the action so polling can find the run immediately. */
   syncRunId: string;
+  /** RLS-authorized target selected before the workflow detaches. */
+  locationId?: string;
 }
 
 /** One writable DB row plus the bookkeeping a batched upsert needs. */
@@ -81,7 +83,7 @@ async function runImportDurableInner(
   const adapter = new CsvSourceAdapter({ [kind]: { csvText, mapping } });
   const pull = await adapter.pull(kind, null, syncRunId);
 
-  const prepared = await prepareWrites(admin, kind, tenantId, pull.items);
+  const prepared = await prepareWrites(admin, kind, tenantId, pull.items, params.locationId);
   const total = prepared.rows.length;
 
   // Resume point: how many rows a prior (crashed) attempt already got through.
@@ -142,6 +144,7 @@ async function prepareWrites(
   kind: ImportableKind,
   tenantId: string,
   items: CanonicalPayload[],
+  locationId?: string,
 ): Promise<PreparedWrite> {
   switch (kind) {
     case 'product':
@@ -149,7 +152,7 @@ async function prepareWrites(
     case 'supplier':
       return prepareSuppliers(admin, tenantId, items);
     case 'stock_movement':
-      return prepareMovements(admin, tenantId, items);
+      return prepareMovements(admin, tenantId, items, locationId);
     case 'product_supplier':
       // Links run synchronously (W2-1a) — the import action guards this kind off
       // the durable path. Reaching here means that guard regressed.
@@ -249,6 +252,7 @@ async function prepareMovements(
   admin: SupabaseClient,
   tenantId: string,
   items: CanonicalPayload[],
+  authorizedLocationId?: string,
 ): Promise<PreparedWrite> {
   const skus = [
     ...new Set(items.map((i) => (i.attributes as { productExternalId: string }).productExternalId)),
@@ -305,7 +309,7 @@ async function prepareMovements(
   // Only provision the Primary location when there is something to write.
   let locationId: string | null = null;
   if (staged.length > 0) {
-    locationId = await ensurePrimaryLocation(admin, tenantId);
+    locationId = authorizedLocationId ?? (await ensurePrimaryLocation(admin, tenantId));
   }
   const rows = staged.map((r) => ({ ...r, location_id: locationId }));
 

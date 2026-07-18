@@ -11,6 +11,8 @@ export interface TeamMemberRow {
   role: MemberRole;
   createdAt: string;
   isCurrentUser: boolean;
+  allLocations: boolean;
+  locationIds: string[];
 }
 
 export interface PendingProvisionRow {
@@ -65,6 +67,13 @@ export function mapProvisionError(message: string): string {
   if (/last_owner_required/i.test(message)) return 'Every company must keep at least one owner.';
   if (/self_role_change|self_removal/i.test(message))
     return 'You cannot change or remove your own access.';
+  if (/self_location_change/i.test(message)) return 'You cannot change your own location access.';
+  if (/location_assignment_required|final_location_assignment/i.test(message))
+    return 'Scoped access must keep at least one active location.';
+  if (/location_has_final_member_assignment/i.test(message))
+    return 'Reassign scoped members before archiving their final location.';
+  if (/active_location_not_found/i.test(message))
+    return 'One of those locations is no longer active.';
   if (/not_rotatable/i.test(message))
     return 'This account does not use a temporary password, or it is no longer pending.';
   if (/temporary_credential_expired/i.test(message))

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { startPortal } from '@/app/choose-plan/actions';
 import { PageHeader } from '@/components/bench/PageHeader';
 import { Panel } from '@/components/Panel/Panel';
+import { isMemberRole, roleCan } from '@/lib/access';
 import { PLAN_INFO } from '@/lib/billing/plans';
 import { loadSubscription } from '@/lib/billing/subscription';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -40,13 +41,21 @@ export default async function BillingSettings() {
   const { data: claims } = await supabase.auth.getClaims();
   const tenantId = claims?.claims?.tenant_id as string | undefined;
   if (!tenantId) redirect('/signin');
+  const roleClaim = claims?.claims?.tenant_role;
+  if (!isMemberRole(roleClaim) || !roleCan(roleClaim, 'billing.view')) {
+    return (
+      <Panel prefix="Restricted" title="Billing access is limited">
+        <p>Only owners and finance members can view company billing.</p>
+      </Panel>
+    );
+  }
 
   const sub = await loadSubscription(tenantId);
   const plan = PLAN_INFO.find((p) => p.tier === sub?.plan_code);
   const planName = plan?.name ?? (sub?.status === 'comp' ? 'Complimentary' : '—');
   const statusLabel = sub?.status ? (STATUS_LABEL[sub.status] ?? sub.status) : '—';
   const retention = sub?.retention_tier ? (RETENTION_LABEL[sub.retention_tier] ?? '—') : '—';
-  const canManage = Boolean(sub?.billing_customer_id);
+  const canManage = roleClaim === 'owner' && Boolean(sub?.billing_customer_id);
 
   return (
     <>

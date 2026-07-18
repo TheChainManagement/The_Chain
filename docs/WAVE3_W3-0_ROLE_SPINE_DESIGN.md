@@ -5,9 +5,8 @@ roadmap in `docs/WAVE2_SCOPE.md`, the identity and RLS contracts in `SYSTEM_DESI
 the shipped W2-4 location boundary, and a fresh code/schema audit on merged `main` at
 `362137d`.*
 
-*Status: **SIGNED OFF 2026-07-17.** All decisions in §11 are locked. W3-0 access-spine
-hardening and W3-1 provisional accounts/team bench are built on `codex/w3-role-spine`;
-W3-2 tenant switching and role-aware chrome are next.*
+*Status: **SIGNED OFF 2026-07-17.** All decisions in §11 are locked. W3-0 through W3-3 are built
+on `codex/w3-role-spine`; W3-4 shared planning is next.*
 
 ## 1. Outcome
 
@@ -228,9 +227,9 @@ first shared view.
 2. **W3-1 — provisional accounts + team bench (BUILT 2026-07-17):** owner-created accounts, one-time temporary
    credential reveal/rotation, forced password replacement, activation, member list and role
    changes, audit evidence.
-3. **W3-2 — tenant switch + role-aware chrome:** active-tenant action/session refresh, role badge,
+3. **W3-2 — tenant switch + role-aware chrome (BUILT 2026-07-18):** active-tenant action/session refresh, role badge,
    nav/action visibility, role landing tests.
-4. **W3-3 — location assignments:** mapping table, `can_access_location`, RLS/RPC rollout across
+4. **W3-3 — location assignments (BUILT 2026-07-18):** mapping table, `can_access_location`, RLS/RPC rollout across
    every location-scoped surface, URL-tamper and cross-location probes.
 5. **W3-4 — shared plan + daily emphasis:** 30-day coverage read model, `/plan`, role-emphasized
    `/today`, finance/planner/warehouse drill-downs.

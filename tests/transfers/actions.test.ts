@@ -18,6 +18,9 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdmin: () => ({ rpc: h.rpc }),
 }));
+vi.mock('@/lib/access/location-access', () => ({
+  memberCanAccessEveryLocation: async () => true,
+}));
 vi.mock('next/cache', () => ({ revalidatePath: h.revalidatePath }));
 
 import { executeTransfer } from '@/app/(app)/transfers/actions';

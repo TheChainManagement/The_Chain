@@ -1015,7 +1015,9 @@ password has been replaced.
 2. Owner/manager-created provisional access with cryptographic one-time temporary passwords,
    24-hour expiry, rotation, revocation, and audited lifecycle state. Passwords are never stored.
 3. Forced first-login password replacement backed by a service-only proof before atomic membership
-   activation. Existing Chain users retain their current password when another company adds them.
+   activation. The proof is a short-lived HttpOnly HMAC of the exact temporary password, so a user
+   cannot “replace” it with the same owner-visible credential. Existing Chain users retain their
+   current password when another company adds them.
 4. A Team access bench for account creation, pending-access administration, role changes, and
    removals. Provisional users have no tenant claims and cannot enter the main bench.
 
@@ -1045,6 +1047,10 @@ switching context must prove membership before it changes anything.
    re-mints `tenant_id`/`tenant_role`. A `my_tenant_memberships()` definer helper lists the caller's
    tenants across boundaries without loosening any policy.
 3. A company switcher in the rail, shown only when the person belongs to more than one tenant.
+4. Review hardening makes refresh fail closed: the destination renders only after the refreshed
+   token proves the target `tenant_id`; otherwise the local session is cleared. Switch events are
+   audited, billing is direct-route gated to owner/finance reads (portal remains owner-only), and
+   QuickBooks setup is direct-route gated to integration administrators.
 
 **Acceptance:** role nav-hiding component probes; switch/list DB probes (membership required,
 cross-tenant/unauthenticated rejected, active tenant unchanged on failure); 134 files and 949 tests;
@@ -1054,6 +1060,41 @@ user switches owner↔warehouse and the rail + role badge re-mint) green.
 **What's memorable:** One person, one session, switches company in the rail and the whole bench
 re-roles in place — owner nav collapses to warehouse and the badge flips — because the token itself
 was re-minted, not because the UI faked it.
+
+---
+
+## Feature: W3-3 Per-location member assignments - built
+
+**Why:** A tenant-wide role is too broad for a warehouse operator, planner, finance user, or viewer
+who works at only part of a chain. Location fencing must hold at PostgreSQL and every service-role
+posting path, not only in the selector.
+
+**Contract and decisions:**
+
+1. `tenant_members.all_locations` defaults true, preserving every existing member. Owners and
+   managers always remain company-wide; planner, warehouse, finance, and viewer members may be
+   company-wide or assigned one or more active locations.
+2. `tenant_member_locations` uses composite tenant-scoped foreign keys. Assignment writes are
+   closed to direct callers and flow through one guarded owner/manager RPC. Managers may administer
+   lower roles only; self-change, privileged targets, cross-tenant locations, and removal of the
+   final active assignment are rejected.
+3. `can_access_location(location_id)` reads current database membership and assignments—not JWT
+   assignment claims. RLS applies it to locations, inventory, movements, forecasts and policy,
+   recommendations, purchase orders and receipts, cycle counts, RFQs, requisitions, and both ends
+   of transfers. Descendant rows inherit the header's location boundary.
+4. Service-role stock posting, transfer, reorder conversion, cycle-count close, and CSV movement
+   import re-check the explicit actor against the same database primitive before bypassing RLS.
+   Detached movement imports carry an RLS-authorized location into the workflow.
+5. Team access exposes all-company vs selected-location controls. The rail receives only authorized
+   active locations; “All locations” means all authorized locations, and a single authorized site
+   keeps the quiet one-location shell.
+
+**Acceptance:** clean migration replay; scoped read/write, URL-shaped point-read, cross-tenant,
+hierarchy, final-assignment, audit, owner-override, and zero-direct-balance-write probes; focused
+browser verification of the owner assignment matrix and single-site planner rail.
+
+**What's memorable:** The Team card becomes a compact junction board: an owner can open the whole
+chain or energize only named sites, and the member's entire bench physically narrows to those nodes.
 
 ---
 

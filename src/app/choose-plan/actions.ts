@@ -25,7 +25,8 @@ async function origin(): Promise<string> {
 export async function startCheckout(formData: FormData): Promise<void> {
   const tier = String(formData.get('tier') ?? '');
   if (!isPlanTier(tier)) redirect('/choose-plan?error=invalid_plan');
-  const { email, tenantId } = await requireMember();
+  const { email, tenantId, role } = await requireMember();
+  if (role !== 'owner') redirect('/choose-plan?error=permission');
   let url: string;
   try {
     url = await createCheckoutSession({ tenantId, userEmail: email, tier, origin: await origin() });
@@ -36,7 +37,8 @@ export async function startCheckout(formData: FormData): Promise<void> {
 }
 
 export async function startPortal(): Promise<void> {
-  const { tenantId } = await requireMember();
+  const { tenantId, role } = await requireMember();
+  if (role !== 'owner') redirect('/settings/billing?error=permission');
   let url: string;
   try {
     url = await createPortalSession({ tenantId, origin: await origin() });

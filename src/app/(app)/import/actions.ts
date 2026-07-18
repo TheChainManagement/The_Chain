@@ -91,7 +91,25 @@ export async function runImport(input: {
     // Product-supplier links always run synchronously: link files are small (one
     // row per pair) and the durable writer doesn't cover this kind yet (W2-1a).
     if (input.kind !== 'product_supplier' && estimateDataRows(input.csvText) > DURABLE_THRESHOLD) {
-      return await startDurableImport({ ...input, tenantId });
+      let locationId: string | undefined;
+      if (input.kind === 'stock_movement') {
+        const { data: location } = await supabase
+          .from('locations')
+          .select('id')
+          .eq('active', true)
+          .order('is_primary', { ascending: false })
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle<{ id: string }>();
+        if (!location) {
+          return {
+            ok: false,
+            error: 'No authorized active location is available for this import.',
+          };
+        }
+        locationId = location.id;
+      }
+      return await startDurableImport({ ...input, tenantId, locationId });
     }
 
     const result = await runCsvImport({
@@ -124,6 +142,7 @@ async function startDurableImport(input: {
   mapping: ColumnMapping;
   idempotencyKey: string;
   tenantId: string;
+  locationId?: string;
 }): Promise<ImportActionResult> {
   const admin = createSupabaseAdmin();
   const trackingKey = input.idempotencyKey;
@@ -155,6 +174,7 @@ async function startDurableImport(input: {
         csvText: input.csvText,
         mapping: input.mapping,
         syncRunId: runRow.id,
+        locationId: input.locationId,
       },
     ]);
   } catch (err) {

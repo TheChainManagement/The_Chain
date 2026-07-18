@@ -1,7 +1,12 @@
 'use server';
 
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import {
+  createProvisionalPasswordProof,
+  matchesProvisionalPasswordProof,
+  PROVISIONAL_PASSWORD_PROOF_COOKIE,
+} from '@/lib/access/provisional-password-proof';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -25,7 +30,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   }
 
   const supabase = await createSupabaseServer();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return { ok: false, error: 'That email and password do not match.' };
   }
@@ -35,6 +40,39 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
   // both cases activation takes precedence over the bench.
   const { data: pending } = await supabase.rpc('my_pending_tenant_access');
   if (Array.isArray(pending) && pending.length > 0) {
+    const provision = pending[0];
+    const cookieStore = await cookies();
+    if (provision?.requires_password_change) {
+      if (!signInData.user?.id) {
+        await supabase.auth.signOut({ scope: 'local' });
+        return { ok: false, error: 'Sign in again before activating company access.' };
+      }
+      const expiresAt = new Date(String(provision.credential_expires_at ?? '')).getTime();
+      const remainingSeconds = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      cookieStore.set(
+        PROVISIONAL_PASSWORD_PROOF_COOKIE,
+        createProvisionalPasswordProof({
+          userId: signInData.user.id,
+          provisionId: provision.provision_id,
+          password,
+        }),
+        {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/activate-account',
+          maxAge: remainingSeconds,
+        },
+      );
+    } else {
+      cookieStore.set(PROVISIONAL_PASSWORD_PROOF_COOKIE, '', {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/activate-account',
+        maxAge: 0,
+      });
+    }
     redirect('/activate-account');
   }
 
@@ -230,6 +268,20 @@ export async function activateProvision(_prev: AuthState, formData: FormData): P
         error: 'That temporary password expired. Ask an owner or manager to create a new one.',
       };
     }
+    const cookieStore = await cookies();
+    const proof = cookieStore.get(PROVISIONAL_PASSWORD_PROOF_COOKIE)?.value;
+    if (!proof) {
+      return { ok: false, error: 'Sign in again with the temporary password before activating.' };
+    }
+    if (
+      matchesProvisionalPasswordProof(proof, {
+        userId: user.id,
+        provisionId,
+        password,
+      })
+    ) {
+      return { ok: false, error: 'Choose a password different from the temporary password.' };
+    }
     const { error: passwordError } = await supabase.auth.updateUser({ password });
     if (passwordError) {
       return {
@@ -256,5 +308,13 @@ export async function activateProvision(_prev: AuthState, formData: FormData): P
     return { ok: false, error: 'We could not activate company access. Please try again.' };
   }
   await supabase.auth.refreshSession();
+  const cookieStore = await cookies();
+  cookieStore.set(PROVISIONAL_PASSWORD_PROOF_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/activate-account',
+    maxAge: 0,
+  });
   redirect('/today');
 }

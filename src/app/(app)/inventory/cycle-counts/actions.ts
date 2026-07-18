@@ -157,6 +157,14 @@ export async function closeCountSession(input: {
     return { ok: false, error: 'Could not close the session. Refresh and try again.' };
   }
 
+  const supabase = await createSupabaseServer();
+  const { data: visibleSession } = await supabase
+    .from('cycle_count_sessions')
+    .select('id')
+    .eq('id', input.sessionId)
+    .maybeSingle<{ id: string }>();
+  if (!visibleSession) return { ok: false, error: 'That count session was not found.' };
+
   const result = await closeCycleCount(createSupabaseAdmin(), {
     tenantId: operator.tenantId,
     sessionId: input.sessionId,
