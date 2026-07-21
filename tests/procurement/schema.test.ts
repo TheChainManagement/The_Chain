@@ -102,10 +102,7 @@ describe('zero balance writes — the kernel contract for satellite modules', ()
       `select * from award_rfq_quotes_to_requisition($1, $2, $3::jsonb)`,
       [T, rfq.id, JSON.stringify([{ lineNo: 1, supplierId: ids.sup }])],
     );
-    await client.query(
-      `update requisitions set status = 'submitted' where tenant_id = $1 and id = $2`,
-      [T, req.out_requisition_id],
-    );
+    await client.query(`select * from submit_requisition($1, $2)`, [T, req.out_requisition_id]);
 
     await asSuperuser(client);
     const after = await one<{ levels: string; movements: string }>(
@@ -195,7 +192,7 @@ describe('direct requisition creation', () => {
     expect(after).toEqual(before);
   });
 
-  it('cannot create a document with another tenant\'s location or catalog rows', async () => {
+  it("cannot create a document with another tenant's location or catalog rows", async () => {
     await asSuperuser(client);
     const other = await one<{ loc: string; prod: string; sup: string }>(
       `select
@@ -297,10 +294,10 @@ describe('direct requisition line editing', () => {
          (select id from suppliers where tenant_id = $1 limit 1) as sup`,
       [T],
     );
-    await client.query(`update requisitions set status = 'submitted' where tenant_id = $1 and id = $2`, [
-      T,
-      ids.req,
-    ]);
+    await client.query(
+      `update requisitions set status = 'submitted' where tenant_id = $1 and id = $2`,
+      [T, ids.req],
+    );
     await as('owner');
     await client.query('savepoint submitted_line_edit');
     await expect(
@@ -313,10 +310,10 @@ describe('direct requisition line editing', () => {
     ).rejects.toThrow('requisition_not_editable');
     await client.query('rollback to savepoint submitted_line_edit');
     await asSuperuser(client);
-    await client.query(`update requisitions set status = 'draft' where tenant_id = $1 and id = $2`, [
-      T,
-      ids.req,
-    ]);
+    await client.query(
+      `update requisitions set status = 'draft' where tenant_id = $1 and id = $2`,
+      [T, ids.req],
+    );
   });
 });
 

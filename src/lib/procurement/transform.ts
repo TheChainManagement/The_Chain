@@ -196,6 +196,18 @@ export function mapRfqWriteError(code: string | undefined, message: string): str
   if (/converted_award_cannot_be_superseded/i.test(message)) {
     return 'This award already became purchase orders and cannot be re-awarded.';
   }
+  if (/approval_over_authority/i.test(message)) {
+    return 'This requisition is above your approval ceiling. Route it to another approver.';
+  }
+  if (/location_access_forbidden/i.test(message)) {
+    return 'You do not have access to this requisition location.';
+  }
+  if (/submission_forbidden|submission_rpc_required|decision_rpc_required/i.test(message)) {
+    return PERMISSION_MESSAGE;
+  }
+  if (/costed_lines_required/i.test(message)) {
+    return 'Add at least one costed line before submitting.';
+  }
   return 'Could not save the quote request. Please try again.';
 }
 

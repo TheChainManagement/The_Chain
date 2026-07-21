@@ -45,6 +45,8 @@ function requisition(overrides: Partial<RequisitionDetail> = {}): RequisitionDet
     sourceRfqTitle: 'Q3 fasteners',
     requestedByUserId: 'requester',
     rejectionNote: null,
+    approvalReason: null,
+    approvalPolicySnapshot: null,
     total: 146,
     createdAt: new Date(0).toISOString(),
     awardVersion: 1,
@@ -175,7 +177,9 @@ describe('draft and rejected line editing', () => {
 
   it('saves an edited rejected line through the guarded action', async () => {
     saveRequisitionLine.mockResolvedValue({ ok: true });
-    render(<RequisitionLines requisition={requisition({ status: 'rejected' })} options={options} />);
+    render(
+      <RequisitionLines requisition={requisition({ status: 'rejected' })} options={options} />,
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Edit line' }));
     await userEvent.clear(screen.getByLabelText('Purchase quantity'));
     await userEvent.type(screen.getByLabelText('Purchase quantity'), '6');
@@ -205,7 +209,7 @@ describe('draft and rejected line editing', () => {
       </>,
     );
     expect(screen.getByText('Superseded award · read only')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Submit for approval' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit requisition' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit line' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Update link price' })).not.toBeInTheDocument();
   });

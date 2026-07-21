@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import type { RequisitionRequesterMode } from './requisition-authority';
 import type { MemberRole } from './roles';
 
 export const TEMPORARY_CREDENTIAL_HOURS = 24;
@@ -13,6 +14,9 @@ export interface TeamMemberRow {
   isCurrentUser: boolean;
   allLocations: boolean;
   locationIds: string[];
+  requesterMode: RequisitionRequesterMode;
+  requesterLimit: number | null;
+  approverLimit: number | null;
 }
 
 export interface PendingProvisionRow {

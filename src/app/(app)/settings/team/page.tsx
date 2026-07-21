@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/bench/PageHeader';
 import pageStyles from '@/components/bench/page.module.css';
 import { Panel } from '@/components/Panel/Panel';
 import type { PendingProvisionRow, TeamMemberRow } from '@/lib/access/provisioning';
+import type { RequisitionRequesterMode } from '@/lib/access/requisition-authority';
 import { isMemberRole, type MemberRole } from '@/lib/access/roles';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -35,6 +36,7 @@ export default async function TeamPage() {
     { data: provisionData },
     { data: locationData },
     { data: assignmentData },
+    { data: authorityData },
   ] = await Promise.all([
     supabase
       .from('tenant_members')
@@ -59,6 +61,10 @@ export default async function TeamPage() {
       .from('tenant_member_locations')
       .select('user_id, location_id')
       .eq('tenant_id', tenantId),
+    supabase
+      .from('tenant_member_requisition_authority')
+      .select('user_id, requester_mode, requester_limit, approver_limit')
+      .eq('tenant_id', tenantId),
   ]);
 
   const locations = (locationData ?? []).map((row) => ({ id: row.id, name: row.name }));
@@ -68,11 +74,13 @@ export default async function TeamPage() {
     current.push(row.location_id);
     assignedByUser.set(row.user_id, current);
   }
+  const authorityByUser = new Map((authorityData ?? []).map((row) => [row.user_id, row]));
 
   const admin = createSupabaseAdmin();
   const members: TeamMemberRow[] = await Promise.all(
     (memberData ?? []).map(async (row) => {
       const { data } = await admin.auth.admin.getUserById(row.user_id);
+      const authority = authorityByUser.get(row.user_id);
       return {
         userId: row.user_id,
         email: data.user?.email ?? 'Unknown email',
@@ -81,6 +89,12 @@ export default async function TeamPage() {
         isCurrentUser: row.user_id === currentUserId,
         allLocations: row.all_locations,
         locationIds: assignedByUser.get(row.user_id) ?? [],
+        requesterMode:
+          (authority?.requester_mode as RequisitionRequesterMode | undefined) ??
+          'always_require_approval',
+        requesterLimit:
+          authority?.requester_limit == null ? null : Number(authority.requester_limit),
+        approverLimit: authority?.approver_limit == null ? null : Number(authority.approver_limit),
       };
     }),
   );

@@ -718,7 +718,7 @@ export async function saveRequisitionLine(input: RequisitionLineInput): Promise<
   return { ok: true };
 }
 
-/** Draft (or rejected) → submitted. Any procurement writer may submit. */
+/** Draft/rejected submission and requester-authority evaluation happen atomically in PostgreSQL. */
 export async function submitRequisition(input: { requisitionId: string }): Promise<RfqEditState> {
   const supabase = await createSupabaseServer();
   const actor = await resolveActor(supabase);
@@ -735,10 +735,10 @@ export async function submitRequisition(input: { requisitionId: string }): Promi
     return allowed;
   }
 
-  const { error } = await supabase
-    .from('requisitions')
-    .update({ status: 'submitted', rejection_note: null })
-    .eq('id', input.requisitionId);
+  const { error } = await supabase.rpc('submit_requisition', {
+    p_tenant: actor.tenantId,
+    p_requisition: input.requisitionId,
+  });
   if (error) {
     return { ok: false, error: mapRfqWriteError(error.code, error.message) };
   }

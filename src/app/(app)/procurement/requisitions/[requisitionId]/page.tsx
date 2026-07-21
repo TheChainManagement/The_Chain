@@ -11,6 +11,49 @@ import styles from './requisition.module.css';
 
 export const metadata = { title: 'Requisition · The Chain' };
 
+function ApprovalPolicyResult({
+  reason,
+  snapshot,
+}: {
+  reason: string;
+  snapshot: { requester_limit?: number | null; evaluated_total?: number } | null;
+}): ReactNode {
+  const limit = snapshot?.requester_limit;
+  const amount =
+    limit == null
+      ? null
+      : `$${Number(limit).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+  const copy: Record<string, { signal: string; detail: string }> = {
+    within_requester_limit: {
+      signal: 'Approved automatically',
+      detail: `The recorded request total was within this member’s${amount ? ` ${amount}` : ''} automatic authority.`,
+    },
+    unlimited_requester_authority: {
+      signal: 'Approved automatically',
+      detail: 'The owner granted this member unlimited automatic request authority.',
+    },
+    requester_limit_exceeded: {
+      signal: 'Approval required',
+      detail: `The recorded request total exceeded this member’s${amount ? ` ${amount}` : ''} automatic authority.`,
+    },
+    approval_required_by_policy: {
+      signal: 'Approval required',
+      detail: 'This member’s policy routes every requisition to an owner or manager.',
+    },
+  };
+  const result = copy[reason];
+  if (!result) return null;
+  return (
+    <div className={styles.policyResult} role="status">
+      <span>{result.signal}</span>
+      <p>{result.detail} This reason and policy snapshot are preserved in the audit trail.</p>
+    </div>
+  );
+}
+
 /**
  * Requisition detail (W2-3 slice 4): the approval document. Chain + decision
  * trail, purchase-UoM lines with the update-link-price affordance, and the
@@ -91,6 +134,13 @@ export default async function RequisitionDetailPage({
             </Link>
           ) : null}
         </div>
+      ) : null}
+
+      {requisition.approvalReason ? (
+        <ApprovalPolicyResult
+          reason={requisition.approvalReason}
+          snapshot={requisition.approvalPolicySnapshot}
+        />
       ) : null}
 
       {requisition.versionHistory.length > 1 ? (

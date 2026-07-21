@@ -7,6 +7,7 @@ import {
   type OneTimeCredential,
   temporaryCredentialExpiry,
 } from '@/lib/access/provisioning';
+import { isRequisitionRequesterMode } from '@/lib/access/requisition-authority';
 import { canManageRole, isMemberRole, type MemberRole } from '@/lib/access/roles';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -199,6 +200,49 @@ export async function revokePendingAccess(
     ok: true,
     message: result?.out_revoked ? 'Pending access revoked.' : 'Access was already closed.',
   };
+}
+
+function optionalAmount(value: FormDataEntryValue | null): number | null | undefined {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const amount = Number(text);
+  return Number.isFinite(amount) && amount >= 0 ? amount : undefined;
+}
+
+export async function setMemberRequisitionAuthority(
+  _prev: TeamActionState,
+  formData: FormData,
+): Promise<TeamActionState> {
+  const memberId = String(formData.get('member_id') ?? '');
+  const modeValue = String(formData.get('requester_mode') ?? '');
+  const requesterLimit = optionalAmount(formData.get('requester_limit'));
+  const approverLimit = optionalAmount(formData.get('approver_limit'));
+  const auth = await actor();
+  if (auth?.role !== 'owner' || !memberId || !isRequisitionRequesterMode(modeValue)) {
+    return { ok: false, error: 'Only an owner can change requisition authority.' };
+  }
+  if (requesterLimit === undefined || approverLimit === undefined) {
+    return { ok: false, error: 'Spend limits must be zero or greater.' };
+  }
+  if (modeValue === 'auto_approve_to_limit' && requesterLimit == null) {
+    return { ok: false, error: 'Enter the amount this person may request automatically.' };
+  }
+
+  const { error } = await auth.supabase.rpc('set_member_requisition_authority', {
+    p_tenant: auth.tenantId,
+    p_member: memberId,
+    p_requester_mode: modeValue,
+    p_requester_limit: modeValue === 'auto_approve_to_limit' ? requesterLimit : null,
+    p_approver_limit: approverLimit,
+  });
+  if (error) {
+    if (/authority_forbidden/i.test(error.message)) {
+      return { ok: false, error: 'Only an owner can change requisition authority.' };
+    }
+    return { ok: false, error: 'We could not save that requisition authority.' };
+  }
+  refreshTeam();
+  return { ok: true, message: 'Requisition authority saved.' };
 }
 
 export async function changeMemberRole(

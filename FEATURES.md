@@ -1136,6 +1136,43 @@ their hands.
 
 ---
 
+## Feature: W3-5 Owner-configured requisition authority - built
+
+**Why:** A company must decide how much each person may request or approve. A global hard-coded
+threshold cannot express a $1,500 requester beside a $50,000 approver, and system-delegated
+automatic approval must remain distinct from a requester approving their own document.
+
+**Contract and decisions:**
+
+1. Every member has one explicit requester mode: always require approval (the shipped default),
+   automatic approval at or below an owner-set limit, or unlimited automatic approval. Null and
+   zero never carry overloaded meanings.
+2. Human approver ceilings are configured independently per member. An absent ceiling is unlimited;
+   a configured ceiling blocks approvals above it while rejection remains available.
+3. Submission is one row-locked database transaction over the current requisition, costed lines,
+   member, and policy. It recomputes the authoritative total and either queues the document or makes
+   a system decision with no human approver.
+4. The immutable audit snapshot records the system actor, requester/member policy, limit, evaluated
+   total, award version, timestamp, and exact reason. A replacement award is evaluated again under
+   the current policy.
+5. Only owners mutate authority. Direct lifecycle and policy writes cannot bypass the RPCs;
+   submitted totals/lines are frozen; human decisions retain current-database role, W3-3 location,
+   ceiling, and no-self-approval checks.
+6. Team cards expose the owner controls, and requisition detail explains the recorded result. The
+   entire slice remains document-only with zero inventory balance or movement writes.
+
+**Acceptance:** backfill/new-member defaults, owner-only mutation, all three modes, inclusive limit,
+over-limit routing, immutable system audit evidence, re-version evaluation, human ceiling, direct
+bypass denial, self-approval, and zero-balance-write database probes; 140 files / 980 tests;
+TypeScript, Biome, craft, production build, and authenticated desktop/mobile browser walkthrough
+green.
+
+**What's memorable:** The Team card becomes an authority dial. Turn a person to $1,500 and their
+$480 request crosses the chain by itself, leaving a bright system-decision plate and a durable audit
+snapshot instead of pretending they approved their own work.
+
+---
+
 ## How to add a feature mid-project
 1. Add a new `## Feature:` block above (matching the template structure including the "What's memorable" line + the Phase 6 visible-craft gate in the Codex review checklist).
 2. Update `MASTER_PROMPT.md` if the new feature requires new project-wide rules.

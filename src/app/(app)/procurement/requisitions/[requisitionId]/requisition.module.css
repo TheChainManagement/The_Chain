@@ -254,6 +254,33 @@
   color: var(--color-dim);
   white-space: nowrap;
 }
+.policyResult {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.35fr) minmax(0, 1fr);
+  gap: var(--spacing-3);
+  align-items: center;
+  border-left: 3px solid var(--color-flow);
+  background: var(--color-inset);
+  padding: 12px var(--spacing-4);
+}
+.policyResult span {
+  color: var(--color-flow);
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.policyResult p {
+  margin: 0;
+  color: var(--color-deep);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 680px) {
+  .policyResult {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* ----- Converted POs panel ----- */
 .pos {

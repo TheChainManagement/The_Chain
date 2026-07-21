@@ -101,7 +101,7 @@ export function RequisitionActions({
             onClick={() => run(() => submitRequisition({ requisitionId: requisition.id }))}
             loading={pending}
           >
-            {status === 'rejected' ? 'Resubmit for approval' : 'Submit for approval'}
+            {status === 'rejected' ? 'Resubmit requisition' : 'Submit requisition'}
           </ActionButton>
         </>
       ) : null}

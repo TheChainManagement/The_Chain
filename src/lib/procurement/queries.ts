@@ -436,6 +436,12 @@ export interface RequisitionDetail {
   sourceRfqTitle: string | null;
   requestedByUserId: string | null;
   rejectionNote: string | null;
+  approvalReason: string | null;
+  approvalPolicySnapshot: {
+    requester_mode?: string;
+    requester_limit?: number | null;
+    evaluated_total?: number;
+  } | null;
   total: number | null;
   createdAt: string;
   awardVersion: number;
@@ -460,6 +466,8 @@ interface RawRequisitionDetail {
   source_rfq_id: string | null;
   requested_by_user_id: string | null;
   rejection_note: string | null;
+  approval_reason: string | null;
+  approval_policy_snapshot: RequisitionDetail['approvalPolicySnapshot'];
   total: number | null;
   created_at: string;
   award_version: number;
@@ -491,7 +499,8 @@ export async function getRequisitionDetail(
   const { data, error } = await supabase
     .from('requisitions')
     .select(
-      `id, status, source_rfq_id, requested_by_user_id, rejection_note, total, created_at,
+      `id, status, source_rfq_id, requested_by_user_id, rejection_note,
+       approval_reason, approval_policy_snapshot, total, created_at,
        award_version, is_current_version,
        locations ( name ),
        rfqs!requisitions_source_rfq_id_fkey ( title ),
@@ -572,6 +581,8 @@ export async function getRequisitionDetail(
     sourceRfqTitle: data.rfqs?.title ?? null,
     requestedByUserId: data.requested_by_user_id,
     rejectionNote: data.rejection_note,
+    approvalReason: data.approval_reason,
+    approvalPolicySnapshot: data.approval_policy_snapshot,
     total: data.total == null ? null : Number(data.total),
     createdAt: data.created_at,
     awardVersion: data.award_version,

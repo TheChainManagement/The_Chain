@@ -2,6 +2,11 @@
 
 import { type ReactNode, useActionState, useState } from 'react';
 import type { PendingProvisionRow, TeamMemberRow } from '@/lib/access/provisioning';
+import {
+  REQUISITION_REQUESTER_MODE_LABELS,
+  REQUISITION_REQUESTER_MODES,
+  type RequisitionRequesterMode,
+} from '@/lib/access/requisition-authority';
 import { canManageRole, MEMBER_ROLES, type MemberRole, ROLE_PROFILES } from '@/lib/access/roles';
 import {
   changeMemberRole,
@@ -10,6 +15,7 @@ import {
   revokePendingAccess,
   rotateTemporaryPassword,
   setMemberLocationAccess,
+  setMemberRequisitionAuthority,
   type TeamActionState,
 } from './actions';
 import styles from './team.module.css';
@@ -206,9 +212,83 @@ export function MemberCard({
           ) : null}
         </div>
       ) : null}
+      {actorRole === 'owner' ? <MemberAuthorityForm row={row} /> : null}
       <Message state={roleState} />
       <Message state={locationState} />
       <Message state={removeState} />
     </article>
+  );
+}
+
+function MemberAuthorityForm({ row }: { row: TeamMemberRow }) {
+  const [state, action, pending] = useActionState(setMemberRequisitionAuthority, null);
+  const [mode, setMode] = useState<RequisitionRequesterMode>(row.requesterMode);
+  return (
+    <div className={styles.authorityBlock}>
+      <div className={styles.authorityHead}>
+        <strong>Requisition authority</strong>
+        <span>Owner controlled</span>
+      </div>
+      <form action={action} className={styles.authorityForm}>
+        <input type="hidden" name="member_id" value={row.userId} />
+        <label className={styles.authorityMode}>
+          Requests
+          <select
+            name="requester_mode"
+            value={mode}
+            onChange={(event) => setMode(event.target.value as RequisitionRequesterMode)}
+            aria-label={`Request authority for ${row.email}`}
+          >
+            {REQUISITION_REQUESTER_MODES.map((value) => (
+              <option key={value} value={value}>
+                {REQUISITION_REQUESTER_MODE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {mode === 'auto_approve_to_limit' ? (
+          <label>
+            Automatic limit
+            <span className={styles.moneyInput}>
+              <span>$</span>
+              <input
+                type="number"
+                name="requester_limit"
+                min="0"
+                step="0.01"
+                defaultValue={row.requesterLimit ?? ''}
+                required
+                aria-label={`Automatic request limit for ${row.email}`}
+              />
+            </span>
+          </label>
+        ) : null}
+        {['owner', 'manager'].includes(row.role) ? (
+          <label>
+            Approval ceiling
+            <span className={styles.moneyInput}>
+              <span>$</span>
+              <input
+                type="number"
+                name="approver_limit"
+                min="0"
+                step="0.01"
+                defaultValue={row.approverLimit ?? ''}
+                placeholder="Unlimited"
+                aria-label={`Approval ceiling for ${row.email}`}
+              />
+            </span>
+          </label>
+        ) : (
+          <input type="hidden" name="approver_limit" value="" />
+        )}
+        <Button>{pending ? 'Saving…' : 'Save authority'}</Button>
+      </form>
+      <p className={styles.authorityNote}>
+        Blank approval ceiling means unlimited. Automatic request approval is a recorded system
+        decision, never self-approval.
+      </p>
+      <Message state={state} />
+    </div>
   );
 }
