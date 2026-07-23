@@ -133,7 +133,7 @@ await c.query(
 );
 
 let purchaseOrder = await c.query(
-  `select id, status from purchase_orders
+  `select id, status, requisition_id from purchase_orders
    where tenant_id = $1 and external_reference = 'DEMO-CASE-PO' limit 1`,
   [tenantId],
 );
@@ -144,11 +144,26 @@ if (!purchaseOrder.rows[0]) {
         total, expected_delivery_at, external_reference)
      values ($1, $2, $3, 'draft', 'user', $4, 480, now() + interval '7 days',
              'DEMO-CASE-PO')
-     returning id, status`,
+     returning id, status, requisition_id`,
     [tenantId, supplierId, locationId, userId],
   );
 }
 const poId = purchaseOrder.rows[0].id;
+if (!purchaseOrder.rows[0].requisition_id) {
+  const approval = await c.query(
+    `insert into requisitions
+       (tenant_id, location_id, status, requested_by_user_id, decided_at, total,
+        approval_reason, approval_policy_snapshot)
+     values ($1, $2, 'converted', $3, now(), 480,
+             'unlimited_requester_authority', '{"demo_seed":true}'::jsonb)
+     returning id`,
+    [tenantId, locationId, userId],
+  );
+  await c.query(
+    `update purchase_orders set requisition_id = $1 where tenant_id = $2 and id = $3`,
+    [approval.rows[0].id, tenantId, poId],
+  );
+}
 await c.query(
   `insert into purchase_order_lines
      (tenant_id, po_id, line_no, product_id, recommended_qty, ordered_qty, received_qty,

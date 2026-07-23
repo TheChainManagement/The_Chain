@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
     tenant_role: 'warehouse',
     sub: 'user-1',
   } as Record<string, string> | null,
+  liveRole: null as string | null,
   rpc: vi.fn(),
   revalidatePath: vi.fn(),
 }));
@@ -20,6 +21,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 vi.mock('@/lib/access/location-access', () => ({
   memberCanAccessEveryLocation: async () => true,
+  memberCanExecute: async () =>
+    ['owner', 'manager', 'warehouse'].includes(h.liveRole ?? h.claims?.tenant_role ?? ''),
 }));
 vi.mock('next/cache', () => ({ revalidatePath: h.revalidatePath }));
 
@@ -35,6 +38,7 @@ const input = {
 
 beforeEach(() => {
   h.claims = { tenant_id: 'tenant-1', tenant_role: 'warehouse', sub: 'user-1' };
+  h.liveRole = null;
   h.rpc.mockReset();
   h.rpc.mockResolvedValue({
     data: [{ out_applied: true, out_transfer_id: 'transfer-1' }],
@@ -77,6 +81,16 @@ describe('executeTransfer action gate', () => {
     await expect(executeTransfer(input)).resolves.toEqual({
       ok: false,
       error: 'Your session expired. Sign in again.',
+    });
+    expect(h.rpc).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale warehouse claim after a live downgrade', async () => {
+    h.claims = { tenant_id: 'tenant-1', tenant_role: 'warehouse', sub: 'user-1' };
+    h.liveRole = 'viewer';
+    await expect(executeTransfer(input)).resolves.toEqual({
+      ok: false,
+      error: expect.stringContaining('warehouse operator'),
     });
     expect(h.rpc).not.toHaveBeenCalled();
   });

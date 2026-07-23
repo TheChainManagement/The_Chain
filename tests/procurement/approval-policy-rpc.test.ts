@@ -177,6 +177,53 @@ describe('member requisition authority administration', () => {
 });
 
 describe('submit_requisition policy evaluation', () => {
+  it('forged-requester insert is rejected', async () => {
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    await client.query('savepoint forged_requester');
+    await expect(
+      client.query(
+        `insert into requisitions
+           (tenant_id, location_id, requested_by_user_id, total)
+         values ($1, $2, $3, 99900)`,
+        [T, locationId, OWNER],
+      ),
+    ).rejects.toThrow('requester_must_be_caller');
+    await client.query('rollback to savepoint forged_requester');
+  });
+
+  it('author-as-another-then-self-approve is rejected', async () => {
+    await actAs(client, { sub: MANAGER, tenant_id: T, role: 'manager' });
+    await client.query('savepoint forged_author');
+    await expect(
+      client.query(
+        `insert into requisitions
+           (tenant_id, location_id, requested_by_user_id, total)
+         values ($1, $2, $3, 500)`,
+        [T, locationId, PLANNER],
+      ),
+    ).rejects.toThrow('requester_must_be_caller');
+    await client.query('rollback to savepoint forged_author');
+  });
+
+  it('honest self-requester path still works end to end', async () => {
+    await configure(PLANNER, 'always_require_approval', null, null);
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    const created = await one<{ out_requisition_id: string }>(
+      'select * from create_direct_requisition($1, $2, $3, $4, 2, 25, $5)',
+      [T, locationId, productId, supplierId, PLANNER],
+    );
+    expect(await one('select * from submit_requisition($1, $2)', [T, created.out_requisition_id]))
+      .toMatchObject({ out_status: 'submitted' });
+
+    await actAs(client, { sub: MANAGER, tenant_id: T, role: 'manager' });
+    expect(
+      await one(`select * from decide_requisition($1, $2, 'approved', null)`, [
+        T,
+        created.out_requisition_id,
+      ]),
+    ).toMatchObject({ out_status: 'approved' });
+  });
+
   it('queues the shipped default and rejects a direct lifecycle bypass', async () => {
     await configure(PLANNER, 'always_require_approval', null, null);
     const req = await createRequisition(75);
@@ -336,6 +383,50 @@ describe('submit_requisition policy evaluation', () => {
   });
 });
 
+describe('purchase order approval evidence', () => {
+  it('rejects a direct PO and accepts one converted from an approved current requisition', async () => {
+    await asSuperuser(client);
+    const direct = await one<{ id: string }>(
+      `insert into purchase_orders
+         (tenant_id, supplier_id, location_id, status, recommended_by, total)
+       values ($1, $2, $3, 'draft', 'user', 25)
+       returning id`,
+      [T, supplierId, locationId],
+    );
+    await client.query(
+      `insert into purchase_order_lines
+         (tenant_id, po_id, line_no, product_id, ordered_qty, unit_cost)
+       values ($1, $2, 1, $3, 1, 25)`,
+      [T, direct.id, productId],
+    );
+
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    await client.query('savepoint direct_po_bypass');
+    await expect(
+      client.query(`select * from apply_po_approval($1, $2, 'sent')`, [T, direct.id]),
+    ).rejects.toThrow('approved_requisition_required');
+    await client.query('rollback to savepoint direct_po_bypass');
+
+    await configure(PLANNER, 'always_require_approval', null, null);
+    const requisitionId = await createRequisition(25);
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    await client.query('select * from submit_requisition($1, $2)', [T, requisitionId]);
+    await actAs(client, { sub: MANAGER, tenant_id: T, role: 'manager' });
+    await client.query(`select * from decide_requisition($1, $2, 'approved', null)`, [
+      T,
+      requisitionId,
+    ]);
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    const converted = await one<{ out_po_id: string }>(
+      'select * from convert_requisition_to_po($1, $2)',
+      [T, requisitionId],
+    );
+    expect(
+      await one(`select * from apply_po_approval($1, $2, 'sent')`, [T, converted.out_po_id]),
+    ).toMatchObject({ out_status: 'sent', out_applied: true });
+  });
+});
+
 describe('human approver authority', () => {
   it('keeps self-approval blocked and enforces a configured ceiling inclusively', async () => {
     await configure(PLANNER, 'always_require_approval', null, null);
@@ -364,5 +455,62 @@ describe('human approver authority', () => {
       client.query(`select * from decide_requisition($1, $2, 'approved', null)`, [T, own]),
     ).rejects.toThrow('self_approval_forbidden');
     await client.query('rollback to savepoint self_approval');
+  });
+
+  it('whitelists status transitions and clears decision evidence on return to draft', async () => {
+    await configure(PLANNER, 'always_require_approval', null, null);
+    const draft = await createRequisition(40);
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    await client.query('savepoint patch_converted');
+    await expect(
+      client.query(`update requisitions set status = 'converted' where id = $1`, [draft]),
+    ).rejects.toThrow('bad_requisition_transition');
+    await client.query('rollback to savepoint patch_converted');
+
+    await client.query('select * from submit_requisition($1, $2)', [T, draft]);
+    await actAs(client, { sub: MANAGER, tenant_id: T, role: 'manager' });
+    await client.query(`select * from decide_requisition($1, $2, 'rejected', 'revise')`, [
+      T,
+      draft,
+    ]);
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    await client.query(`update requisitions set status = 'draft' where id = $1`, [draft]);
+    const reopened = await one<{
+      status: string;
+      approved_by_user_id: string | null;
+      decided_at: Date | null;
+      rejection_note: string | null;
+      approval_reason: string | null;
+      approval_policy_snapshot: Record<string, unknown> | null;
+    }>(
+      `select status, approved_by_user_id, decided_at, rejection_note,
+              approval_reason, approval_policy_snapshot
+       from requisitions where id = $1`,
+      [draft],
+    );
+    expect(reopened).toEqual({
+      status: 'draft',
+      approved_by_user_id: null,
+      decided_at: null,
+      rejection_note: null,
+      approval_reason: null,
+      approval_policy_snapshot: null,
+    });
+  });
+
+  it('keeps submit and decide as security invoker functions', async () => {
+    await asSuperuser(client);
+    const rows = await client.query<{ proname: string; security_definer: boolean }>(
+      `select p.proname, p.prosecdef security_definer
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname in ('submit_requisition', 'decide_requisition')
+       order by p.proname`,
+    );
+    expect(rows.rows).toEqual([
+      { proname: 'decide_requisition', security_definer: false },
+      { proname: 'submit_requisition', security_definer: false },
+    ]);
   });
 });

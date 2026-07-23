@@ -72,6 +72,14 @@ interface PoRow {
   location_id: string;
   total: number | null;
   suppliers: { external_ids: Record<string, string> | null } | null;
+  requisitions: {
+    status: string;
+    is_current_version: boolean;
+    decided_at: string | null;
+    approved_by_user_id: string | null;
+    approval_reason: string | null;
+    approval_policy_snapshot: Record<string, unknown> | null;
+  } | null;
 }
 
 interface LineRow {
@@ -93,7 +101,14 @@ export async function approveAndPushPurchaseOrder(
 
   const { data: po, error: poErr } = await admin
     .from('purchase_orders')
-    .select('id, status, supplier_id, location_id, total, suppliers ( external_ids )')
+    .select(
+      `id, status, supplier_id, location_id, total,
+       suppliers ( external_ids ),
+       requisitions (
+         status, is_current_version, decided_at, approved_by_user_id,
+         approval_reason, approval_policy_snapshot
+       )`,
+    )
     .eq('tenant_id', tenantId)
     .eq('id', poId)
     .maybeSingle<PoRow>();
@@ -101,6 +116,23 @@ export async function approveAndPushPurchaseOrder(
   if (!po) return { ok: false, error: 'That purchase order was not found.' };
   if (!APPROVABLE.has(po.status)) {
     return { ok: false, error: 'This order has already been approved.' };
+  }
+  const evidence = po.requisitions;
+  const systemApproved =
+    evidence?.approved_by_user_id == null &&
+    (evidence?.approval_reason === 'within_requester_limit' ||
+      evidence?.approval_reason === 'unlimited_requester_authority') &&
+    evidence?.approval_policy_snapshot != null;
+  if (
+    evidence?.status !== 'converted' ||
+    !evidence?.is_current_version ||
+    !evidence?.decided_at ||
+    (!evidence?.approved_by_user_id && !systemApproved)
+  ) {
+    return {
+      ok: false,
+      error: 'This order needs an approved current requisition before it can be placed.',
+    };
   }
 
   const { data: lines, error: lineErr } = await admin

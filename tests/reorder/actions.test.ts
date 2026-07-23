@@ -34,6 +34,12 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 vi.mock('@/lib/access/location-access', () => ({
   memberCanAccessEveryLocation: async () => true,
+  memberCanExecute: async (_admin: unknown, _tenant: string, _user: string, capability: string) => {
+    const role = claims?.tenant_role;
+    return capability === 'reorder.recompute'
+      ? role === 'owner' || role === 'manager'
+      : role === 'owner' || role === 'manager' || role === 'planner';
+  },
 }));
 vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServer: async () => ({ auth: { getClaims: async () => ({ data: { claims } }) } }),

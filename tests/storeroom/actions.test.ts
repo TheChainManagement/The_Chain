@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
     tenant_role: 'warehouse',
     sub: 'u1',
   } as Record<string, string> | null,
+  liveRole: null as string | null,
   postIssue: vi.fn(),
   postAdjustment: vi.fn(),
   postStockHold: vi.fn(),
@@ -35,6 +36,8 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 vi.mock('@/lib/access/location-access', () => ({
   memberCanAccessLocation: async () => true,
+  memberCanExecute: async () =>
+    ['owner', 'manager', 'warehouse'].includes(h.liveRole ?? h.claims?.tenant_role ?? ''),
 }));
 vi.mock('@/lib/supabase/admin', () => ({ createSupabaseAdmin: () => ({}) }));
 vi.mock('@/lib/storeroom/post', () => ({
@@ -64,6 +67,7 @@ const issueInput = {
 
 beforeEach(() => {
   h.claims = { tenant_id: 't1', tenant_role: 'warehouse', sub: 'u1' };
+  h.liveRole = null;
   h.postIssue.mockReset();
   h.postIssue.mockResolvedValue({ ok: true, applied: true, lines: 1, totalQty: 3 });
   h.postAdjustment.mockReset();

@@ -33,3 +33,20 @@ export async function memberCanAccessEveryLocation(
   );
   return results.every(Boolean);
 }
+
+export type MemberCapability = 'inventory.move' | 'reorder.recompute' | 'purchase_order.create';
+
+/** Live role check for service-role write paths. Never trusts tenant_role. */
+export async function memberCanExecute(
+  admin: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  capability: MemberCapability,
+): Promise<boolean> {
+  const { data, error } = await admin.rpc('member_can_execute', {
+    p_tenant: tenantId,
+    p_user: userId,
+    p_capability: capability,
+  });
+  return !error && data === true;
+}

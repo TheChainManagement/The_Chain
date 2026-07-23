@@ -175,4 +175,28 @@ describe('execute_stock_transfer', () => {
     );
     expect(after.rows[0]?.count).toBe(before.rows[0]?.count);
   });
+
+  it('rejects a stale warehouse claim after the member role is downgraded', async () => {
+    await client.query(
+      `update tenant_members set role = 'viewer'
+       where tenant_id = $1 and user_id = $2`,
+      [T, U],
+    );
+    expect(
+      await errorOf('select * from execute_stock_transfer($1,$2,$3,$4,$5,$6,$7)', [
+        T,
+        productId,
+        sourceId,
+        destinationId,
+        1,
+        'stale-role',
+        U,
+      ]),
+    ).toMatch(/inventory_operation_forbidden/i);
+    await client.query(
+      `update tenant_members set role = 'owner'
+       where tenant_id = $1 and user_id = $2`,
+      [T, U],
+    );
+  });
 });

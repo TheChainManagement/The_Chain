@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type ApproveDeps, approveAndPushPurchaseOrder } from '@/lib/purchase-orders/approve-core';
 import { poDocNumber } from '@/lib/qbo/map';
 
@@ -32,6 +32,7 @@ let locationId: string;
 let productId: string;
 let mappedSupplierId: string;
 let mappedProductId: string;
+let userId: string;
 
 const QBO_PO_ID = 'qbo-po-7788';
 const QBO_SYNC_TOKEN = 4;
@@ -80,6 +81,19 @@ async function newDraftPo(
   supplier = supplierId,
   product = productId,
 ): Promise<string> {
+  const { data: requisition } = await admin
+    .from('requisitions')
+    .insert({
+      tenant_id: tenantId,
+      location_id: locationId,
+      status: 'converted',
+      requested_by_user_id: userId,
+      approved_by_user_id: userId,
+      decided_at: new Date().toISOString(),
+      total: qty * cost,
+    })
+    .select('id')
+    .single<{ id: string }>();
   const { data: po } = await admin
     .from('purchase_orders')
     .insert({
@@ -88,6 +102,7 @@ async function newDraftPo(
       location_id: locationId,
       status: 'draft',
       recommended_by: 'system',
+      requisition_id: requisition?.id,
       total: qty * cost,
     })
     .select('id')
@@ -106,6 +121,30 @@ async function newDraftPo(
 /** A draft PO whose supplier + SKU both carry `external_ids.qbo` (write-back eligible). */
 function newMappedDraftPo(qty: number, cost: number): Promise<string> {
   return newDraftPo(qty, cost, mappedSupplierId, mappedProductId);
+}
+
+async function newUnapprovedDraftPo(): Promise<string> {
+  const { data: po } = await admin
+    .from('purchase_orders')
+    .insert({
+      tenant_id: tenantId,
+      supplier_id: mappedSupplierId,
+      location_id: locationId,
+      status: 'draft',
+      recommended_by: 'user',
+      total: 7,
+    })
+    .select('id')
+    .single<{ id: string }>();
+  await admin.from('purchase_order_lines').insert({
+    tenant_id: tenantId,
+    po_id: po?.id,
+    line_no: 1,
+    product_id: mappedProductId,
+    ordered_qty: 1,
+    unit_cost: 7,
+  });
+  return po?.id ?? '';
 }
 
 async function inTransit(product = productId): Promise<number> {
@@ -135,6 +174,7 @@ beforeAll(async () => {
   await client.auth.refreshSession();
   const { data } = await client.auth.getClaims();
   tenantId = data?.claims?.tenant_id as string;
+  userId = data?.claims?.sub as string;
 
   const { data: loc } = await admin
     .from('locations')
@@ -184,6 +224,7 @@ afterAll(async () => {
   if (tenantId) {
     await admin.from('purchase_order_lines').delete().eq('tenant_id', tenantId);
     await admin.from('purchase_orders').delete().eq('tenant_id', tenantId);
+    await admin.from('requisitions').delete().eq('tenant_id', tenantId);
     await admin.from('inventory_levels').delete().eq('tenant_id', tenantId);
     await admin.from('products').delete().eq('tenant_id', tenantId);
     await admin.from('suppliers').delete().eq('tenant_id', tenantId);
@@ -196,6 +237,18 @@ afterAll(async () => {
 });
 
 describe('approveAndPushPurchaseOrder', () => {
+  it('rejects missing requisition evidence before any external push', async () => {
+    const poId = await newUnapprovedDraftPo();
+    const push = vi.fn();
+    const res = await approveAndPushPurchaseOrder(
+      admin,
+      { tenantId, poId, nowMs: Date.now() },
+      { createAdapter: async () => ({ adapter: { push } }) },
+    );
+    expect(res).toMatchObject({ ok: false, error: expect.stringContaining('approved current') });
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('with no QBO connection, approves to EXPORTED and commits in-transit', async () => {
     const poId = await newDraftPo(40, 5);
     const before = await inTransit();

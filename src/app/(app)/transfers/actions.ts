@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { memberCanAccessEveryLocation } from '@/lib/access/location-access';
+import { memberCanAccessEveryLocation, memberCanExecute } from '@/lib/access/location-access';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
 
@@ -19,7 +19,6 @@ const ERROR_MAP: Record<string, string> = {
     'Source stock changed and no longer has enough unheld surplus for this transfer.',
 };
 
-const OPERATOR_ROLES = new Set(['owner', 'manager', 'warehouse']);
 const PERMISSION_MESSAGE = 'Only an owner, manager, or warehouse operator can move stock.';
 
 export async function executeTransfer(input: {
@@ -38,14 +37,15 @@ export async function executeTransfer(input: {
   const supabase = await createSupabaseServer();
   const { data: claims } = await supabase.auth.getClaims();
   const tenantId = claims?.claims?.tenant_id as string | undefined;
-  const role = claims?.claims?.tenant_role as string | undefined;
   const userId = claims?.claims?.sub as string | undefined;
-  if (!tenantId || !userId || !role) {
+  if (!tenantId || !userId) {
     return { ok: false, error: 'Your session expired. Sign in again.' };
   }
-  if (!OPERATOR_ROLES.has(role)) return { ok: false, error: PERMISSION_MESSAGE };
 
   const admin = createSupabaseAdmin();
+  if (!(await memberCanExecute(admin, tenantId, userId, 'inventory.move'))) {
+    return { ok: false, error: PERMISSION_MESSAGE };
+  }
   if (
     !(await memberCanAccessEveryLocation(admin, tenantId, userId, [
       input.sourceLocationId,

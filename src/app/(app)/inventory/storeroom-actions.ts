@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { memberCanAccessLocation } from '@/lib/access/location-access';
+import { memberCanAccessLocation, memberCanExecute } from '@/lib/access/location-access';
 import { postStockHold } from '@/lib/inventory/post-movement';
 import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { isDemandRefType } from '@/lib/storeroom/constants';
@@ -20,7 +20,6 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * same shape as the PO receive action.
  */
 
-const OPERATOR_ROLES = new Set(['owner', 'manager', 'warehouse']);
 const PERMISSION_MESSAGE = 'You do not have permission to move stock.';
 
 interface OperatorClaims {
@@ -32,9 +31,11 @@ async function resolveOperator(): Promise<OperatorClaims | null> {
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
-  const role = data?.claims?.tenant_role as string | undefined;
   const userId = data?.claims?.sub as string | undefined;
-  if (!tenantId || !userId || !role || !OPERATOR_ROLES.has(role)) return null;
+  if (!tenantId || !userId) return null;
+  if (!(await memberCanExecute(createSupabaseAdmin(), tenantId, userId, 'inventory.move'))) {
+    return null;
+  }
   return { tenantId, userId };
 }
 

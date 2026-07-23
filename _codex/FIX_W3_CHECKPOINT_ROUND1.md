@@ -1,6 +1,16 @@
 # Codex Fix List — W3 role-spine checkpoint round 1
 *From Claude's independent review 2026-07-21. Full detail: `_reviews/2026-07-21_w3_checkpoint_claude_verdict.md`.*
 
+## WORKSPACE PREFLIGHT (verify before touching anything)
+- Repository: `TheChainManagement/The_Chain` (The Chain SaaS), local path
+  `/Users/themoreapp/More Technologies/projects/the-chain`
+- Branch: `codex/w3-role-spine` (exists locally and on origin; tip `c757483` carries the
+  verdict + this fix list)
+- Sanity files that MUST exist here: `_reviews/2026-07-21_w3_checkpoint_claude_verdict.md`
+  and this file at `_codex/FIX_W3_CHECKPOINT_ROUND1.md`
+- If ANY of the above does not match your current workspace (wrong repo, missing branch,
+  missing files), STOP and report the mismatch. Do not adapt the work to another repo.
+
 Work on `codex/w3-role-spine` (continue the branch). Do NOT merge to main, do NOT
 apply migrations to any database, do NOT push main. New migrations get the next free
 numbers after `20260720120000`. Keep the suite green and add the named tests called for

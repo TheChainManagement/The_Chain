@@ -115,6 +115,19 @@ beforeAll(async () => {
     [T],
   );
   poId = po[0].id;
+  const { rows: approval } = await client.query(
+    `insert into requisitions
+       (tenant_id, location_id, status, requested_by_user_id, approved_by_user_id,
+        decided_at, total)
+     values ($1, $2, 'converted', $3, $3, now(), 600)
+     returning id`,
+    [T, locationId, U],
+  );
+  await client.query(
+    `update purchase_orders set requisition_id = $1
+     where tenant_id = $2 and id = $3`,
+    [approval[0].id, T, poId],
+  );
 });
 
 afterAll(async () => {

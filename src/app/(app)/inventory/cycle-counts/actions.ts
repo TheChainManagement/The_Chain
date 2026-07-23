@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { memberCanExecute } from '@/lib/access/location-access';
 import { isActiveTenantLocation } from '@/lib/locations/validate';
 import { closeCycleCount } from '@/lib/storeroom/post';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -15,16 +16,17 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * the service-role client with the same app-layer gate as issue/adjust.
  */
 
-const OPERATOR_ROLES = new Set(['owner', 'manager', 'warehouse']);
 const PERMISSION_MESSAGE = 'You do not have permission to run counts.';
 
 async function resolveOperator(): Promise<{ tenantId: string; userId: string } | null> {
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
-  const role = data?.claims?.tenant_role as string | undefined;
   const userId = data?.claims?.sub as string | undefined;
-  if (!tenantId || !userId || !role || !OPERATOR_ROLES.has(role)) return null;
+  if (!tenantId || !userId) return null;
+  if (!(await memberCanExecute(createSupabaseAdmin(), tenantId, userId, 'inventory.move'))) {
+    return null;
+  }
   return { tenantId, userId };
 }
 

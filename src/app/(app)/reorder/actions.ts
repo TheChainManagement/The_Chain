@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { memberCanAccessEveryLocation } from '@/lib/access/location-access';
+import { memberCanAccessEveryLocation, memberCanExecute } from '@/lib/access/location-access';
 import { convertRecommendationsToPo } from '@/lib/reorder/convert';
 import { type GenerateSummary, generateReorderRecommendations } from '@/lib/reorder/generate';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
@@ -16,9 +16,6 @@ import { createSupabaseServer } from '@/lib/supabase/server';
  * Both run the engine via the admin client (system writes), authorized here.
  */
 
-const MANAGER = new Set(['owner', 'manager']);
-const PLANNER = new Set(['owner', 'manager', 'planner']);
-
 export type RecomputeResult = { ok: true; summary: GenerateSummary } | { ok: false; error: string };
 export type ConvertActionResult = { ok: true; poId: string } | { ok: false; error: string };
 
@@ -28,15 +25,16 @@ export async function recomputeReorders(
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
-  const role = data?.claims?.tenant_role as string | undefined;
+  const userId = data?.claims?.sub as string | undefined;
 
-  if (!tenantId) return { ok: false, error: 'Your session expired. Sign in again.' };
-  if (!role || !MANAGER.has(role)) {
+  if (!tenantId || !userId) return { ok: false, error: 'Your session expired. Sign in again.' };
+  const admin = createSupabaseAdmin();
+  if (!(await memberCanExecute(admin, tenantId, userId, 'reorder.recompute'))) {
     return { ok: false, error: 'Only an owner or manager can recompute the reorder queue.' };
   }
 
   try {
-    const summary = await generateReorderRecommendations(createSupabaseAdmin(), { tenantId });
+    const summary = await generateReorderRecommendations(admin, { tenantId });
     revalidatePath('/reorder');
     return { ok: true, summary };
   } catch {
@@ -50,15 +48,14 @@ export async function convertSelectedToPo(input: {
   const supabase = await createSupabaseServer();
   const { data } = await supabase.auth.getClaims();
   const tenantId = data?.claims?.tenant_id as string | undefined;
-  const role = data?.claims?.tenant_role as string | undefined;
   const userId = data?.claims?.sub as string | undefined;
 
   if (!tenantId || !userId) return { ok: false, error: 'Your session expired. Sign in again.' };
-  if (!role || !PLANNER.has(role)) {
+  const admin = createSupabaseAdmin();
+  if (!(await memberCanExecute(admin, tenantId, userId, 'purchase_order.create'))) {
     return { ok: false, error: 'You do not have permission to create purchase orders.' };
   }
 
-  const admin = createSupabaseAdmin();
   const { data: rows, error: rowsError } = await admin
     .from('reorder_recommendations')
     .select('location_id')
