@@ -4,11 +4,48 @@ LAST_REVIEWED: 2026-07-22
 
 ## Current checkpoint
 
-W3-0 through W3-5 plus checkpoint fix rounds 1 and 2 are built on `codex/w3-role-spine`. W3-2 received a security review and
+W3-0 through W3-5 plus checkpoint fix rounds 1 through 3 are built on `codex/w3-role-spine`. W3-2 received a security review and
 hardening pass; W3-3 adds database-enforced per-location assignments and Team controls; W3-4 adds
 the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-configured requester
 automatic approval and human approver ceilings over the existing requisition trail. The final
 six-role production gate is next after the MG/Claude re-check.
+
+## W3 checkpoint fix round 3 - 2026-07-22
+
+- R3-F1 exempts only the already validated policy and human transition paths from the final
+  decision-metadata guard in `enforce_requisition_update()`.
+- Ordinary authenticated PATCHes still cannot set `decided_at` or `approved_by_user_id`.
+- The same guard now protects `rejection_note`; only the validated human/policy paths or the
+  explicit return-to-draft clearing path can change it.
+- Direct authenticated PATCH probes cover all three protected decision fields.
+- `20260722120000_w3_checkpoint_fix_round1.sql` was amended in place as required.
+
+No migration was applied to any database. The permitted gate and expected Claude replay results
+are recorded in `_reviews/2026-07-22_w3_checkpoint_fix_round3_evidence.md`. Production remains
+`362137d`; the eight-migration merge gate remains closed pending the MG/Claude re-check.
+
+## Claude independent re-check of fix round 3 - 2026-07-22: NO-GO (round 4, 1 product bug + 2 test bugs)
+
+R3-F1 CONFIRMED FIXED: the guard exemption is correctly scoped, decisions work end to end,
+the three forge probes hold, and the kernel suite went fully green. Deeper execution exposed
+three new roots (16 red tests, rest cascades):
+
+- R4-F1 (PRODUCT): `convert_recommendations_to_requisition` inserts (null purchase_uom,
+  factor 1) when a supplier link has no purchase UoM, violating
+  `requisition_lines_uom_factor_pair_check` - reorder conversion is dead for any tenant
+  without purchase UoMs on links. Fix: keep the pair consistent (null/null + factor 1 for
+  math only).
+- R4-F2 (TEST): the B2 happy-path probe applies the PO as authenticated; the in-transit
+  upsert is RLS-blocked for members BY DESIGN (kernel contract). Apply under the service
+  role like production; keep the authenticated rejection half.
+- R4-F3 (TEST): stale cross-tenant expectation - B1's tenant gate now correctly raises
+  `requisition_creation_forbidden` before `active_location_not_found`. Update expectation,
+  add an own-tenant/foreign-location variant.
+
+Replay clean, tsc/biome/craft pass, 976/992 green. Verdict:
+`_reviews/2026-07-22_w3_checkpoint_fix_round3_claude_verdict.md`. Round-4 prompt:
+`_codex/FIX_W3_CHECKPOINT_ROUND4.md`. Prod stays `362137d`; merge gate closed. Round 4
+should be the closing round: expectation is zero red tests at the next re-check.
 
 ## W3 checkpoint fix round 2 - 2026-07-22
 
