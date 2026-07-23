@@ -1,20 +1,63 @@
 # The Chain checkpoint review
 
-LAST_REVIEWED: 2026-07-20
+LAST_REVIEWED: 2026-07-22
 
 ## Current checkpoint
 
-W3-0 through W3-5 are built on `codex/w3-role-spine`. W3-2 received a security review and
+W3-0 through W3-5 plus checkpoint fix round 1 are built on `codex/w3-role-spine`. W3-2 received a security review and
 hardening pass; W3-3 adds database-enforced per-location assignments and Team controls; W3-4 adds
 the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-configured requester
 automatic approval and human approver ceilings over the existing requisition trail. The final
-six-role production gate is next after the MG/Claude checkpoint.
+six-role production gate is next after the MG/Claude re-check.
 
-## Gate
+## W3 checkpoint fix round 1 - 2026-07-22
+
+- B1 binds authenticated requisition inserts to `auth.uid()`. Direct creation also requires the
+  actor to equal the caller and be a current member of the selected tenant.
+- B2 uses the approval-evidence contract: `apply_po_approval()` requires a linked current,
+  converted requisition with immutable human or system decision evidence for every caller.
+- B3 whitelists requisition lifecycle edges, transaction-gates conversion, and clears decision and
+  policy evidence when a rejected request returns to draft.
+- B4 re-reads current membership roles on transfer, storeroom, cycle-count, and reorder
+  service-role paths, with database event-seam enforcement for inventory operations and transfers.
+- B5 restores `submit_requisition()` and `decide_requisition()` to SECURITY INVOKER while keeping
+  their inline tenant, membership, role, location, and authority checks.
+- Low-cost cleanup narrows requisition-authority reads to self or owner/manager, sets
+  `set_primary_location` to `search_path = ''`, and permits either transfer endpoint to grant read
+  access.
+
+Named B1/B2 regression coverage and deferred LOW tickets are recorded in
+`_reviews/2026-07-22_w3_checkpoint_fix_round1_evidence.md`. No migration was applied to any
+database. Production remains `362137d`. Stop here for the MG/Claude re-check.
+
+## Claude independent re-check of fix round 1 - 2026-07-22: NO-GO (round 2)
+
+Claude replayed the migration (`supabase db reset` clean through `20260722120000`) and ran
+the real-DB probes Codex could not. Result: 24 failing tests in 3 procurement files, all
+collapsing to two roots from the B5 SECURITY INVOKER revert:
+
+- F1 (BLOCKER): `submit_requisition` calls `member_can_access_location`, EXECUTE-revoked
+  from `authenticated` since W3-3 -> every authenticated submission dies with permission
+  denied. Fix: use caller-pinned `can_access_location(uuid)`.
+- F2 (BLOCKER): `for share of m, a` locks in submit/decide require UPDATE privilege;
+  `authenticated` is SELECT-only on `tenant_members` + the authority table. Fix: narrow
+  definer lock helper pinned to the JWT tenant.
+- F3 (HIGH, MG decision): the B2 gate makes reorder-converted POs permanently unapprovable
+  (they carry no requisition). Option A = route reorder conversion through the W3-5 policy
+  spine (recommended); Option B = documented system-PO exemption.
+
+B1/B2/B3/B4 designs verified CORRECT and stand; tsc/biome/craft/build pass; zero-balance
+invariant intact; 965/989 tests green. Verdict:
+`_reviews/2026-07-22_w3_checkpoint_fix_round1_claude_verdict.md`. Round-2 fix prompt:
+`_codex/FIX_W3_CHECKPOINT_ROUND2.md`. Prod stays `362137d`; the merge gate stays closed.
+
+## Prior W3-5 gate
 
 Local migration replay, 140-file/980-test suite, TypeScript, Biome, craft, production build, and
 authenticated W3-5 desktop/mobile browser probes are green. Exact policy, security, and audit
 results are recorded in `_reviews/2026-07-20_w3-5_approval_policy_evidence.md`.
+Round-1 migration replay and the new real-DB probes remain for the MG/Claude re-check because this
+fix run was explicitly prohibited from applying migrations to a database.
 
 ## Claude independent verification — 2026-07-18 (commit 90db636)
 
