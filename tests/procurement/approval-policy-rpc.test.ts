@@ -437,9 +437,24 @@ describe('purchase order approval evidence', () => {
       'select * from convert_requisition_to_po($1, $2)',
       [T, requisitionId],
     );
+
+    await asSuperuser(client);
+    const before = await one<{ in_transit: string }>(
+      `select in_transit::text
+       from inventory_levels
+       where tenant_id = $1 and product_id = $2 and location_id = $3`,
+      [T, productId, locationId],
+    );
     expect(
       await one(`select * from apply_po_approval($1, $2, 'sent')`, [T, converted.out_po_id]),
     ).toMatchObject({ out_status: 'sent', out_applied: true });
+    const after = await one<{ in_transit: string }>(
+      `select in_transit::text
+       from inventory_levels
+       where tenant_id = $1 and product_id = $2 and location_id = $3`,
+      [T, productId, locationId],
+    );
+    expect(Number(after.in_transit)).toBe(Number(before.in_transit) + 1);
   });
 });
 

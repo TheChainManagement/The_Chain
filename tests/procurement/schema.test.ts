@@ -194,25 +194,45 @@ describe('direct requisition creation', () => {
 
   it("cannot create a document with another tenant's location or catalog rows", async () => {
     await asSuperuser(client);
-    const other = await one<{ loc: string; prod: string; sup: string }>(
+    const ids = await one<{
+      other_loc: string;
+      other_prod: string;
+      other_sup: string;
+      own_prod: string;
+      own_sup: string;
+    }>(
       `select
-         (select id from locations where tenant_id = $1 limit 1) as loc,
-         (select id from products where tenant_id = $1 limit 1) as prod,
-         (select id from suppliers where tenant_id = $1 limit 1) as sup`,
-      [OTHER_T],
+         (select id from locations where tenant_id = $1 limit 1) as other_loc,
+         (select id from products where tenant_id = $1 limit 1) as other_prod,
+         (select id from suppliers where tenant_id = $1 limit 1) as other_sup,
+         (select id from products where tenant_id = $2 limit 1) as own_prod,
+         (select id from suppliers where tenant_id = $2 limit 1) as own_sup`,
+      [OTHER_T, T],
     );
     await as('owner');
     await client.query('savepoint direct_requisition_cross_tenant');
     await expect(
       client.query(`select * from create_direct_requisition($1, $2, $3, $4, 1, 10, $5)`, [
         OTHER_T,
-        other.loc,
-        other.prod,
-        other.sup,
+        ids.other_loc,
+        ids.other_prod,
+        ids.other_sup,
+        U,
+      ]),
+    ).rejects.toThrow('requisition_creation_forbidden');
+    await client.query('rollback to savepoint direct_requisition_cross_tenant');
+
+    await client.query('savepoint direct_requisition_foreign_location');
+    await expect(
+      client.query(`select * from create_direct_requisition($1, $2, $3, $4, 1, 10, $5)`, [
+        T,
+        ids.other_loc,
+        ids.own_prod,
+        ids.own_sup,
         U,
       ]),
     ).rejects.toThrow('active_location_not_found');
-    await client.query('rollback to savepoint direct_requisition_cross_tenant');
+    await client.query('rollback to savepoint direct_requisition_foreign_location');
   });
 });
 

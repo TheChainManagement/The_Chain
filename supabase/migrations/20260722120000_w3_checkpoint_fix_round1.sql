@@ -1,4 +1,4 @@
--- The Chain - W3 checkpoint fix rounds 1 through 3.
+-- The Chain - W3 checkpoint fix rounds 1 through 4.
 -- B1 requester binding, B2 PO approval evidence, B3 lifecycle whitelist,
 -- B4 current-role execution checks, and B5 invoker restoration.
 -- Documents remain zero-balance writers. Inventory changes stay in the
@@ -690,7 +690,12 @@ begin
     where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids)
     order by rr.product_id
   loop
-    select ps.unit_cost, ps.purchase_uom, coalesce(ps.purchase_to_stock_factor, 1)
+    select ps.unit_cost,
+           nullif(btrim(ps.purchase_uom), ''),
+           case
+             when nullif(btrim(ps.purchase_uom), '') is null then null
+             else coalesce(ps.purchase_to_stock_factor, 1)
+           end
     into v_cost, v_purchase_uom, v_factor
     from public.product_suppliers ps
     where ps.tenant_id = p_tenant
@@ -698,7 +703,7 @@ begin
       and ps.supplier_id = v_supplier
     limit 1;
     if not found or v_cost is null then raise exception 'costed_lines_required'; end if;
-    v_ordered := r.recommended_qty / v_factor;
+    v_ordered := r.recommended_qty / coalesce(v_factor, 1);
     v_total := v_total + v_ordered * v_cost;
   end loop;
 
@@ -714,14 +719,19 @@ begin
     order by rr.product_id
   loop
     v_line_no := v_line_no + 1;
-    select ps.unit_cost, ps.purchase_uom, coalesce(ps.purchase_to_stock_factor, 1)
+    select ps.unit_cost,
+           nullif(btrim(ps.purchase_uom), ''),
+           case
+             when nullif(btrim(ps.purchase_uom), '') is null then null
+             else coalesce(ps.purchase_to_stock_factor, 1)
+           end
     into v_cost, v_purchase_uom, v_factor
     from public.product_suppliers ps
     where ps.tenant_id = p_tenant
       and ps.product_id = r.product_id
       and ps.supplier_id = v_supplier
     limit 1;
-    v_ordered := r.recommended_qty / v_factor;
+    v_ordered := r.recommended_qty / coalesce(v_factor, 1);
 
     insert into public.requisition_lines
       (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost,

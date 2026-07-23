@@ -193,16 +193,32 @@ describe('generateReorderRecommendations', () => {
     expect(count).toBe(0);
   });
 
-  it('default spend policy queues a requisition and creates no PO', async () => {
-    // The stockout SKU is still open; add its id.
+  it('converts a UoM-less recommendation with a consistent null pair and correct total', async () => {
+    const { data: supplierLink } = await admin
+      .from('product_suppliers')
+      .select('unit_cost, purchase_uom, purchase_to_stock_factor')
+      .eq('tenant_id', tenantId)
+      .eq('product_id', productIds.stockout)
+      .eq('supplier_id', supplierId)
+      .single<{
+        unit_cost: number | string;
+        purchase_uom: string | null;
+        purchase_to_stock_factor: number | string | null;
+      }>();
+    expect(supplierLink).toMatchObject({
+      purchase_uom: null,
+      purchase_to_stock_factor: null,
+    });
+
     const { data: open } = await admin
       .from('reorder_recommendations')
       .select('id')
       .eq('tenant_id', tenantId)
+      .eq('product_id', productIds.stockout)
       .eq('status', 'open')
       .returns<{ id: string }[]>();
     const ids = (open ?? []).map((r) => r.id);
-    expect(ids.length).toBeGreaterThan(0);
+    expect(ids).toHaveLength(1);
 
     const res = await convertRecommendationsToPurchaseRequest(memberClient, {
       tenantId,
@@ -219,18 +235,35 @@ describe('generateReorderRecommendations', () => {
 
     const { data: requisition } = await admin
       .from('requisitions')
-      .select('status, requested_by_user_id, approval_reason')
+      .select('status, requested_by_user_id, approval_reason, total')
       .eq('id', res.requisitionId)
       .single<{
         status: string;
         requested_by_user_id: string;
         approval_reason: string;
+        total: number | string;
       }>();
     expect(requisition).toMatchObject({
       status: 'submitted',
       requested_by_user_id: userId,
       approval_reason: 'approval_required_by_policy',
     });
+    expect(Number(requisition?.total)).toBe(500);
+
+    const { data: line } = await admin
+      .from('requisition_lines')
+      .select('qty, unit_cost, purchase_uom, purchase_to_stock_factor')
+      .eq('tenant_id', tenantId)
+      .eq('requisition_id', res.requisitionId)
+      .single<{
+        qty: number | string;
+        unit_cost: number | string;
+        purchase_uom: string | null;
+        purchase_to_stock_factor: number | string | null;
+      }>();
+    expect(line).toMatchObject({ purchase_uom: null, purchase_to_stock_factor: null });
+    expect(Number(line?.qty)).toBe(100);
+    expect(Number(line?.unit_cost)).toBe(5);
 
     const { count: poCount } = await admin
       .from('purchase_orders')
