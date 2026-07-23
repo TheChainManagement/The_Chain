@@ -10,6 +10,22 @@ the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-config
 automatic approval and human approver ceilings over the existing requisition trail. The final
 six-role production gate is next after the MG/Claude re-check.
 
+## W3 PROD MERGE GATE EXECUTED - 2026-07-23 - WAVE 3 IS LIVE
+
+MG said "run the merge gate"; Claude executed it end to end. All EIGHT W3 migrations
+applied to prod `hdpivaufoqokeuzgftsj` in order via Supabase MCP (w3_0 → w3_1 → w3_2 →
+w3_2_hardening → w3_3 → w3_4 → w3_5 → checkpoint fix rounds 1-4). Post-apply schema
+probe green: 3 new tables, 18 W3 functions live, old `convert_recommendations_to_po`
+dropped, submit/decide/apply correctly SECURITY INVOKER, authority backfilled for both
+prod members (all_locations = true), 8 triggers + 3 constraints present. Security
+advisor: pre-existing WARNs unchanged; the only new entries flag the intentional
+authenticated-callable W3 DEFINER RPC spine (designed + probe-tested). ff-merged
+`codex/w3-role-spine` to main (`362137d..2253e17`, clean fast-forward), pushed; Vercel
+production deploy Ready; live smoke all 200 (/, /pricing, /signin, /procurement,
+/inventory, /plan, /settings/team) and /api/webhooks/stripe 405 as expected. Code and
+database are in lockstep. NEXT = MG's one wave-close live test using TEST_KIT_W3.md
+(local, pre-verified, six roles seeded).
+
 ## Claude re-check of fix round 4 - 2026-07-23 - VERDICT: GO, FULL GREEN
 
 Independent verification (gates re-run, report not trusted): clean `supabase db reset`
