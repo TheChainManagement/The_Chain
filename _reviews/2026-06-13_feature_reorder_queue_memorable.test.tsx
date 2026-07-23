@@ -10,15 +10,23 @@ import type { ReorderGroup } from '@/lib/reorder/queue';
  * The reorder queue is the product's primary action loop: every breached SKU
  * surfaces with its REASON (position vs reorder point, days of supply), grouped
  * by supplier with the supplier's OTIF context, and you select a same-supplier
- * set and turn it into a purchase order in one move. This drives the REAL
+ * set and submit it through the purchase approval policy in one move. This drives the REAL
  * ReorderQueue: the reason is visible, urgency is toned, selection is fenced to
  * ONE supplier group (a PO has one vendor), and the convert action fires with
  * exactly the selected ids.
  */
 
-const convertMock = vi.fn(async (..._a: unknown[]) => ({ ok: true, poId: 'po-new' }) as const);
+const convertMock = vi.fn(
+  async (..._a: unknown[]) =>
+    ({
+      ok: true,
+      destination: 'purchase_order',
+      poId: 'po-new',
+      requisitionId: 'req-new',
+    }) as const,
+);
 vi.mock('@/app/(app)/reorder/actions', () => ({
-  convertSelectedToPo: (...a: unknown[]) => convertMock(...a),
+  submitSelectedPurchaseRequest: (...a: unknown[]) => convertMock(...a),
 }));
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
@@ -114,17 +122,17 @@ describe('Reorder queue (memorable element)', () => {
     expect(screen.getByText('1 selected')).toBeTruthy();
   });
 
-  it('converts exactly the selected set to a PO and routes to it', () => {
+  it('submits exactly the selected set and routes an approved request to its PO', () => {
     render(<ReorderQueue groups={GROUPS} />);
     const atch = screen.getByRole('region', { name: 'Atchafalaya Distributing' });
     fireEvent.click(within(atch).getByText('Select all 2'));
-    fireEvent.click(screen.getByRole('button', { name: 'Create purchase order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit purchase request' }));
     expect(convertMock).toHaveBeenCalledWith({ recommendationIds: ['r1', 'r2'] });
   });
 
   it('disables convert until something is selected', () => {
     render(<ReorderQueue groups={GROUPS} />);
-    const cta = screen.getByRole('button', { name: 'Create purchase order' }) as HTMLButtonElement;
+    const cta = screen.getByRole('button', { name: 'Submit purchase request' }) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);
   });
 
@@ -181,7 +189,7 @@ describe('Reorder queue (memorable element)', () => {
     fireEvent.click(boxes[0] as Element); // Hammond
     fireEvent.click(boxes[1] as Element); // Lafourche → different group, resets
     expect(screen.getByText('1 selected')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Create purchase order' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit purchase request' }));
     // Only the Lafourche row — never a cross-location mix.
     expect(convertMock).toHaveBeenCalledWith({ recommendationIds: ['a2'] });
   });

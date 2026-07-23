@@ -1,6 +1,6 @@
 import type { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { connect } from '../helpers/db';
+import { actAs, asSuperuser, connect } from '../helpers/db';
 import { seedTenant } from '../helpers/seed';
 
 /**
@@ -357,16 +357,24 @@ describe('purchase UoM through approve → receive → convert', () => {
     expect(await level()).toEqual(before);
   });
 
-  it('convert_recommendations_to_po orders in purchase UoM (fractional allowed)', async () => {
+  it('reorder policy conversion orders in purchase UoM (fractional allowed)', async () => {
     const { rows: rec } = await client.query(
       `select id from reorder_recommendations where tenant_id = $1 and status = 'open' limit 1`,
       [T],
     );
     // Seeded recommendation: 25 eaches ÷ 12 per case ≈ 2.0833 cases.
+    await client.query(
+      `update tenant_member_requisition_authority
+       set requester_mode = 'auto_approve_unlimited', requester_limit = null
+       where tenant_id = $1 and user_id = $2`,
+      [T, U],
+    );
+    await actAs(client, { sub: U, tenant_id: T, role: 'owner' });
     const converted = await client.query(
-      `select * from convert_recommendations_to_po($1, array[$2]::uuid[])`,
+      `select * from convert_recommendations_to_requisition($1, array[$2]::uuid[])`,
       [T, rec[0].id],
     );
+    await asSuperuser(client);
     const { rows: line } = await client.query(
       `select ordered_qty, unit_cost from purchase_order_lines
        where tenant_id = $1 and po_id = $2`,

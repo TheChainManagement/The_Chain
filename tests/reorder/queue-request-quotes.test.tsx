@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 const createRfqFromRecommendations = vi.hoisted(() => vi.fn());
 const push = vi.hoisted(() => vi.fn());
 vi.mock('@/app/(app)/procurement/actions', () => ({ createRfqFromRecommendations }));
-vi.mock('@/app/(app)/reorder/actions', () => ({ convertSelectedToPo: vi.fn() }));
+vi.mock('@/app/(app)/reorder/actions', () => ({ submitSelectedPurchaseRequest: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
 
 import { ReorderQueue } from '@/app/(app)/reorder/ReorderQueue';

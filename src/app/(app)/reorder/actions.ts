@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { memberCanAccessEveryLocation, memberCanExecute } from '@/lib/access/location-access';
-import { convertRecommendationsToPo } from '@/lib/reorder/convert';
+import { convertRecommendationsToPurchaseRequest } from '@/lib/reorder/convert';
 import { type GenerateSummary, generateReorderRecommendations } from '@/lib/reorder/generate';
 import { createSupabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServer } from '@/lib/supabase/server';
@@ -10,14 +10,16 @@ import { createSupabaseServer } from '@/lib/supabase/server';
 /**
  * Reorder queue actions (Block 11).
  *
- * `recomputeReorders` — owner/manager regenerates recommendations from the
- * current policy + on-hand (the queue's "refresh"). `convertSelectedToPo` —
- * owner|manager|planner promotes a selected same-supplier set to a draft PO.
+ * `recomputeReorders` regenerates recommendations. `submitSelectedPurchaseRequest`
+ * submits a selected same-supplier set through the requisition policy spine.
  * Both run the engine via the admin client (system writes), authorized here.
  */
 
 export type RecomputeResult = { ok: true; summary: GenerateSummary } | { ok: false; error: string };
-export type ConvertActionResult = { ok: true; poId: string } | { ok: false; error: string };
+export type ConvertActionResult =
+  | { ok: true; destination: 'purchase_order'; poId: string; requisitionId: string }
+  | { ok: true; destination: 'requisition'; requisitionId: string; reason: string }
+  | { ok: false; error: string };
 
 export async function recomputeReorders(
   _input: Record<string, never> = {},
@@ -42,7 +44,7 @@ export async function recomputeReorders(
   }
 }
 
-export async function convertSelectedToPo(input: {
+export async function submitSelectedPurchaseRequest(input: {
   recommendationIds: string[];
 }): Promise<ConvertActionResult> {
   const supabase = await createSupabaseServer();
@@ -74,14 +76,29 @@ export async function convertSelectedToPo(input: {
     return { ok: false, error: 'One or more recommendations are outside your location access.' };
   }
 
-  const result = await convertRecommendationsToPo(admin, {
+  const result = await convertRecommendationsToPurchaseRequest(supabase, {
     tenantId,
     recommendationIds: input.recommendationIds,
   });
   if (!result.ok) return result;
 
   revalidatePath('/reorder');
+  revalidatePath('/procurement');
+  revalidatePath(`/procurement/requisitions/${result.requisitionId}`);
+  if (!result.poId) {
+    return {
+      ok: true,
+      destination: 'requisition',
+      requisitionId: result.requisitionId,
+      reason: result.reason,
+    };
+  }
   revalidatePath('/purchase-orders');
   revalidatePath(`/purchase-orders/${result.poId}`);
-  return { ok: true, poId: result.poId };
+  return {
+    ok: true,
+    destination: 'purchase_order',
+    poId: result.poId,
+    requisitionId: result.requisitionId,
+  };
 }

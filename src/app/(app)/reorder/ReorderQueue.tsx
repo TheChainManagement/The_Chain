@@ -8,16 +8,15 @@ import { StatNumber } from '@/components/StatNumber/StatNumber';
 import { locationHref } from '@/lib/locations/href';
 import { type ReorderGroup, type ReorderRow, reorderGroupKey } from '@/lib/reorder/queue';
 import type { ReorderUrgency } from '@/lib/reorder/recommend';
-import { convertSelectedToPo } from './actions';
+import { submitSelectedPurchaseRequest } from './actions';
 import styles from './reorder.module.css';
 
 /**
  * The reorder queue (Block 11) — the product's primary action loop. Open
  * recommendations grouped by (supplier, location); each row carries its reason
- * (the "why"). Select rows within ONE group and convert them to a draft PO — a
- * PO is one vendor AND one location, so selection is fenced to a single group
- * (the convert contract rejects a mixed-location set); selecting in a new group
- * clears the prior. The convert CTA is the cobalt intent.
+ * (the "why"). Select rows within one supplier and location group, then submit
+ * them through the shared purchase-request approval policy. Selecting in a new
+ * group clears the prior selection.
  */
 
 const URGENCY_LABEL: Record<ReorderUrgency, string> = {
@@ -52,7 +51,7 @@ export function ReorderQueue({
     const groupKey = reorderGroupKey(group);
     setError(null);
     setSelected((prev) => {
-      // Switching groups starts a fresh selection (one vendor + location per PO).
+      // Switching groups starts a fresh single-vendor, single-location request.
       const base = groupKey === selectedGroup ? new Set(prev) : new Set<string>();
       if (base.has(rowId)) base.delete(rowId);
       else base.add(rowId);
@@ -70,12 +69,16 @@ export function ReorderQueue({
   function convert() {
     setError(null);
     startTransition(async () => {
-      const res = await convertSelectedToPo({ recommendationIds: [...selected] });
+      const res = await submitSelectedPurchaseRequest({ recommendationIds: [...selected] });
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      router.push(locationHref(`/purchase-orders/${res.poId}`, locationId));
+      const href =
+        res.destination === 'purchase_order'
+          ? `/purchase-orders/${res.poId}`
+          : `/procurement/requisitions/${res.requisitionId}`;
+      router.push(locationHref(href, locationId));
     });
   }
 
@@ -160,7 +163,7 @@ export function ReorderQueue({
           loading={pending}
           disabled={selectedCount === 0}
         >
-          Create purchase order
+          Submit purchase request
         </ActionButton>
       </div>
     </div>

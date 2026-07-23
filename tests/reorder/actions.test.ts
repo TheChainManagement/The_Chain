@@ -16,7 +16,7 @@ vi.mock('@/lib/reorder/generate', () => ({
   generateReorderRecommendations: (...a: unknown[]) => generateMock(...a),
 }));
 vi.mock('@/lib/reorder/convert', () => ({
-  convertRecommendationsToPo: (...a: unknown[]) => convertMock(...a),
+  convertRecommendationsToPurchaseRequest: (...a: unknown[]) => convertMock(...a),
 }));
 vi.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdmin: () => ({
@@ -45,13 +45,23 @@ vi.mock('@/lib/supabase/server', () => ({
   createSupabaseServer: async () => ({ auth: { getClaims: async () => ({ data: { claims } }) } }),
 }));
 
-const { recomputeReorders, convertSelectedToPo } = await import('@/app/(app)/reorder/actions');
+const { recomputeReorders, submitSelectedPurchaseRequest } = await import(
+  '@/app/(app)/reorder/actions'
+);
 
 beforeEach(() => {
   revalidated = [];
   claims = { tenant_id: 'T1', tenant_role: 'owner', sub: 'U1' };
   generateMock = vi.fn(async () => ({ open: 3, updated: 1, created: 2, expired: 0 }));
-  convertMock = vi.fn(async () => ({ ok: true, poId: 'PO9', lineCount: 2 }));
+  convertMock = vi.fn(async () => ({
+    ok: true,
+    requisitionId: 'REQ9',
+    approvalStatus: 'approved',
+    reason: 'within_requester_limit',
+    autoApproved: true,
+    poId: 'PO9',
+    lineCount: 2,
+  }));
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -71,24 +81,48 @@ describe('recomputeReorders — manager gate', () => {
   });
 });
 
-describe('convertSelectedToPo — planner gate', () => {
+describe('submitSelectedPurchaseRequest - planner gate', () => {
   it('converts for a planner and revalidates the PO + queue', async () => {
     claims = { tenant_id: 'T1', tenant_role: 'planner', sub: 'U1' };
-    const res = await convertSelectedToPo({ recommendationIds: ['r1', 'r2'] });
-    expect(res).toEqual({ ok: true, poId: 'PO9' });
+    const res = await submitSelectedPurchaseRequest({ recommendationIds: ['r1', 'r2'] });
+    expect(res).toEqual({
+      ok: true,
+      destination: 'purchase_order',
+      poId: 'PO9',
+      requisitionId: 'REQ9',
+    });
     expect(revalidated).toEqual(
       expect.arrayContaining(['/reorder', '/purchase-orders', '/purchase-orders/PO9']),
     );
   });
+  it('routes an above-authority request to the requisition queue without a PO', async () => {
+    convertMock = vi.fn(async () => ({
+      ok: true,
+      requisitionId: 'REQ10',
+      approvalStatus: 'submitted',
+      reason: 'requester_limit_exceeded',
+      autoApproved: false,
+      poId: null,
+      lineCount: 2,
+    }));
+    const res = await submitSelectedPurchaseRequest({ recommendationIds: ['r1', 'r2'] });
+    expect(res).toEqual({
+      ok: true,
+      destination: 'requisition',
+      requisitionId: 'REQ10',
+      reason: 'requester_limit_exceeded',
+    });
+    expect(revalidated).not.toContain('/purchase-orders');
+  });
   it('rejects a viewer', async () => {
     claims = { tenant_id: 'T1', tenant_role: 'viewer', sub: 'U1' };
-    const res = await convertSelectedToPo({ recommendationIds: ['r1'] });
+    const res = await submitSelectedPurchaseRequest({ recommendationIds: ['r1'] });
     expect(res.ok).toBe(false);
     expect(convertMock).not.toHaveBeenCalled();
   });
   it('surfaces an engine rejection (e.g. mixed supplier)', async () => {
     convertMock = vi.fn(async () => ({ ok: false, error: 'different suppliers' }));
-    const res = await convertSelectedToPo({ recommendationIds: ['r1', 'r2'] });
+    const res = await submitSelectedPurchaseRequest({ recommendationIds: ['r1', 'r2'] });
     expect(res).toMatchObject({ ok: false });
     expect(revalidated).not.toContain('/reorder');
   });

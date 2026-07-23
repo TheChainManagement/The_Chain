@@ -1,8 +1,10 @@
--- The Chain - W3 checkpoint fix round 1.
+-- The Chain - W3 checkpoint fix rounds 1 and 2.
 -- B1 requester binding, B2 PO approval evidence, B3 lifecycle whitelist,
 -- B4 current-role execution checks, and B5 invoker restoration.
 -- Documents remain zero-balance writers. Inventory changes stay in the
 -- established posting-kernel functions.
+-- This file is amended in place because it has never been applied to prod or
+-- merged to main.
 
 -- B4: service-role callers must prove the explicit actor still has the
 -- capability in tenant_members. This deliberately ignores the JWT role claim.
@@ -281,10 +283,230 @@ begin
 end;
 $$;
 
--- B5: restore SECURITY INVOKER while retaining the live membership, tenant,
--- location, policy, and role checks inside each function.
-alter function public.submit_requisition(uuid, uuid) security invoker;
-alter function public.decide_requisition(uuid, uuid, text, text) security invoker;
+-- B5 round-2 hardening: INVOKER RPCs cannot take explicit row locks on
+-- authority tables that authenticated may only SELECT. This narrow definer
+-- helper pins the JWT tenant, enforces self-or-privileged visibility, and owns
+-- the membership + authority FOR SHARE lock.
+create or replace function public.lock_member_requisition_authority(
+  p_tenant uuid,
+  p_user uuid
+)
+returns table (
+  out_role public.member_role,
+  out_requester_mode public.requisition_requester_mode,
+  out_requester_limit numeric,
+  out_approver_limit numeric
+)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_actor_role public.member_role;
+begin
+  if v_actor is null or p_tenant is distinct from public.jwt_tenant_id() then
+    raise exception 'authority_read_forbidden';
+  end if;
+
+  select m.role into v_actor_role
+  from public.tenant_members m
+  where m.tenant_id = p_tenant and m.user_id = v_actor;
+  if not found then raise exception 'authority_read_forbidden'; end if;
+  if p_user is distinct from v_actor and v_actor_role not in ('owner', 'manager') then
+    raise exception 'authority_read_forbidden';
+  end if;
+
+  return query
+  select m.role, a.requester_mode, a.requester_limit, a.approver_limit
+  from public.tenant_members m
+  join public.tenant_member_requisition_authority a
+    on a.tenant_id = m.tenant_id and a.user_id = m.user_id
+  where m.tenant_id = p_tenant and m.user_id = p_user
+  for share of m, a;
+end;
+$$;
+
+revoke all on function public.lock_member_requisition_authority(uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.lock_member_requisition_authority(uuid, uuid) to authenticated;
+
+comment on function public.lock_member_requisition_authority(uuid, uuid) is
+  'JWT-tenant-pinned membership and requisition-authority read with a FOR SHARE lock for authenticated INVOKER workflows.';
+
+create or replace function public.submit_requisition(
+  p_tenant uuid,
+  p_requisition uuid
+)
+returns table (out_status text, out_reason text, out_auto_approved boolean)
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_actor_role public.member_role;
+  v_req record;
+  v_requester_role public.member_role;
+  v_mode public.requisition_requester_mode := 'always_require_approval';
+  v_limit numeric;
+  v_total numeric;
+  v_reason text;
+  v_auto boolean := false;
+  v_snapshot jsonb;
+begin
+  if v_actor is null or public.jwt_tenant_id() is distinct from p_tenant then
+    raise exception 'submission_forbidden';
+  end if;
+
+  select a.out_role into v_actor_role
+  from public.lock_member_requisition_authority(p_tenant, v_actor) a;
+  if not found or v_actor_role not in ('owner', 'manager', 'planner') then
+    raise exception 'submission_forbidden';
+  end if;
+
+  select r.id, r.status, r.location_id, r.requested_by_user_id,
+         r.award_version, r.is_current_version
+  into v_req
+  from public.requisitions r
+  where r.tenant_id = p_tenant and r.id = p_requisition
+  for update;
+  if not found then raise exception 'requisition_not_found'; end if;
+  if not public.can_access_location(v_req.location_id) then
+    raise exception 'location_access_forbidden';
+  end if;
+  if not v_req.is_current_version then raise exception 'requisition_superseded'; end if;
+  if v_req.status not in ('draft', 'rejected') then raise exception 'not_submittable'; end if;
+  if v_req.requested_by_user_id is null then raise exception 'requester_required'; end if;
+
+  select a.out_role, a.out_requester_mode, a.out_requester_limit
+  into v_requester_role, v_mode, v_limit
+  from public.lock_member_requisition_authority(p_tenant, v_req.requested_by_user_id) a;
+  if not found then raise exception 'requester_not_member'; end if;
+
+  perform 1 from public.requisition_lines rl
+  where rl.tenant_id = p_tenant and rl.requisition_id = p_requisition
+  for update;
+  if not found or exists (
+    select 1 from public.requisition_lines rl
+    where rl.tenant_id = p_tenant and rl.requisition_id = p_requisition
+      and rl.unit_cost is null
+  ) then raise exception 'costed_lines_required'; end if;
+
+  select round(sum(rl.qty * rl.unit_cost), 2) into v_total
+  from public.requisition_lines rl
+  where rl.tenant_id = p_tenant and rl.requisition_id = p_requisition;
+  if v_total is null then raise exception 'costed_lines_required'; end if;
+
+  if v_mode = 'auto_approve_unlimited' then
+    v_auto := true;
+    v_reason := 'unlimited_requester_authority';
+  elsif v_mode = 'auto_approve_to_limit' and v_total <= v_limit then
+    v_auto := true;
+    v_reason := 'within_requester_limit';
+  elsif v_mode = 'auto_approve_to_limit' then
+    v_reason := 'requester_limit_exceeded';
+  else
+    v_reason := 'approval_required_by_policy';
+  end if;
+
+  v_snapshot := jsonb_build_object(
+    'decision_actor', 'system',
+    'requester_user_id', v_req.requested_by_user_id,
+    'requester_role', v_requester_role,
+    'requester_mode', v_mode,
+    'requester_limit', v_limit,
+    'evaluated_total', v_total,
+    'award_version', v_req.award_version,
+    'evaluated_at', now()
+  );
+
+  perform set_config('app.requisition_policy_transition', 'on', true);
+  update public.requisitions r
+  set status = case when v_auto then 'approved' else 'submitted' end::public.requisition_status,
+      total = v_total,
+      approved_by_user_id = null,
+      decided_at = case when v_auto then now() else null end,
+      rejection_note = null,
+      approval_reason = v_reason,
+      approval_policy_snapshot = v_snapshot
+  where r.tenant_id = p_tenant and r.id = p_requisition;
+  perform set_config('app.requisition_policy_transition', 'off', true);
+
+  return query select case when v_auto then 'approved' else 'submitted' end, v_reason, v_auto;
+end;
+$$;
+
+create or replace function public.decide_requisition(
+  p_tenant uuid,
+  p_requisition uuid,
+  p_decision text,
+  p_rejection_note text default null
+)
+returns table (out_status text)
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_req record;
+  v_actor uuid := auth.uid();
+  v_actor_role public.member_role;
+  v_approver_limit numeric;
+begin
+  if p_decision not in ('approved', 'rejected') then raise exception 'bad_decision'; end if;
+  if v_actor is null or public.jwt_tenant_id() is distinct from p_tenant then
+    raise exception 'approval_forbidden';
+  end if;
+
+  select a.out_role, a.out_approver_limit
+  into v_actor_role, v_approver_limit
+  from public.lock_member_requisition_authority(p_tenant, v_actor) a;
+  if not found or v_actor_role not in ('owner', 'manager') then
+    raise exception 'approval_forbidden';
+  end if;
+
+  select r.id, r.status, r.location_id, r.total, r.requested_by_user_id, r.is_current_version
+  into v_req
+  from public.requisitions r
+  where r.tenant_id = p_tenant and r.id = p_requisition
+  for update;
+  if not found then raise exception 'requisition_not_found'; end if;
+  if not public.can_access_location(v_req.location_id) then raise exception 'location_access_forbidden'; end if;
+  if not v_req.is_current_version then raise exception 'requisition_superseded'; end if;
+  if v_req.status <> 'submitted' then raise exception 'not_submitted'; end if;
+  if v_req.requested_by_user_id is null or v_actor = v_req.requested_by_user_id then
+    raise exception 'self_approval_forbidden';
+  end if;
+  if p_decision = 'rejected' and nullif(btrim(coalesce(p_rejection_note, '')), '') is null then
+    raise exception 'rejection_note_required';
+  end if;
+
+  if p_decision = 'approved'
+     and v_approver_limit is not null
+     and coalesce(v_req.total, 0) > v_approver_limit then
+    raise exception 'approval_over_authority';
+  end if;
+
+  perform set_config('app.requisition_decision_in_progress', 'on', true);
+  update public.requisitions
+  set status = p_decision::public.requisition_status,
+      approved_by_user_id = v_actor,
+      decided_at = now(),
+      rejection_note = case when p_decision = 'rejected' then btrim(p_rejection_note) else null end
+  where tenant_id = p_tenant and id = p_requisition;
+  perform set_config('app.requisition_decision_in_progress', 'off', true);
+  return query select p_decision;
+end;
+$$;
+
+revoke all on function public.submit_requisition(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.decide_requisition(uuid, uuid, text, text)
+  from public, anon, authenticated, service_role;
+grant execute on function public.submit_requisition(uuid, uuid) to authenticated;
+grant execute on function public.decide_requisition(uuid, uuid, text, text) to authenticated;
 
 -- The current conversion implementation needs a one-shot lifecycle token for
 -- the approved -> converted edge introduced above.
@@ -367,6 +589,175 @@ begin
   perform set_config('app.requisition_conversion_in_progress', 'off', true);
 end;
 $$;
+
+-- R2-F3 Option A: reorder recommendations enter the same requisition spend
+-- spine as every other user-requested purchase. The authenticated converter is
+-- the requester. Submission evaluates current authority in the same
+-- transaction; only auto-approved requests immediately fan out to a PO.
+alter table public.reorder_recommendations
+  add column requisition_id uuid;
+
+alter table public.reorder_recommendations
+  add constraint reorder_recommendations_requisition_id_fkey
+  foreign key (tenant_id, requisition_id)
+  references public.requisitions (tenant_id, id) on delete set null (requisition_id);
+
+create index reorder_recommendations_requisition_idx
+  on public.reorder_recommendations (tenant_id, requisition_id)
+  where requisition_id is not null;
+
+drop function public.convert_recommendations_to_po(uuid, uuid[]);
+
+create function public.convert_recommendations_to_requisition(
+  p_tenant uuid,
+  p_recommendation_ids uuid[]
+)
+returns table (
+  out_requisition_id uuid,
+  out_approval_status text,
+  out_approval_reason text,
+  out_auto_approved boolean,
+  out_po_id uuid,
+  out_line_count int
+)
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_actor_role public.member_role;
+  v_supplier uuid;
+  v_location uuid;
+  v_open int;
+  v_distinct_supplier int;
+  v_distinct_location int;
+  v_null_supplier int;
+  v_req uuid;
+  v_line_no int := 0;
+  v_total numeric := 0;
+  v_submit record;
+  v_po uuid;
+  v_po_lines int;
+  r record;
+  v_cost numeric;
+  v_purchase_uom text;
+  v_factor numeric;
+  v_ordered numeric;
+begin
+  if v_actor is null or p_tenant is distinct from public.jwt_tenant_id() then
+    raise exception 'reorder_conversion_forbidden';
+  end if;
+  select a.out_role into v_actor_role
+  from public.lock_member_requisition_authority(p_tenant, v_actor) a;
+  if not found or v_actor_role not in ('owner', 'manager', 'planner') then
+    raise exception 'reorder_conversion_forbidden';
+  end if;
+  if p_recommendation_ids is null or coalesce(array_length(p_recommendation_ids, 1), 0) = 0 then
+    raise exception 'no_recommendations';
+  end if;
+
+  perform 1 from public.reorder_recommendations rr
+  where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids)
+  for update;
+
+  select count(*) filter (where rr.status = 'open'),
+         count(distinct rr.supplier_id),
+         count(*) filter (where rr.supplier_id is null),
+         count(distinct rr.location_id)
+  into v_open, v_distinct_supplier, v_null_supplier, v_distinct_location
+  from public.reorder_recommendations rr
+  where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids);
+
+  if v_open = 0 then raise exception 'no_recommendations'; end if;
+  if v_open <> array_length(p_recommendation_ids, 1) then raise exception 'not_open'; end if;
+  if v_distinct_supplier = 0 or v_null_supplier > 0 then raise exception 'no_supplier'; end if;
+  if v_distinct_supplier <> 1 then raise exception 'mixed_supplier'; end if;
+  if v_distinct_location <> 1 then raise exception 'mixed_location'; end if;
+
+  select rr.supplier_id, rr.location_id into v_supplier, v_location
+  from public.reorder_recommendations rr
+  where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids)
+  limit 1;
+  if not public.can_access_location(v_location) then raise exception 'location_access_forbidden'; end if;
+
+  for r in
+    select rr.id, rr.product_id, rr.recommended_qty
+    from public.reorder_recommendations rr
+    where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids)
+    order by rr.product_id
+  loop
+    select ps.unit_cost, ps.purchase_uom, coalesce(ps.purchase_to_stock_factor, 1)
+    into v_cost, v_purchase_uom, v_factor
+    from public.product_suppliers ps
+    where ps.tenant_id = p_tenant
+      and ps.product_id = r.product_id
+      and ps.supplier_id = v_supplier
+    limit 1;
+    if not found or v_cost is null then raise exception 'costed_lines_required'; end if;
+    v_ordered := r.recommended_qty / v_factor;
+    v_total := v_total + v_ordered * v_cost;
+  end loop;
+
+  insert into public.requisitions
+    (tenant_id, location_id, source_rfq_id, requested_by_user_id, total)
+  values (p_tenant, v_location, null, v_actor, round(v_total, 2))
+  returning id into v_req;
+
+  for r in
+    select rr.id, rr.product_id, rr.recommended_qty
+    from public.reorder_recommendations rr
+    where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids)
+    order by rr.product_id
+  loop
+    v_line_no := v_line_no + 1;
+    select ps.unit_cost, ps.purchase_uom, coalesce(ps.purchase_to_stock_factor, 1)
+    into v_cost, v_purchase_uom, v_factor
+    from public.product_suppliers ps
+    where ps.tenant_id = p_tenant
+      and ps.product_id = r.product_id
+      and ps.supplier_id = v_supplier
+    limit 1;
+    v_ordered := r.recommended_qty / v_factor;
+
+    insert into public.requisition_lines
+      (tenant_id, requisition_id, line_no, product_id, supplier_id, qty, unit_cost,
+       purchase_uom, purchase_to_stock_factor)
+    values
+      (p_tenant, v_req, v_line_no, r.product_id, v_supplier, v_ordered, v_cost,
+       v_purchase_uom, v_factor);
+  end loop;
+
+  update public.reorder_recommendations rr
+  set status = 'converted', requisition_id = v_req, updated_at = now()
+  where rr.tenant_id = p_tenant and rr.id = any(p_recommendation_ids);
+
+  select s.out_status, s.out_reason, s.out_auto_approved
+  into v_submit
+  from public.submit_requisition(p_tenant, v_req) s;
+
+  if v_submit.out_auto_approved then
+    select c.out_po_id, c.out_line_count into v_po, v_po_lines
+    from public.convert_requisition_to_po(p_tenant, v_req) c;
+  end if;
+
+  return query select
+    v_req,
+    v_submit.out_status,
+    v_submit.out_reason,
+    v_submit.out_auto_approved,
+    v_po,
+    coalesce(v_po_lines, v_line_no);
+end;
+$$;
+
+revoke all on function public.convert_recommendations_to_requisition(uuid, uuid[])
+  from public, anon, authenticated, service_role;
+grant execute on function public.convert_recommendations_to_requisition(uuid, uuid[])
+  to authenticated;
+
+comment on function public.convert_recommendations_to_requisition(uuid, uuid[]) is
+  'Atomically converts same-supplier/location recommendations into a submitted requisition under the converter authority policy; only auto-approved requests immediately create a linked PO.';
 
 -- B2 chosen contract: a PO can commit in-transit only when it came from an
 -- approved, current requisition. Conversion changes

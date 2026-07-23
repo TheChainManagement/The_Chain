@@ -174,6 +174,22 @@ describe('member requisition authority administration', () => {
     ).rejects.toThrow(/permission denied|row-level security/i);
     await client.query('rollback to savepoint direct_policy_write');
   });
+
+  it('locks authority through a tenant-pinned self-or-privileged helper', async () => {
+    await actAs(client, { sub: PLANNER, tenant_id: T, role: 'planner' });
+    expect(
+      await one<{ out_role: string }>(
+        'select * from lock_member_requisition_authority($1, $2)',
+        [T, PLANNER],
+      ),
+    ).toMatchObject({ out_role: 'planner' });
+
+    await client.query('savepoint cross_member_authority');
+    await expect(
+      client.query('select * from lock_member_requisition_authority($1, $2)', [T, OWNER]),
+    ).rejects.toThrow('authority_read_forbidden');
+    await client.query('rollback to savepoint cross_member_authority');
+  });
 });
 
 describe('submit_requisition policy evaluation', () => {
@@ -512,5 +528,27 @@ describe('human approver authority', () => {
       { proname: 'decide_requisition', security_definer: false },
       { proname: 'submit_requisition', security_definer: false },
     ]);
+
+    const helper = await one<{
+      security_definer: boolean;
+      authenticated_execute: boolean;
+      service_execute: boolean;
+    }>(
+      `select p.prosecdef security_definer,
+              has_function_privilege(
+                'authenticated', 'lock_member_requisition_authority(uuid,uuid)', 'execute'
+              ) authenticated_execute,
+              has_function_privilege(
+                'service_role', 'lock_member_requisition_authority(uuid,uuid)', 'execute'
+              ) service_execute
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'lock_member_requisition_authority'`,
+    );
+    expect(helper).toEqual({
+      security_definer: true,
+      authenticated_execute: true,
+      service_execute: false,
+    });
   });
 });

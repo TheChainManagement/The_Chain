@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { convertRecommendationsToPo } from '@/lib/reorder/convert';
+import { convertRecommendationsToPurchaseRequest } from '@/lib/reorder/convert';
 import { generateReorderRecommendations } from '@/lib/reorder/generate';
 import { loadReorderQueue } from '@/lib/reorder/queue';
 
@@ -8,9 +8,8 @@ import { loadReorderQueue } from '@/lib/reorder/queue';
  * Reorder generation + convert (Block 11) against the real local Supabase.
  * Proves: a breach (position ≤ reorder point) writes an open recommendation
  * with reason; recovery expires it; regeneration updates in place (no dupes);
- * and convert promotes a same-supplier set to one draft PO with lines, marking
- * the recommendations converted (and rejecting a double-convert). Requires
- * `supabase start`.
+ * and conversion submits a same-supplier set through the requisition authority
+ * policy before any PO exists. Requires `supabase start`.
  */
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
@@ -24,6 +23,8 @@ const EMAIL = 'it-reorder@bayou-it.example';
 let tenantId: string;
 let supplierId: string;
 let locationId: string;
+let userId: string;
+let memberClient: SupabaseClient;
 const productIds = {} as Record<'breached' | 'healthy' | 'stockout', string>;
 
 async function findUserId(email: string): Promise<string | undefined> {
@@ -86,14 +87,15 @@ beforeAll(async () => {
     password: 'integration-pw',
     email_confirm: true,
   });
-  const client = createClient(URL, ANON, {
+  memberClient = createClient(URL, ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  await client.auth.signInWithPassword({ email: EMAIL, password: 'integration-pw' });
-  await client.rpc('bootstrap_tenant', { p_business_name: 'Reorder Co' });
-  await client.auth.refreshSession();
-  const { data } = await client.auth.getClaims();
+  await memberClient.auth.signInWithPassword({ email: EMAIL, password: 'integration-pw' });
+  await memberClient.rpc('bootstrap_tenant', { p_business_name: 'Reorder Co' });
+  await memberClient.auth.refreshSession();
+  const { data } = await memberClient.auth.getClaims();
   tenantId = data?.claims?.tenant_id as string;
+  userId = data?.claims?.sub as string;
 
   const { data: loc } = await admin
     .from('locations')
@@ -117,6 +119,8 @@ afterAll(async () => {
   if (tenantId) {
     await admin.from('purchase_order_lines').delete().eq('tenant_id', tenantId);
     await admin.from('purchase_orders').delete().eq('tenant_id', tenantId);
+    await admin.from('requisition_lines').delete().eq('tenant_id', tenantId);
+    await admin.from('requisitions').delete().eq('tenant_id', tenantId);
     await admin.from('reorder_recommendations').delete().eq('tenant_id', tenantId);
     await admin.from('inventory_policy').delete().eq('tenant_id', tenantId);
     await admin.from('inventory_levels').delete().eq('tenant_id', tenantId);
@@ -189,7 +193,7 @@ describe('generateReorderRecommendations', () => {
     expect(count).toBe(0);
   });
 
-  it('convert promotes a same-supplier set to one draft PO and marks them converted', async () => {
+  it('default spend policy queues a requisition and creates no PO', async () => {
     // The stockout SKU is still open; add its id.
     const { data: open } = await admin
       .from('reorder_recommendations')
@@ -200,28 +204,98 @@ describe('generateReorderRecommendations', () => {
     const ids = (open ?? []).map((r) => r.id);
     expect(ids.length).toBeGreaterThan(0);
 
-    const res = await convertRecommendationsToPo(admin, { tenantId, recommendationIds: ids });
+    const res = await convertRecommendationsToPurchaseRequest(memberClient, {
+      tenantId,
+      recommendationIds: ids,
+    });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
+    expect(res).toMatchObject({
+      approvalStatus: 'submitted',
+      reason: 'approval_required_by_policy',
+      autoApproved: false,
+      poId: null,
+    });
+
+    const { data: requisition } = await admin
+      .from('requisitions')
+      .select('status, requested_by_user_id, approval_reason')
+      .eq('id', res.requisitionId)
+      .single<{
+        status: string;
+        requested_by_user_id: string;
+        approval_reason: string;
+      }>();
+    expect(requisition).toMatchObject({
+      status: 'submitted',
+      requested_by_user_id: userId,
+      approval_reason: 'approval_required_by_policy',
+    });
+
+    const { count: poCount } = await admin
+      .from('purchase_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('requisition_id', res.requisitionId);
+    expect(poCount).toBe(0);
+
+    // The recommendations are now converted (can't be re-converted).
+    const again = await convertRecommendationsToPurchaseRequest(memberClient, {
+      tenantId,
+      recommendationIds: ids,
+    });
+    expect(again.ok).toBe(false);
+  });
+
+  it('auto-approved reorder request creates an approvable linked PO end to end', async () => {
+    await admin.from('inventory_levels').update({ on_hand: 0 }).eq('product_id', productIds.healthy);
+    await generateReorderRecommendations(admin, {
+      tenantId,
+      productIds: [productIds.healthy],
+    });
+    const { data: open } = await admin
+      .from('reorder_recommendations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('product_id', productIds.healthy)
+      .eq('status', 'open')
+      .returns<{ id: string }[]>();
+    const ids = (open ?? []).map((row) => row.id);
+    expect(ids).toHaveLength(1);
+
+    const { error: authorityError } = await memberClient.rpc('set_member_requisition_authority', {
+      p_tenant: tenantId,
+      p_member: userId,
+      p_requester_mode: 'auto_approve_to_limit',
+      p_requester_limit: 250,
+      p_approver_limit: null,
+    });
+    expect(authorityError).toBeNull();
+    const res = await convertRecommendationsToPurchaseRequest(memberClient, {
+      tenantId,
+      recommendationIds: ids,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok || !res.poId) return;
+    expect(res).toMatchObject({
+      approvalStatus: 'approved',
+      reason: 'within_requester_limit',
+      autoApproved: true,
+    });
 
     const { data: po } = await admin
       .from('purchase_orders')
-      .select('status, supplier_id, total')
+      .select('status, requisition_id')
       .eq('id', res.poId)
-      .single<{ status: string; supplier_id: string; total: string | number }>();
-    expect(po?.status).toBe('draft');
-    expect(po?.supplier_id).toBe(supplierId);
-    expect(Number(po?.total)).toBeGreaterThan(0);
+      .single<{ status: string; requisition_id: string }>();
+    expect(po).toEqual({ status: 'draft', requisition_id: res.requisitionId });
 
-    const { count: lineCount } = await admin
-      .from('purchase_order_lines')
-      .select('line_no', { count: 'exact', head: true })
-      .eq('po_id', res.poId);
-    expect(lineCount).toBe(ids.length);
-
-    // The recommendations are now converted (can't be re-converted).
-    const again = await convertRecommendationsToPo(admin, { tenantId, recommendationIds: ids });
-    expect(again.ok).toBe(false);
+    const { data: approved, error } = await admin.rpc('apply_po_approval', {
+      p_tenant: tenantId,
+      p_po: res.poId,
+      p_target_status: 'exported',
+    });
+    expect(error).toBeNull();
+    expect(approved?.[0]).toMatchObject({ out_status: 'exported', out_applied: true });
   });
 
   it('partitions by location: same supplier + two locations cannot be co-converted', async () => {
@@ -263,7 +337,7 @@ describe('generateReorderRecommendations', () => {
 
     // A cross-location set is rejected by the convert contract.
     const crossIds = stockoutGroups.flatMap((g) => g.rows.map((r) => r.id));
-    const res = await convertRecommendationsToPo(admin, {
+    const res = await convertRecommendationsToPurchaseRequest(memberClient, {
       tenantId,
       recommendationIds: crossIds,
     });
