@@ -4,11 +4,48 @@ LAST_REVIEWED: 2026-07-22
 
 ## Current checkpoint
 
-W3-0 through W3-5 plus checkpoint fix round 1 are built on `codex/w3-role-spine`. W3-2 received a security review and
+W3-0 through W3-5 plus checkpoint fix rounds 1 and 2 are built on `codex/w3-role-spine`. W3-2 received a security review and
 hardening pass; W3-3 adds database-enforced per-location assignments and Team controls; W3-4 adds
 the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-configured requester
 automatic approval and human approver ceilings over the existing requisition trail. The final
 six-role production gate is next after the MG/Claude re-check.
+
+## W3 checkpoint fix round 2 - 2026-07-22
+
+- R2-F1 keeps `submit_requisition()` SECURITY INVOKER and replaces its service-only location
+  helper call with caller-pinned `can_access_location(uuid)`.
+- R2-F2 adds `lock_member_requisition_authority()`, a narrow SECURITY DEFINER helper with an empty
+  search path, JWT tenant pinning, self-or-owner/manager visibility, current membership reads, and
+  the authority row locks that authenticated INVOKER RPCs cannot take directly. Submit and decide
+  consume the helper while retaining their inline gates.
+- R2-F3 implements MG-confirmed Option A. Reorder conversion now creates and submits a requisition
+  through the W3-5 authority policy. Within-authority requests auto-approve and create a linked PO;
+  other requests queue for human approval with no PO. The B2 approval-evidence gate therefore has
+  no reorder exemption.
+- `20260722120000_w3_checkpoint_fix_round1.sql` was amended in place because it has never reached
+  production or main.
+
+The prompt forbids applying migrations to any database, so this round is not claimed as verified
+against a replayed schema. Static checks and the migration-independent suite are recorded in
+`_reviews/2026-07-22_w3_checkpoint_fix_round2_evidence.md`. Production remains `362137d`. Stop here
+for the MG/Claude replay and re-check.
+
+## Claude independent re-check of fix round 2 - 2026-07-22: NO-GO (round 3, one small blocker)
+
+Claude replayed the amended migration (clean `supabase db reset`) and ran the full real-DB
+suite. All three round-2 asks are CONFIRMED FIXED: R2-F1 (caller-pinned location check),
+R2-F2 (`lock_member_requisition_authority` definer lock helper; submit/decide stay INVOKER),
+R2-F3 (Option A verified - reorder conversion rides the requisition spine, PO only on
+auto-approval, no B2 exemption, UI routes correctly). tsc/biome/craft pass; zero-balance
+invariant intact.
+
+Remaining: 27 tests red in 5 files, ONE root - R3-F1: the round-1
+`enforce_requisition_update` tail guard raises `decision_metadata_guarded` on the
+sanctioned policy/human transitions (it lacks the `v_policy_transition`/`v_human_transition`
+exemption), so every auto-approval and human decision fails. Round-1 permission blockers had
+masked it. Fix is a few lines. Verdict:
+`_reviews/2026-07-22_w3_checkpoint_fix_round2_claude_verdict.md`. Round-3 prompt:
+`_codex/FIX_W3_CHECKPOINT_ROUND3.md`. Prod stays `362137d`; merge gate closed.
 
 ## W3 checkpoint fix round 1 - 2026-07-22
 
