@@ -1,4 +1,4 @@
--- The Chain - W3 checkpoint fix rounds 1 and 2.
+-- The Chain - W3 checkpoint fix rounds 1 through 3.
 -- B1 requester binding, B2 PO approval evidence, B3 lifecycle whitelist,
 -- B4 current-role execution checks, and B5 invoker restoration.
 -- Documents remain zero-balance writers. Inventory changes stay in the
@@ -269,8 +269,11 @@ begin
     new.rejection_note := null;
     new.approval_reason := null;
     new.approval_policy_snapshot := null;
-  elsif new.approved_by_user_id is distinct from old.approved_by_user_id
-     or new.decided_at is distinct from old.decided_at then
+  elsif (
+    new.approved_by_user_id is distinct from old.approved_by_user_id
+    or new.decided_at is distinct from old.decided_at
+    or new.rejection_note is distinct from old.rejection_note
+  ) and not v_policy_transition and not v_human_transition then
     raise exception 'decision_metadata_guarded';
   end if;
 

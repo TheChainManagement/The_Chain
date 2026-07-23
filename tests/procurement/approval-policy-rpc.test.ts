@@ -483,6 +483,27 @@ describe('human approver authority', () => {
     ).rejects.toThrow('bad_requisition_transition');
     await client.query('rollback to savepoint patch_converted');
 
+    await client.query('savepoint patch_decided_at');
+    await expect(
+      client.query('update requisitions set decided_at = now() where id = $1', [draft]),
+    ).rejects.toThrow('decision_metadata_guarded');
+    await client.query('rollback to savepoint patch_decided_at');
+
+    await client.query('savepoint patch_approver');
+    await expect(
+      client.query('update requisitions set approved_by_user_id = $1 where id = $2', [
+        MANAGER,
+        draft,
+      ]),
+    ).rejects.toThrow('decision_metadata_guarded');
+    await client.query('rollback to savepoint patch_approver');
+
+    await client.query('savepoint patch_rejection_note');
+    await expect(
+      client.query(`update requisitions set rejection_note = 'forged' where id = $1`, [draft]),
+    ).rejects.toThrow('decision_metadata_guarded');
+    await client.query('rollback to savepoint patch_rejection_note');
+
     await client.query('select * from submit_requisition($1, $2)', [T, draft]);
     await actAs(client, { sub: MANAGER, tenant_id: T, role: 'manager' });
     await client.query(`select * from decide_requisition($1, $2, 'rejected', 'revise')`, [
