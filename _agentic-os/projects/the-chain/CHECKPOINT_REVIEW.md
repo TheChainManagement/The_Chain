@@ -1,14 +1,46 @@
 # The Chain checkpoint review
 
-LAST_REVIEWED: 2026-07-22
+LAST_REVIEWED: 2026-07-23
 
 ## Current checkpoint
 
-W3-0 through W3-5 plus checkpoint fix rounds 1 through 3 are built on `codex/w3-role-spine`. W3-2 received a security review and
+W3-0 through W3-5 plus checkpoint fix rounds 1 through 4 are built on `codex/w3-role-spine`. W3-2 received a security review and
 hardening pass; W3-3 adds database-enforced per-location assignments and Team controls; W3-4 adds
 the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-configured requester
 automatic approval and human approver ceilings over the existing requisition trail. The final
 six-role production gate is next after the MG/Claude re-check.
+
+## Claude re-check of fix round 4 - 2026-07-23 - VERDICT: GO, FULL GREEN
+
+Independent verification (gates re-run, report not trusted): clean `supabase db reset`
+replays through the amended `20260722120000` migration; `npx vitest run` = **140 files /
+992 tests, ZERO red**; tsc, biome (366 files), craft guard, and production build all
+pass. R4-F1/F2/F3 each verified against the diff and the fresh schema. Zero-balance
+invariant intact (round-4 changes write only requisition document tables; the
+`in_transit` write in the file belongs to the pre-existing `apply_po_approval` seam,
+untouched this round). Fix rounds are CLOSED. Verdict:
+`_reviews/2026-07-23_w3_checkpoint_fix_round4_claude_verdict.md`. NEXT = the
+eight-migration MG merge gate (order listed in the verdict), then prod verification.
+
+## W3 checkpoint fix round 4 - 2026-07-23
+
+- R4-F1 keeps reorder requisition-line UoM snapshots paired. A missing purchase UoM now stores
+  null UoM and null factor while arithmetic alone uses factor 1. Both conversion loops use the
+  same normalization.
+- The real-database reorder test now proves a UoM-less supplier link converts successfully with a
+  null/null snapshot pair, stock-unit quantity, correct total, and no PO under default policy.
+- R4-F2 retains the authenticated direct-PO bypass rejection, then applies the valid converted PO
+  through the production-shaped superuser seam and proves `in_transit` moves.
+- R4-F3 expects the stricter B1 cross-tenant error and separately preserves the own-tenant plus
+  foreign-location not-found probe.
+- `20260722120000_w3_checkpoint_fix_round1.sql` was amended in place as required. No RLS policy
+  was relaxed.
+
+No migration was applied. The round-3-schema suite passed 139 files and 986 tests with only the
+new migration-dependent reorder file excluded; the two corrected database test files passed all
+26 tests. Full replay expectations are recorded in
+`_reviews/2026-07-23_w3_checkpoint_fix_round4_evidence.md`. Production remains `362137d`; the
+eight-migration merge gate remains closed pending the MG/Claude re-check.
 
 ## W3 checkpoint fix round 3 - 2026-07-22
 
