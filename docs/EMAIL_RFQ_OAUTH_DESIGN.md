@@ -813,6 +813,11 @@ production approval merely because an earlier slice passed.
 
 ## 16. Decisions for MG
 
+**SIGNED OFF 2026-07-24 (MG): all twelve recommendations ratified as written.** MG read 16.1
+through 16.12 and accepted every recommendation without modification. Each recommendation below
+is now a contract for implementation. Any later change to one of these items requires a new
+dated MG decision recorded here.
+
 Every item below gates implementation. The recommendation becomes a contract only after MG signs
 it off.
 
