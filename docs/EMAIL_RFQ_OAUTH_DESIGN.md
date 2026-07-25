@@ -5,8 +5,9 @@ It is based on Decision 2 in `_reviews/2026-07-15_w2_fast_follow_decisions.md`, 
 RFQ and Wave 3 access code on `main` at `7ba2c3b`, and the current official Google and
 Microsoft provider documentation linked below.*
 
-*Status: **DRAFT - MG DECISIONS REQUIRED.** No application code or migration is authorized
-until MG locks every decision in §16 and Claude completes the independent design audit.*
+*Status: **DESIGN LOCKED 2026-07-24.** MG ratified all twelve §16 decisions as written
+(sign-off block at the top of §16). Recommendations 16.1 through 16.12 are binding contracts
+for implementation. Slice 1 (E0) is authorized per `_codex/PROMPT_EMAILRFQ_SLICE1.md`.*
 
 ## 1. Outcome and non-negotiable contract
 
