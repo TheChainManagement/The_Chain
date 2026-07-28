@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useEffect, useMemo, useState, useTransition } from 'react';
 import { createRfqFromRecommendations } from '@/app/(app)/procurement/actions';
 import { ActionButton } from '@/components/ActionButton/ActionButton';
 import { StatNumber } from '@/components/StatNumber/StatNumber';
@@ -39,41 +39,63 @@ export function ReorderQueue({
 }): ReactNode {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   // Show the location on every group when the tenant works more than one.
   const multiLocation = new Set(groups.map((g) => g.locationId)).size > 1;
-  const selectedCount = selected.size;
+  const visibleRowIds = useMemo(
+    () => new Set(groups.flatMap((group) => group.rows.map((row) => row.id))),
+    [groups],
+  );
+  const visibleSelected = useMemo(
+    () => new Set([...selected].filter((id) => visibleRowIds.has(id))),
+    [selected, visibleRowIds],
+  );
+  const selectedGroup = useMemo(() => {
+    const selectedId = visibleSelected.values().next().value;
+    if (!selectedId) return null;
+    const group = groups.find((candidate) => candidate.rows.some((row) => row.id === selectedId));
+    return group ? reorderGroupKey(group) : null;
+  }, [groups, visibleSelected]);
+  const selectedCount = visibleSelected.size;
+
+  useEffect(() => {
+    if (visibleSelected.size !== selected.size) {
+      setSelected(visibleSelected);
+    }
+  }, [selected.size, visibleSelected]);
+
+  function clearSelection() {
+    setSelected(new Set());
+  }
 
   function toggle(group: ReorderGroup, rowId: string) {
     const groupKey = reorderGroupKey(group);
     setError(null);
-    setSelected((prev) => {
-      // Switching groups starts a fresh single-vendor, single-location request.
-      const base = groupKey === selectedGroup ? new Set(prev) : new Set<string>();
-      if (base.has(rowId)) base.delete(rowId);
-      else base.add(rowId);
-      setSelectedGroup(base.size > 0 ? groupKey : null);
-      return base;
-    });
+    // Switching groups starts a fresh single-vendor, single-location request.
+    const next = groupKey === selectedGroup ? new Set(visibleSelected) : new Set<string>();
+    if (next.has(rowId)) next.delete(rowId);
+    else next.add(rowId);
+    setSelected(next);
   }
 
   function selectAll(group: ReorderGroup) {
     setError(null);
-    setSelectedGroup(reorderGroupKey(group));
     setSelected(new Set(group.rows.map((r) => r.id)));
   }
 
   function convert() {
     setError(null);
     startTransition(async () => {
-      const res = await submitSelectedPurchaseRequest({ recommendationIds: [...selected] });
+      const res = await submitSelectedPurchaseRequest({
+        recommendationIds: [...visibleSelected],
+      });
       if (!res.ok) {
         setError(res.error);
         return;
       }
+      clearSelection();
       const href =
         res.destination === 'purchase_order'
           ? `/purchase-orders/${res.poId}`
@@ -87,11 +109,14 @@ export function ReorderQueue({
   function requestQuotes() {
     setError(null);
     startTransition(async () => {
-      const res = await createRfqFromRecommendations({ recommendationIds: [...selected] });
+      const res = await createRfqFromRecommendations({
+        recommendationIds: [...visibleSelected],
+      });
       if (!res?.ok) {
         setError(res?.error ?? 'Could not open the quote request.');
         return;
       }
+      clearSelection();
       router.push(locationHref(`/procurement/rfqs/${res.rfqId}`, locationId));
     });
   }
@@ -130,7 +155,7 @@ export function ReorderQueue({
                 <ReorderRowItem
                   key={row.id}
                   row={row}
-                  checked={isActiveGroup && selected.has(row.id)}
+                  checked={isActiveGroup && visibleSelected.has(row.id)}
                   disabled={!group.convertible}
                   onToggle={() => toggle(group, row.id)}
                 />

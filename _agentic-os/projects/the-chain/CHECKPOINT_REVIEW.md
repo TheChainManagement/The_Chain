@@ -1,14 +1,36 @@
 # The Chain checkpoint review
 
-LAST_REVIEWED: 2026-07-23
+LAST_REVIEWED: 2026-07-27
 
 ## Current checkpoint
 
-W3-0 through W3-5 plus checkpoint fix rounds 1 through 4 are built on `codex/w3-role-spine`. W3-2 received a security review and
-hardening pass; W3-3 adds database-enforced per-location assignments and Team controls; W3-4 adds
-the shared live 30-day plan and role-emphasized `/today`; W3-5 adds owner-configured requester
-automatic approval and human approver ceilings over the existing requisition trail. The final
-six-role production gate is next after the MG/Claude re-check.
+Wave 3 is live. MG's wave-close local test found one UI-only stale reorder-selection defect.
+The fix is built on `codex/w3-testkit-fix-reorder-selection` and is waiting for MG/Claude
+re-check. Production remains unchanged by this fix.
+
+## W3 test-kit stale reorder selection fix - 2026-07-27
+
+- `ReorderQueue` now intersects selection with IDs in the current `groups` prop for count,
+  checkbox state, purchase-request submission, and quote-request submission.
+- Stale IDs are removed from state, and `selectedGroup` is derived from the visible intersection
+  so an empty intersection clears it immediately.
+- Successful purchase-request and quote-request actions clear selection and its derived group
+  before navigation.
+- `src/lib/reorder/convert.ts` and the server-side `not_open` defense are unchanged.
+- The deterministic component regression reproduces preserved client state while A disappears,
+  then proves only visible B is counted and submitted.
+- Local seeded browser verification submitted the `$620.00` pump to a requisition, showed no
+  ghost count with only the flange remaining, and submitted the `$350.00` flange to a PO.
+- Full verification is green: 141 files, 995 tests, TypeScript, Biome, craft, and production
+  build.
+
+Evidence:
+`_reviews/2026-07-27_w3_testkit_reorder_selection_evidence.md`.
+
+The repo still has no persisted Playwright harness or reorder spec, as recorded in the evidence
+and the prior fast-follow decision. The persisted regression uses the existing Vitest/RTL
+harness; the local browser was driven through the bundled Playwright API. NEXT = MG/Claude
+re-check, including the normal-browser Back-button flow, then MG decides the merge gate.
 
 ## W3 PROD MERGE GATE EXECUTED - 2026-07-23 - WAVE 3 IS LIVE
 
